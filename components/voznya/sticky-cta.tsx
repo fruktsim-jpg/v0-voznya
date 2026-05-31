@@ -26,7 +26,7 @@ export function StickyCta() {
         >
           <button
             onClick={() =>
-              document.getElementById('join')?.scrollIntoView({ behavior: 'smooth' })
+              document.getElementById('platforms')?.scrollIntoView({ behavior: 'smooth' })
             }
             className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-base font-semibold text-primary-foreground shadow-[0_8px_40px_-6px_rgba(139,92,246,0.9)]"
           >

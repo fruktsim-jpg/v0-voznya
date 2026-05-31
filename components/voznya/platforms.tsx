@@ -25,12 +25,17 @@ const ICONS: Record<string, LucideIcon> = {
 
 export function Platforms() {
   return (
-    <section className="relative px-6 py-24 sm:py-32">
+    <section id="platforms" className="relative scroll-mt-16 px-6 py-24 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <h2 className="text-center text-4xl font-bold tracking-tight text-balance sm:text-5xl">
             Площадки <span className="text-gradient">ВОЗНИ</span>
           </h2>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <p className="mx-auto mt-5 max-w-xl text-center text-base text-muted-foreground text-pretty sm:text-lg">
+            Выбери, где тебе удобно — Telegram, Snapchat, Discord, TikTok. Все ссылки тут.
+          </p>
         </Reveal>
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,13 +1,12 @@
 'use client'
 
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Rocket, Users, MapPin, Flame } from 'lucide-react'
 import { Particles } from './particles'
 import { AnimatedCounter } from './animated-counter'
 
-function scrollToJoin() {
-  document.getElementById('join')?.scrollIntoView({ behavior: 'smooth' })
+function scrollToPlatforms() {
+  document.getElementById('platforms')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 export function Hero() {
@@ -25,36 +24,11 @@ export function Hero() {
       <Particles />
 
       <div className="relative z-10 flex flex-col items-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: 20 }}
+        <motion.h1
+          initial={{ opacity: 0, scale: 0.9, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative mb-10"
-        >
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 -z-10 scale-125 rounded-full bg-primary/40 blur-3xl"
-          />
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-          >
-            <Image
-              src="/voznya-logo.png"
-              alt="Логотип сообщества ВОЗНЯ"
-              width={150}
-              height={150}
-              priority
-              className="h-32 w-32 drop-shadow-[0_0_40px_rgba(139,92,246,0.5)] sm:h-36 sm:w-36"
-            />
-          </motion.div>
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-gradient text-6xl font-bold tracking-tight text-balance sm:text-7xl md:text-8xl"
+          className="text-gradient text-7xl font-bold tracking-tight text-balance drop-shadow-[0_0_60px_rgba(139,92,246,0.45)] sm:text-8xl md:text-9xl"
         >
           ВОЗНЯ
         </motion.h1>
@@ -86,7 +60,7 @@ export function Hero() {
           className="mt-12"
         >
           <button
-            onClick={scrollToJoin}
+            onClick={scrollToPlatforms}
             className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-[0_0_40px_-8px_rgba(139,92,246,0.8)] transition-transform hover:scale-[1.03] active:scale-95"
           >
             <span
