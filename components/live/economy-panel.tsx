@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
+import { formatCurrency } from '@/lib/pluralize'
 import type { Economy } from '@/lib/queries'
 
 export function EconomyPanel() {
@@ -9,10 +10,10 @@ export function EconomyPanel() {
 
   const cards: { emoji: string; label: string; value: string }[] = data
     ? [
-        { emoji: '💰', label: 'Общая казна', value: `${data.treasury.toLocaleString('ru-RU')} ешек` },
-        { emoji: '🏦', label: 'Средний баланс', value: `${data.avgBalance.toLocaleString('ru-RU')} ешек` },
+        { emoji: '💰', label: 'Общая казна', value: formatCurrency(data.treasury) },
+        { emoji: '🏦', label: 'Средний баланс', value: formatCurrency(data.avgBalance) },
         { emoji: '👑', label: 'Самый богатый', value: data.richest ? data.richest.name : '—' },
-        { emoji: '💸', label: 'Максимальный баланс', value: `${data.maxBalance.toLocaleString('ru-RU')} ешек` },
+        { emoji: '💸', label: 'Максимальный баланс', value: formatCurrency(data.maxBalance) },
         { emoji: '🌾', label: 'Фермеров', value: data.farmers.toLocaleString('ru-RU') },
       ]
     : []

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
+import { formatCurrency } from '@/lib/pluralize'
 import type { WeeklyEarner } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -41,7 +42,7 @@ export function WeeklyTop() {
                   {u.name}
                 </div>
                 <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
-                  +{u.earned.toLocaleString('ru-RU')} <span className="text-muted-foreground">ешек</span>
+                  +{formatCurrency(u.earned)}
                 </div>
               </motion.div>
             )

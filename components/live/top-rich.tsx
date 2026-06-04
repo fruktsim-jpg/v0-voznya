@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { titleForEarned } from '@/lib/voznya-bot'
+import { formatCurrency } from '@/lib/pluralize'
 import type { RichUser } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -54,7 +55,7 @@ export function TopRich() {
                     </div>
                   </div>
                   <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
-                    {u.balance.toLocaleString('ru-RU')} <span className="text-muted-foreground">ешек</span>
+                    {formatCurrency(u.balance)}
                   </div>
                 </motion.div>
               )
