@@ -1,8 +1,9 @@
 import { Hero } from '@/components/voznya/hero'
+import { LiveStats } from '@/components/voznya/live-stats'
 import { Platforms } from '@/components/voznya/platforms'
+import { BotEcosystem } from '@/components/voznya/bot-ecosystem'
 import { About } from '@/components/voznya/about'
 import { Features } from '@/components/voznya/features'
-import { Newcomer } from '@/components/voznya/newcomer'
 import { Bonuses } from '@/components/voznya/bonuses'
 import { FinalCta } from '@/components/voznya/final-cta'
 import { SiteFooter } from '@/components/voznya/site-footer'
@@ -12,10 +13,11 @@ export default function Page() {
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Hero />
+      <LiveStats />
       <Platforms />
+      <BotEcosystem />
       <About />
       <Features />
-      <Newcomer />
       <Bonuses />
       <FinalCta />
       <SiteFooter />

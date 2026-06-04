@@ -5,7 +5,7 @@ export const PLATFORMS = [
     name: 'Telegram',
     title: 'Telegram',
     href: TELEGRAM_GROUP,
-    description: 'Главный чат сообщества',
+    description: 'Основная площадка сообщества',
     action: 'Вступить',
     primary: true,
   },
