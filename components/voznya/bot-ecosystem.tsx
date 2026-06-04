@@ -28,7 +28,7 @@ export function BotEcosystem() {
         </Reveal>
         <Reveal delay={0.1}>
           <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground text-pretty sm:mt-5 sm:text-lg">
-            Собственная система профилей, экономики, фермы, дуэлей, кладов и рейтингов.
+            Экономика на ешках, ачивки, титулы, дуэли, ферма и рейтинги — прямо в чате.
           </p>
         </Reveal>
 

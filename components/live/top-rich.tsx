@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
+import { titleForBalance } from '@/lib/voznya-bot'
 import type { RichUser } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -15,6 +16,7 @@ export function TopRich() {
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
           <span className="text-gradient">Топ</span> богачей
         </h2>
+        <p className="mt-2 text-center text-sm text-muted-foreground">Самые богатые участники по балансу ешек</p>
 
         {error && !data ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>
@@ -30,6 +32,7 @@ export function TopRich() {
           <div className="mt-8 space-y-2.5">
             {data.map((u, i) => {
               const top3 = u.rank <= 3
+              const title = titleForBalance(u.balance)
               return (
                 <motion.div
                   key={u.rank}
@@ -44,8 +47,11 @@ export function TopRich() {
                   <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
                     {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
                   </div>
-                  <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground sm:text-base">
-                    {u.name}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-foreground sm:text-base">{u.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {title.emoji} {title.name}
+                    </div>
                   </div>
                   <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
                     {u.balance.toLocaleString('ru-RU')} <span className="text-muted-foreground">ешек</span>
