@@ -92,6 +92,7 @@ export async function getEconomy(): Promise<Economy> {
 
 export type RichUser = {
   rank: number
+  userId: number
   name: string
   balance: number
   totalEarned: number
@@ -99,12 +100,13 @@ export type RichUser = {
 
 export async function getTopRich(limit = 10): Promise<RichUser[]> {
   const rows = await query<{
+    user_id: string
     first_name: string | null
     username: string | null
     balance: string
     total_earned: string
   }>(
-    `SELECT first_name, username, balance, total_earned
+    `SELECT user_id, first_name, username, balance, total_earned
        FROM users
       ORDER BY balance DESC, user_id ASC
       LIMIT $1`,
@@ -112,6 +114,7 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
   )
   return rows.map((r, i) => ({
     rank: i + 1,
+    userId: Number(r.user_id),
     name: displayName(r.first_name, r.username),
     balance: Number(r.balance),
     totalEarned: Number(r.total_earned),
@@ -120,17 +123,19 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
 
 export type WeeklyEarner = {
   rank: number
+  userId: number
   name: string
   earned: number
 }
 
 export async function getWeeklyTop(days = 7, limit = 10): Promise<WeeklyEarner[]> {
   const rows = await query<{
+    user_id: string
     first_name: string | null
     username: string | null
     earned: string
   }>(
-    `SELECT u.first_name, u.username, SUM(t.amount) AS earned
+    `SELECT u.user_id, u.first_name, u.username, SUM(t.amount) AS earned
        FROM transactions t
        JOIN users u ON u.user_id = t.user_id
       WHERE t.amount > 0 AND t.created_at >= now() - make_interval(days => $1)
@@ -141,6 +146,7 @@ export async function getWeeklyTop(days = 7, limit = 10): Promise<WeeklyEarner[]
   )
   return rows.map((r, i) => ({
     rank: i + 1,
+    userId: Number(r.user_id),
     name: displayName(r.first_name, r.username),
     earned: Number(r.earned),
   }))
@@ -222,6 +228,146 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
       count: Number(r.messages_count),
     })),
     activity: activityRows.map((r) => ({ day: String(r.day).slice(0, 10), count: Number(r.count) })),
+  }
+}
+
+export type PlayerProfile = {
+  userId: number
+  username: string | null
+  firstName: string
+  balance: number
+  totalEarned: number
+  totalSpent: number
+  farmStreak: number
+  maxFarmStreak: number
+  duelsWon: number
+  duelsLost: number
+  treasuresFound: number
+  pidorCount: number
+  farmSuccessCount: number
+  casinoGamesCount: number
+  createdAt: string
+  achievementsUnlocked: number
+  rankInTop: number | null
+  marriage: {
+    partnerId: number
+    partnerName: string
+    marriedAt: string
+    days: number
+  } | null
+}
+
+export async function getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
+  const rows = await query<{
+    user_id: string
+    username: string | null
+    first_name: string | null
+    balance: string
+    total_earned: string
+    total_spent: string
+    farm_streak: string
+    max_farm_streak: string
+    duels_won: string
+    duels_lost: string
+    treasures_found: string
+    pidor_count: string
+    farm_success_count: string
+    casino_games_count: string
+    created_at: string
+  }>(
+    `SELECT 
+       user_id, username, first_name,
+       balance, total_earned, total_spent,
+       farm_streak, max_farm_streak,
+       duels_won, duels_lost,
+       treasures_found, pidor_count,
+       farm_success_count, casino_games_count,
+       created_at
+     FROM users
+     WHERE user_id = $1`,
+    [userId],
+  )
+
+  if (rows.length === 0) return null
+
+  const user = rows[0]
+
+  // Get achievements count
+  const achRows = await query<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM user_achievements WHERE user_id = $1`,
+    [userId],
+  )
+
+  // Get rank in top
+  const rankRows = await query<{ rank: string }>(
+    `SELECT rank FROM (
+       SELECT user_id, ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rank
+       FROM users
+     ) ranked
+     WHERE user_id = $1`,
+    [userId],
+  )
+
+  // Get marriage info
+  const marriageRows = await query<{
+    partner_id: string
+    partner_first_name: string | null
+    partner_username: string | null
+    married_at: string
+    days: string
+  }>(
+    `SELECT 
+       CASE 
+         WHEN m.user_id_1 = $1 THEN m.user_id_2
+         ELSE m.user_id_1
+       END AS partner_id,
+       CASE 
+         WHEN m.user_id_1 = $1 THEN u2.first_name
+         ELSE u1.first_name
+       END AS partner_first_name,
+       CASE 
+         WHEN m.user_id_1 = $1 THEN u2.username
+         ELSE u1.username
+       END AS partner_username,
+       m.married_at,
+       EXTRACT(DAY FROM NOW() - m.married_at) AS days
+     FROM marriages m
+     LEFT JOIN users u1 ON u1.user_id = m.user_id_1
+     LEFT JOIN users u2 ON u2.user_id = m.user_id_2
+     WHERE (m.user_id_1 = $1 OR m.user_id_2 = $1)
+       AND m.divorced_at IS NULL
+     LIMIT 1`,
+    [userId],
+  )
+
+  const marriage = marriageRows[0]
+
+  return {
+    userId: Number(user.user_id),
+    username: user.username,
+    firstName: user.first_name || 'Аноним',
+    balance: Number(user.balance),
+    totalEarned: Number(user.total_earned),
+    totalSpent: Number(user.total_spent),
+    farmStreak: Number(user.farm_streak),
+    maxFarmStreak: Number(user.max_farm_streak),
+    duelsWon: Number(user.duels_won),
+    duelsLost: Number(user.duels_lost),
+    treasuresFound: Number(user.treasures_found),
+    pidorCount: Number(user.pidor_count),
+    farmSuccessCount: Number(user.farm_success_count),
+    casinoGamesCount: Number(user.casino_games_count),
+    createdAt: String(user.created_at),
+    achievementsUnlocked: Number(achRows[0]?.count ?? 0),
+    rankInTop: rankRows[0] ? Number(rankRows[0].rank) : null,
+    marriage: marriage
+      ? {
+          partnerId: Number(marriage.partner_id),
+          partnerName: displayName(marriage.partner_first_name, marriage.partner_username),
+          marriedAt: String(marriage.married_at),
+          days: Number(marriage.days),
+        }
+      : null,
   }
 }
 

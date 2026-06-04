@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { formatCurrency } from '@/lib/pluralize'
+import { PlayerLink } from '@/components/ui/player-link'
 import type { WeeklyEarner } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -38,8 +39,8 @@ export function WeeklyTop() {
                 <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
                   {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
                 </div>
-                <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground sm:text-base">
-                  {u.name}
+                <div className="min-w-0 flex-1">
+                  <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
                 </div>
                 <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
                   +{formatCurrency(u.earned)}

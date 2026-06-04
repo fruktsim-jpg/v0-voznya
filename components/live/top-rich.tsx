@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { titleForEarned } from '@/lib/voznya-bot'
 import { formatCurrency } from '@/lib/pluralize'
+import { PlayerLink } from '@/components/ui/player-link'
 import type { RichUser } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -49,7 +50,7 @@ export function TopRich() {
                     {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-foreground sm:text-base">{u.name}</div>
+                    <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
                     <div className="truncate text-xs text-muted-foreground">
                       {title.emoji} {title.name}
                     </div>
