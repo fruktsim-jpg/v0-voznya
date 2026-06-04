@@ -94,6 +94,7 @@ export type RichUser = {
   rank: number
   name: string
   balance: number
+  totalEarned: number
 }
 
 export async function getTopRich(limit = 10): Promise<RichUser[]> {
@@ -101,8 +102,9 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
     first_name: string | null
     username: string | null
     balance: string
+    total_earned: string
   }>(
-    `SELECT first_name, username, balance
+    `SELECT first_name, username, balance, total_earned
        FROM users
       ORDER BY balance DESC, user_id ASC
       LIMIT $1`,
@@ -112,6 +114,7 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
     rank: i + 1,
     name: displayName(r.first_name, r.username),
     balance: Number(r.balance),
+    totalEarned: Number(r.total_earned),
   }))
 }
 

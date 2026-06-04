@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
-import { titleForBalance } from '@/lib/voznya-bot'
+import { titleForEarned } from '@/lib/voznya-bot'
 import type { RichUser } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -32,7 +32,7 @@ export function TopRich() {
           <div className="mt-8 space-y-2.5">
             {data.map((u, i) => {
               const top3 = u.rank <= 3
-              const title = titleForBalance(u.balance)
+              const title = titleForEarned(u.totalEarned)
               return (
                 <motion.div
                   key={u.rank}

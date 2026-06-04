@@ -1,8 +1,8 @@
 /**
  * Catalog of bot systems, achievements, titles and commands.
  *
- * Generated from the actual voznya-bot source (app/features/*, app/settings/*).
- * Kept in sync with the bot — only real, existing systems are listed here.
+ * Synced with voznya-bot v1.3 (app/features/*, app/settings/*).
+ * Source of truth: voznya-bot repository.
  */
 
 export type BotSystem = {
@@ -17,8 +17,8 @@ export const BOT_SYSTEMS: BotSystem[] = [
   { emoji: '🌾', title: 'Ферма', description: 'Доход раз в 4 часа и серии активности' },
   { emoji: '🎰', title: 'Казино', description: 'Ставки на удачу с джекпотом ×10' },
   { emoji: '⚔️', title: 'Дуэли', description: 'Бои на ешки один на один' },
-  { emoji: '🏆', title: 'Ачивки', description: '13 достижений с наградами' },
-  { emoji: '🎖', title: 'Титулы', description: '10 рангов — растут вместе с балансом' },
+  { emoji: '🏆', title: 'Ачивки', description: '30 достижений с наградами' },
+  { emoji: '🎖', title: 'Титулы', description: '11 рангов по заработку' },
   { emoji: '📦', title: 'Клады', description: 'Клады Возни появляются в чате' },
   { emoji: '💍', title: 'Браки', description: 'Свадьбы, семьи и рейтинг семей' },
   { emoji: '👤', title: 'Профили', description: 'Личная статистика каждого участника' },
@@ -30,54 +30,104 @@ export type Achievement = {
   emoji: string
   name: string
   description: string
+  category: string
   reward: number
+  hidden: boolean
 }
 
-/** Achievement catalog — mirrors app/settings/achievements.py. */
+/** Achievement categories in display order — mirrors app/settings/achievements.py v1.3. */
+export const ACHIEVEMENT_CATEGORIES = [
+  { code: 'economy', emoji: '💰', name: 'Экономика' },
+  { code: 'casino', emoji: '🎰', name: 'Казино' },
+  { code: 'duel', emoji: '⚔️', name: 'Дуэли' },
+  { code: 'treasure', emoji: '📦', name: 'Клады' },
+  { code: 'marriage', emoji: '💍', name: 'Браки' },
+  { code: 'nomination', emoji: '🏳️', name: 'Номинации' },
+  { code: 'legend', emoji: '👑', name: 'Легенды Возни' },
+  { code: 'secret', emoji: '🤫', name: 'Секретные' },
+] as const
+
+/** Achievement catalog — mirrors app/settings/achievements.py v1.3. */
 export const ACHIEVEMENTS: Achievement[] = [
-  { code: 'first_ezhka', emoji: '🌱', name: 'Первая ешка', description: 'Заработать первую ешку', reward: 10 },
-  { code: 'farmer', emoji: '💊', name: 'Фермер', description: '10 успешных ферм', reward: 50 },
-  { code: 'baron', emoji: '💊', name: 'Барон', description: '100 успешных ферм', reward: 200 },
-  { code: 'ludoman', emoji: '🎰', name: 'Лудоман', description: '10 игр в казино', reward: 100 },
-  { code: 'casino_grandpa', emoji: '🎰', name: 'Казиношный дед', description: '100 игр в казино', reward: 300 },
-  { code: 'duelist', emoji: '⚔️', name: 'Дуэлянт', description: '1 победа в дуэли', reward: 100 },
-  { code: 'gladiator', emoji: '⚔️', name: 'Гладиатор', description: '25 побед в дуэлях', reward: 500 },
-  { code: 'thousandaire', emoji: '💰', name: 'Тысячник', description: 'Заработать 1 000 ешек', reward: 250 },
-  { code: 'magnate', emoji: '💰', name: 'Магнат', description: 'Заработать 10 000 ешек', reward: 1000 },
-  { code: 'treasure_hunter', emoji: '📦', name: 'Кладоискатель', description: 'Найти 1 клад', reward: 100 },
-  { code: 'treasure_master', emoji: '📦', name: 'Охотник за кладом', description: 'Найти 10 кладов', reward: 400 },
-  { code: 'true_love', emoji: '💍', name: 'Любовь существует', description: 'Заключить первый брак', reward: 50 },
-  { code: 'legend', emoji: '🏆', name: 'Легенда Возни', description: 'Получить все достижения', reward: 1000 },
+  // --- 💰 Экономика ---
+  { code: 'first_ezhka', emoji: '🌱', name: 'Первая ешка', description: 'Заработать первую ешку', category: 'economy', reward: 10, hidden: false },
+  { code: 'thousandaire', emoji: '💰', name: 'Тысячник', description: 'Заработать 1 000 ешек', category: 'economy', reward: 100, hidden: false },
+  { code: 'magnate', emoji: '💰', name: 'Магнат', description: 'Заработать 10 000 ешек', category: 'economy', reward: 400, hidden: false },
+
+  // --- 🎰 Казино ---
+  { code: 'ludoman', emoji: '🎰', name: 'Лудоман', description: 'Сыграть 10 раз в казино', category: 'casino', reward: 50, hidden: false },
+  { code: 'casino_grandpa', emoji: '🎰', name: 'Казиношный дед', description: 'Сыграть 100 раз в казино', category: 'casino', reward: 150, hidden: false },
+
+  // --- ⚔️ Дуэли ---
+  { code: 'duelist', emoji: '⚔️', name: 'Дуэлянт', description: 'Выиграть 1 дуэль', category: 'duel', reward: 50, hidden: false },
+  { code: 'gladiator', emoji: '⚔️', name: 'Гладиатор', description: 'Выиграть 25 дуэлей', category: 'duel', reward: 200, hidden: false },
+
+  // --- 📦 Клады ---
+  { code: 'treasure_hunter', emoji: '📦', name: 'Кладоискатель', description: 'Найти 1 клад', category: 'treasure', reward: 50, hidden: false },
+  { code: 'treasure_master', emoji: '📦', name: 'Охотник за кладом', description: 'Найти 10 кладов', category: 'treasure', reward: 200, hidden: false },
+
+  // --- 💍 Браки ---
+  { code: 'true_love', emoji: '💍', name: 'Любовь существует', description: 'Заключить первый брак', category: 'marriage', reward: 50, hidden: false },
+
+  // --- 🏳️ Номинации ---
+  { code: 'nominee', emoji: '🏳️', name: 'Звезда дня', description: 'Стать «Пидором дня» 1 раз', category: 'nomination', reward: 25, hidden: false },
+  { code: 'nominee_regular', emoji: '🏳️', name: 'Завсегдатай номинаций', description: 'Стать «Пидором дня» 10 раз', category: 'nomination', reward: 150, hidden: false },
+
+  // --- 👑 Легенды Возни ---
+  { code: 'apteka_magnate', emoji: '💊', name: 'Аптечный магнат', description: '500 успешных ферм', category: 'legend', reward: 400, hidden: false },
+  { code: 'already_red', emoji: '🔥', name: 'Уже красный', description: 'Серия фермы 30 дней', category: 'legend', reward: 300, hidden: false },
+  { code: 'voznya_started', emoji: '⚔️', name: 'Возня началась', description: '100 побед в дуэлях', category: 'legend', reward: 500, hidden: false },
+  { code: 'cursed_suitcase', emoji: '📦', name: 'Ёбаный чемодан', description: 'Найти 50 кладов', category: 'legend', reward: 500, hidden: false },
+  { code: 'nomination_king', emoji: '🏳️', name: 'Король номинаций', description: '50 раз «Пидор дня»', category: 'legend', reward: 500, hidden: false },
+  { code: 'authority', emoji: '☢️', name: 'Авторитет', description: 'Заработать 25 000 ешек', category: 'legend', reward: 750, hidden: false },
+  { code: 'catushka', emoji: '🎰', name: 'Пошла катушка', description: 'Сорвать джекпот в казино', category: 'legend', reward: 250, hidden: false },
+  { code: 'last_dep', emoji: '🍺', name: 'Последний деп', description: 'Поставить всё в казино и проиграть', category: 'legend', reward: 50, hidden: false },
+  { code: 'love_grave', emoji: '💍', name: 'Любовь до гроба', description: 'Прожить в браке 30 дней', category: 'legend', reward: 250, hidden: false },
+  { code: 'mellstroy', emoji: '👑', name: 'Меллстрой Возни', description: 'Открыть все основные достижения', category: 'legend', reward: 1500, hidden: false },
+
+  // --- 🤫 Секретные (скрыты до открытия) ---
+  { code: 'ludik_secret', emoji: '🎰', name: 'Лудик', description: 'Проиграть крупную сумму в казино', category: 'secret', reward: 0, hidden: true },
+  { code: 'no_luck', emoji: '💀', name: 'Не фартануло', description: 'Серия из 5 проигрышей в казино', category: 'secret', reward: 0, hidden: true },
+  { code: 'bag', emoji: '⚔️', name: 'Мешок', description: 'Серия из 5 поражений в дуэлях', category: 'secret', reward: 0, hidden: true },
+  { code: 'kladmen', emoji: '📦', name: 'Кладмен', description: 'Забрать клад почти мгновенно', category: 'secret', reward: 100, hidden: true },
+  { code: 'ghost', emoji: '👻', name: 'Призрак Возни', description: 'Вернуться после долгого отсутствия', category: 'secret', reward: 50, hidden: true },
 ]
 
 export type Title = {
-  minBalance: number
+  minEarned: number
   emoji: string
   name: string
 }
 
-/** Title ladder by balance — mirrors app/settings/titles.py. */
+/** Title ladder by total_earned — mirrors app/settings/titles.py v1.3. */
 export const TITLES: Title[] = [
-  { minBalance: 0, emoji: '🌱', name: 'Щавель' },
-  { minBalance: 100, emoji: '🍑', name: 'Персик' },
-  { minBalance: 250, emoji: '🐀', name: 'Гой' },
-  { minBalance: 500, emoji: '🍺', name: 'Бурмалда' },
-  { minBalance: 1000, emoji: '💊', name: 'Аптекарь' },
-  { minBalance: 2500, emoji: '🎰', name: 'Лудоман' },
-  { minBalance: 5000, emoji: '⚔️', name: 'Возняк' },
-  { minBalance: 10000, emoji: '🏆', name: 'Авторитет Возни' },
-  { minBalance: 25000, emoji: '👑', name: 'Король Возни' },
-  { minBalance: 50000, emoji: '☢️', name: 'Легенда Возни' },
+  { minEarned: 0, emoji: '🌱', name: 'Щавель' },
+  { minEarned: 100, emoji: '🍑', name: 'Персик' },
+  { minEarned: 250, emoji: '🥔', name: 'Картофель' },
+  { minEarned: 500, emoji: '🐀', name: 'Гой' },
+  { minEarned: 800, emoji: '🍺', name: 'Бурмалда' },
+  { minEarned: 1200, emoji: '💊', name: 'Аптекарь' },
+  { minEarned: 2000, emoji: '🎰', name: 'Лудик' },
+  { minEarned: 3000, emoji: '⚔️', name: 'Возняк' },
+  { minEarned: 4500, emoji: '🏆', name: 'Авторитет Возни' },
+  { minEarned: 7000, emoji: '👑', name: 'Король Возни' },
+  { minEarned: 12000, emoji: '☢️', name: 'Меллстрой' },
 ]
 
-/** Returns the current title for a given balance. */
-export function titleForBalance(balance: number): Title {
+/** Returns the current title for a given total_earned amount. */
+export function titleForEarned(earned: number): Title {
   let current = TITLES[0]
   for (const t of TITLES) {
-    if (balance >= t.minBalance) current = t
+    if (earned >= t.minEarned) current = t
     else break
   }
   return current
+}
+
+/** @deprecated Use titleForEarned instead. Kept for backward compatibility. */
+export function titleForBalance(balance: number): Title {
+  // Fallback: treat balance as earned for now
+  return titleForEarned(balance)
 }
 
 export type BotCommand = {

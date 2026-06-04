@@ -13,7 +13,7 @@ export function TitlesLadder() {
           <span className="text-gradient">Титулы</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Ранг растёт вместе с балансом — от Щавеля до Легенды Возни
+          Ранг растёт с заработком — от Щавеля до Меллстроя
         </p>
 
         <div className="mt-8 space-y-2.5">
@@ -29,7 +29,7 @@ export function TitlesLadder() {
               <div className="text-2xl sm:text-3xl">{t.emoji}</div>
               <div className="min-w-0 flex-1 text-sm font-semibold text-foreground sm:text-base">{t.name}</div>
               <div className="shrink-0 text-xs text-muted-foreground sm:text-sm">
-                {t.minBalance === 0 ? 'с нуля' : `от ${t.minBalance.toLocaleString('ru-RU')} ешек`}
+                {t.minEarned === 0 ? 'с нуля' : `от ${t.minEarned.toLocaleString('ru-RU')} заработано`}
               </div>
             </motion.div>
           ))}
