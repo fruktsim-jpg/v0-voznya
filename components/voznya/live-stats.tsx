@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Activity } from 'lucide-react'
+import { Activity, ArrowRight } from 'lucide-react'
 import { AnimatedCounter } from './animated-counter'
 import { Reveal } from './reveal'
 import type { CommunityStats } from '@/lib/queries'
@@ -95,6 +96,16 @@ export function LiveStats() {
             ))}
           </div>
         )}
+
+        <Reveal delay={0.1} className="mt-8 flex justify-center sm:mt-10">
+          <Link
+            href="/live"
+            className="group inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-[0_0_40px_-10px_rgba(139,92,246,0.9)] transition-transform hover:scale-[1.03] active:scale-95 sm:px-8 sm:py-4"
+          >
+            Вся статистика и топы
+            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </Reveal>
       </div>
     </section>
   )

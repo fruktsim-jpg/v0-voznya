@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Rocket, Users, MapPin, Flame } from 'lucide-react'
+import { Rocket, Users, MapPin, Flame, MessageCircle } from 'lucide-react'
 import { Particles } from './particles'
 import { AnimatedCounter } from './animated-counter'
 
@@ -10,6 +11,21 @@ function scrollToPlatforms() {
 }
 
 export function Hero() {
+  const [messages, setMessages] = useState<number | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/messages')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => alive && setMessages(data.total))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const hasMessages = messages !== null
+
   return (
     <section className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 py-10 text-center sm:py-24">
       {/* glow backdrop */}
@@ -46,9 +62,18 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3 }}
-          className="mt-6 grid w-full max-w-md grid-cols-3 gap-2.5 sm:mt-10 sm:gap-4"
+          className={`mt-6 grid w-full gap-2.5 sm:mt-10 sm:gap-4 ${
+            hasMessages ? 'max-w-lg grid-cols-2 sm:grid-cols-4' : 'max-w-md grid-cols-3'
+          }`}
         >
           <Stat icon={<Users className="h-4 w-4 sm:h-5 sm:w-5" />} value={<AnimatedCounter value={400} suffix="+" />} label="участников" />
+          {hasMessages && (
+            <Stat
+              icon={<MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
+              value={<AnimatedCounter value={messages as number} />}
+              label="сообщений"
+            />
+          )}
           <Stat icon={<MapPin className="h-4 w-4 sm:h-5 sm:w-5" />} value={<AnimatedCounter value={10} suffix="+" />} label="городов" />
           <Stat icon={<Flame className="h-4 w-4 sm:h-5 sm:w-5" />} value="24/7" label="общение" />
         </motion.div>
