@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { titleForEarned } from '@/lib/voznya-bot'
 import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
+import { TelegramButton } from '@/components/voznya/telegram-button'
 import type { PlayerProfile } from '@/lib/queries'
 
 interface PlayerCardProps {
@@ -247,6 +248,16 @@ export function PlayerCard({ profile }: PlayerCardProps) {
         className="mt-6 text-center text-sm text-muted-foreground"
       >
         Участник с {new Date(profile.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
+      </motion.div>
+
+      {/* Telegram Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="mt-6 flex justify-center"
+      >
+        <TelegramButton variant="secondary" />
       </motion.div>
     </div>
   )
