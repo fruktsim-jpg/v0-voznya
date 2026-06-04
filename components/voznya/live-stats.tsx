@@ -12,10 +12,10 @@ type Card = { emoji: string; label: string; key: keyof CommunityStats }
 const CARDS: Card[] = [
   { emoji: '👥', label: 'Пользователей бота', key: 'users' },
   { emoji: '💰', label: 'Ешек в обороте', key: 'eshInCirculation' },
+  { emoji: '🏆', label: 'Получено ачивок', key: 'achievements' },
   { emoji: '⚔️', label: 'Проведено дуэлей', key: 'duels' },
   { emoji: '🌾', label: 'Фермеров', key: 'farmers' },
-  { emoji: '🪙', label: 'Кладов найдено', key: 'treasuresFound' },
-  { emoji: '💍', label: 'Браков', key: 'marriages' },
+  { emoji: '📦', label: 'Кладов найдено', key: 'treasuresFound' },
 ]
 
 export function LiveStats() {

@@ -8,10 +8,10 @@ import type { CommunityStats } from '@/lib/queries'
 const CARDS: { emoji: string; label: string; key: keyof CommunityStats }[] = [
   { emoji: '👥', label: 'Пользователей', key: 'users' },
   { emoji: '💰', label: 'Ешек в обороте', key: 'eshInCirculation' },
+  { emoji: '🏆', label: 'Получено ачивок', key: 'achievements' },
   { emoji: '⚔️', label: 'Дуэлей', key: 'duels' },
   { emoji: '🌾', label: 'Фермеров', key: 'farmers' },
-  { emoji: '🪙', label: 'Кладов найдено', key: 'treasuresFound' },
-  { emoji: '💍', label: 'Браков', key: 'marriages' },
+  { emoji: '📦', label: 'Кладов найдено', key: 'treasuresFound' },
 ]
 
 export function LiveCommunityStats() {
