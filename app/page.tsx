@@ -1,6 +1,5 @@
 import { Hero } from '@/components/voznya/hero'
 import { About } from '@/components/voznya/about'
-import { CommunityMap } from '@/components/voznya/community-map'
 import { Features } from '@/components/voznya/features'
 import { Newcomer } from '@/components/voznya/newcomer'
 import { Bonuses } from '@/components/voznya/bonuses'
@@ -14,7 +13,6 @@ export default function Page() {
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Hero />
       <About />
-      <CommunityMap />
       <Features />
       <Newcomer />
       <Bonuses />
