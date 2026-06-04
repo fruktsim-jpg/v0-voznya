@@ -22,7 +22,7 @@ export function TelegramButton({ variant = 'primary', size = 'md', className = '
 
   return (
     <Link
-      href="https://t.me/voznya_bot"
+      href="https://t.me/voznyanlbot"
       target="_blank"
       rel="noopener noreferrer"
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
@@ -38,7 +38,7 @@ export function TelegramButton({ variant = 'primary', size = 'md', className = '
 export function TelegramIconButton({ className = '' }: { className?: string }) {
   return (
     <Link
-      href="https://t.me/voznya_bot"
+      href="https://t.me/voznyanlbot"
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0088cc] text-white transition-all hover:scale-110 hover:bg-[#006699] ${className}`}
