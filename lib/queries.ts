@@ -174,6 +174,54 @@ export async function getAchievementsProgress(): Promise<AchievementsResult> {
   return { totalUnlocked, items }
 }
 
+export type MessageTop = { rank: number; name: string; count: number }
+export type MessageActivityPoint = { day: string; count: number }
+export type MessageStats = {
+  total: number
+  top: MessageTop[]
+  activity: MessageActivityPoint[]
+}
+
+/**
+ * Message statistics. Relies on bot tables added in migration 0004
+ * (users.messages_count and message_daily). If those don't exist yet, the
+ * query throws and the API returns 503 — the UI then hides the messages block.
+ */
+export async function getMessageStats(topLimit = 10, activityDays = 14): Promise<MessageStats> {
+  const totalRows = await query<{ total: string | null }>(
+    `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
+  )
+  const topRows = await query<{
+    first_name: string | null
+    username: string | null
+    messages_count: string
+  }>(
+    `SELECT first_name, username, messages_count
+       FROM users
+      WHERE messages_count > 0
+      ORDER BY messages_count DESC, user_id ASC
+      LIMIT $1`,
+    [topLimit],
+  )
+  const activityRows = await query<{ day: string; count: string }>(
+    `SELECT day::text AS day, SUM(count) AS count
+       FROM message_daily
+      WHERE day >= CURRENT_DATE - ($1::int - 1)
+      GROUP BY day
+      ORDER BY day`,
+    [activityDays],
+  )
+  return {
+    total: Number(totalRows[0]?.total ?? 0),
+    top: topRows.map((r, i) => ({
+      rank: i + 1,
+      name: displayName(r.first_name, r.username),
+      count: Number(r.messages_count),
+    })),
+    activity: activityRows.map((r) => ({ day: String(r.day).slice(0, 10), count: Number(r.count) })),
+  }
+}
+
 export type Daily = {
   pidor: { name: string; date: string; count: number } | null
   para: { first: string; second: string; date: string } | null

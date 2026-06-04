@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { LiveCommunityStats } from '@/components/live/community-stats'
 import { TopRich } from '@/components/live/top-rich'
 import { WeeklyTop } from '@/components/live/weekly-top'
+import { MessagesPanel } from '@/components/live/messages-panel'
 import { EconomyPanel } from '@/components/live/economy-panel'
 import { AchievementsCatalog } from '@/components/live/achievements-catalog'
 import { TitlesLadder } from '@/components/live/titles-ladder'
@@ -43,6 +44,7 @@ export default function LivePage() {
       <LiveCommunityStats />
       <TopRich />
       <WeeklyTop />
+      <MessagesPanel />
       <EconomyPanel />
       <AchievementsCatalog />
       <TitlesLadder />

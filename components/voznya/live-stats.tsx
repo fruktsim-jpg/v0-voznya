@@ -7,19 +7,11 @@ import { AnimatedCounter } from './animated-counter'
 import { Reveal } from './reveal'
 import type { CommunityStats } from '@/lib/queries'
 
-type Card = { emoji: string; label: string; key: keyof CommunityStats }
-
-const CARDS: Card[] = [
-  { emoji: '👥', label: 'Пользователей бота', key: 'users' },
-  { emoji: '💰', label: 'Ешек в обороте', key: 'eshInCirculation' },
-  { emoji: '🏆', label: 'Получено ачивок', key: 'achievements' },
-  { emoji: '⚔️', label: 'Проведено дуэлей', key: 'duels' },
-  { emoji: '🌾', label: 'Фермеров', key: 'farmers' },
-  { emoji: '📦', label: 'Кладов найдено', key: 'treasuresFound' },
-]
+type CardData = { emoji: string; label: string; value: number }
 
 export function LiveStats() {
   const [stats, setStats] = useState<CommunityStats | null>(null)
+  const [messages, setMessages] = useState<number | null>(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
@@ -28,10 +20,27 @@ export function LiveStats() {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => alive && setStats(data))
       .catch(() => alive && setError(true))
+    fetch('/api/messages')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => alive && setMessages(data.total))
+      .catch(() => {})
     return () => {
       alive = false
     }
   }, [])
+
+  const cards: CardData[] = stats
+    ? [
+        { emoji: '👥', label: 'Пользователей бота', value: stats.users },
+        { emoji: '💰', label: 'Ешек в обороте', value: stats.eshInCirculation },
+        ...(messages !== null
+          ? [{ emoji: '💬', label: 'Сообщений всего', value: messages }]
+          : [{ emoji: '📦', label: 'Кладов найдено', value: stats.treasuresFound }]),
+        { emoji: '🏆', label: 'Получено ачивок', value: stats.achievements },
+        { emoji: '⚔️', label: 'Проведено дуэлей', value: stats.duels },
+        { emoji: '🌾', label: 'Фермеров', value: stats.farmers },
+      ]
+    : []
 
   return (
     <section className="relative px-6 py-12 sm:py-20">
@@ -60,11 +69,17 @@ export function LiveStats() {
           <p className="mt-8 flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
             <Activity className="h-4 w-4" /> Статистика временно недоступна
           </p>
+        ) : !stats ? (
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-12 sm:grid-cols-3 sm:gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-2xl bg-white/5 sm:h-32" />
+            ))}
+          </div>
         ) : (
           <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-12 sm:grid-cols-3 sm:gap-5">
-            {CARDS.map((c, i) => (
+            {cards.map((c, i) => (
               <motion.div
-                key={c.key}
+                key={c.label}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
@@ -73,11 +88,7 @@ export function LiveStats() {
               >
                 <div className="text-2xl sm:text-3xl">{c.emoji}</div>
                 <div className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">
-                  {stats ? (
-                    <AnimatedCounter value={stats[c.key]} />
-                  ) : (
-                    <span className="inline-block h-7 w-16 animate-pulse rounded-md bg-white/10 align-middle sm:h-8" />
-                  )}
+                  <AnimatedCounter value={c.value} />
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{c.label}</div>
               </motion.div>
