@@ -16,9 +16,12 @@ type Summary =
     }
 
 interface UserMenuProps {
-  /** Public Telegram bot id, forwarded to the login button. */
+  /** Public Telegram bot id, forwarded to the login button (classic fallback). */
   botId?: string | null
+  /** When true, the login button starts the Telegram OIDC flow. */
+  oidcEnabled?: boolean
 }
+
 
 function formatEsh(n: number): string {
   return n.toLocaleString('ru-RU')
@@ -37,7 +40,8 @@ function formatEsh(n: number): string {
  * come from the SAME users table / ranking as the public profile page, so the
  * numbers match what /profile/{uid} shows.
  */
-export function UserMenu({ botId }: UserMenuProps = {}) {
+export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
+
   const [data, setData] = useState<Summary | null>(null)
   const [open, setOpen] = useState(false)
 
@@ -62,8 +66,9 @@ export function UserMenu({ botId }: UserMenuProps = {}) {
   }
 
   if (!data.authenticated) {
-    return <TelegramLoginButton botId={botId} />
+    return <TelegramLoginButton botId={botId} oidcEnabled={oidcEnabled} />
   }
+
 
   const displayName = data.name?.trim() || 'Игрок'
   const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || '👤'

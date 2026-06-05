@@ -6,11 +6,14 @@ import { Activity } from 'lucide-react'
 import { UserMenu } from '@/components/auth/user-menu'
 
 interface SiteHeaderProps {
-  /** Public Telegram bot id for the branded login button (server-derived). */
+  /** Public Telegram bot id for the branded login button (classic fallback). */
   botId?: string | null
+  /** When true, the login button uses the Telegram OIDC flow. */
+  oidcEnabled?: boolean
 }
 
-export function SiteHeader({ botId }: SiteHeaderProps = {}) {
+export function SiteHeader({ botId, oidcEnabled }: SiteHeaderProps = {}) {
+
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -45,7 +48,8 @@ export function SiteHeader({ botId }: SiteHeaderProps = {}) {
             <Activity className="hidden h-4 w-4 text-primary sm:block" />
             <span className="hidden sm:inline">Статистика</span>
           </Link>
-          <UserMenu botId={botId} />
+          <UserMenu botId={botId} oidcEnabled={oidcEnabled} />
+
         </div>
       </div>
     </header>

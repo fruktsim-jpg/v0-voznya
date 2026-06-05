@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SiteHeader } from '@/components/voznya/site-header'
+import { isOidcEnabled } from '@/lib/auth/oidc'
 import './globals.css'
+
 
 const geist = Geist({ subsets: ['latin', 'cyrillic'] })
 
@@ -56,7 +58,8 @@ export default function RootLayout({
   return (
     <html lang="ru" className="bg-background">
       <body className={`${geist.className} font-sans antialiased`}>
-        <SiteHeader botId={getPublicBotId()} />
+        <SiteHeader botId={getPublicBotId()} oidcEnabled={isOidcEnabled()} />
+
 
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
