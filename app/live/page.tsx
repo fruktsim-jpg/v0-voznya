@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { LiveCommunityStats } from '@/components/live/community-stats'
 import { TopRich } from '@/components/live/top-rich'
 import { WeeklyTop } from '@/components/live/weekly-top'
+
 import { MessagesPanel } from '@/components/live/messages-panel'
 import { FamiliesTop } from '@/components/live/families-top'
 import { EconomyPanel } from '@/components/live/economy-panel'
@@ -22,7 +24,10 @@ export const metadata: Metadata = {
 export default function LivePage() {
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <ScrollToAnchor />
+      <Suspense fallback={null}>
+        <ScrollToAnchor />
+      </Suspense>
+
       <section className="relative overflow-hidden px-6 pb-6 pt-24 text-center sm:pt-32">
         <div
           aria-hidden="true"
