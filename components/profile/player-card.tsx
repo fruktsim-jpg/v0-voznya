@@ -333,7 +333,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                         {unlockedInCategory}/{category.achievements.length}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="space-y-2.5">
                       {category.achievements
                         .filter(a => a.unlocked)
                         .map((achievement, achIndex) => (
