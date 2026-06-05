@@ -39,8 +39,37 @@
   - `writeAudit(...)` → запись строки в `audit_log` (можно в общей транзакции).
 - **`lib/db.ts`** → добавлен `withTransaction(fn)` — атомарные действия на одном
   клиенте (BEGIN/COMMIT/ROLLBACK).
+- **`lib/auth/admin-ids.ts`** — разбор env `ADMIN_IDS` (тот же список, что у
+  бота) + `canBootstrapOwner(uid)`. Используется ТОЛЬКО для разового bootstrap
+  первого owner; сам по себе доступа к панели не даёт.
 
 Роль выдаётся в боте (`admin_roles`) — на сайте появляется сразу, общая таблица.
+
+### Первый owner без psql/docker (bootstrap)
+
+Проблема: после деплоя `admin_roles` пуста, ролей нет ни у кого → `/admin`
+показывает заглушку. Решение — разовый self-bootstrap из браузера:
+
+1. Залогиньтесь на сайте через Telegram аккаунтом, чей `user_id` указан в env
+   `ADMIN_IDS` (тот же формат `1,2,3`, что у бота).
+2. Откройте `/admin`. Пока таблица `admin_roles` пуста и вы в `ADMIN_IDS`,
+   под заглушкой появится кнопка **«Стать владельцем (owner)»**.
+3. Нажмите — `POST /api/admin/bootstrap-owner` вставит вам строку `owner` в
+   `admin_roles` и запишет `audit_log` (`role.bootstrap`). Страница обновится,
+   откроется дашборд.
+
+Гарантии безопасности:
+- Доступно только при валидной сессии И `uid ∈ ADMIN_IDS`.
+- Вставка под `LOCK TABLE admin_roles ACCESS EXCLUSIVE` и срабатывает, только
+  если таблица **пуста** → ровно один раз, без гонок.
+- Как только появился первый owner, эндпоинт навсегда отдаёт `409`, а кнопка
+  больше не рендерится (серверная проверка в layout).
+- `ADMIN_IDS` — серверная переменная (без `NEXT_PUBLIC_`), в браузер не утекает.
+- Принадлежность к `ADMIN_IDS` НЕ даёт прав сама по себе: повседневный доступ
+  определяется только строками в `admin_roles`.
+
+Дальнейшие роли владелец выдаёт обычным путём (UI ролей — следующий этап).
+
 
 | Роль | Видит | Может менять |
 |------|-------|--------------|
@@ -101,7 +130,8 @@ MVP-действия (экономика, инвентарь) доступны *
 1. `SELECT balance ... FOR UPDATE` (блокировка строки игрока);
 2. при снятии — проверка `balance >= amount` (иначе `409`);
 3. `UPDATE users.balance` (+ total_earned/total_spent);
-4. `INSERT transactions` (`reason='admin_reward'`, `meta.via='admin_panel'`);
+4. `INSERT transactions` (`reason='admin'`, `meta.via='admin_panel'`);
+
 5. `INSERT audit_log` (`economy.add`/`economy.remove`, `amount`, `target_id` =
    id транзакции).
 
@@ -204,9 +234,11 @@ owner      → + roles.manage
 ```
 lib/auth/admin-permissions.ts      права (зеркало permissions.py)
 lib/auth/admin-session.ts          getAdminSession / requirePermission / writeAudit
+lib/auth/admin-ids.ts              разбор ADMIN_IDS + canBootstrapOwner
 lib/db.ts                          + withTransaction()
 
-app/admin/layout.tsx               гейт + навигация
+app/admin/layout.tsx               гейт + навигация + bootstrap-кнопка
+app/admin/bootstrap-owner.tsx      кнопка «Стать владельцем» (client)
 app/admin/page.tsx                 дашборд
 app/admin/players/page.tsx         поиск игроков (client)
 app/admin/players/[id]/page.tsx    карточка игрока (server)
@@ -219,15 +251,20 @@ app/api/admin/players/[id]/route.ts
 app/api/admin/economy/route.ts
 app/api/admin/inventory/route.ts
 app/api/admin/audit/route.ts
+app/api/admin/bootstrap-owner/route.ts   разовое назначение первого owner
+
+.env.example                       + ADMIN_IDS (для bootstrap)
 ```
 
 ---
 
 ## 12. Следующие шаги
 1. `pnpm build` / `pnpm lint` — проверить типы и сборку.
-2. Назначить себе роль `owner` в боте (`admin_roles`), войти на сайте, открыть
-   `/admin`.
+2. Применить миграции (`alembic upgrade head` — нужны `0008`…`0011`), выставить
+   на сайте env `ADMIN_IDS` (тот же, что у бота), войти через Telegram и нажать
+   «Стать владельцем» на `/admin` (см. §1 → bootstrap). psql/docker не нужны.
 3. Дальше по приоритету: UI ролей → CRUD магазина → подарки из панели →
    модерация. Бэкенд под них уже готов.
+
 
 
