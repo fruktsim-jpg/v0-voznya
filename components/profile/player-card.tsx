@@ -123,7 +123,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
+      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
