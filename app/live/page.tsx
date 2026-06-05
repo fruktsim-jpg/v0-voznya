@@ -11,6 +11,7 @@ import { DailyPanel } from '@/components/live/daily-panel'
 import { BotFeatures } from '@/components/live/bot-features'
 import { CommandsExplorer } from '@/components/live/commands-explorer'
 import { SiteFooter } from '@/components/voznya/site-footer'
+import { ScrollToAnchor } from '@/components/live/scroll-to-anchor'
 
 export const metadata: Metadata = {
   title: 'Живая статистика ВОЗНИ',
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 export default function LivePage() {
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
+      <ScrollToAnchor />
       <section className="relative overflow-hidden px-6 pb-6 pt-24 text-center sm:pt-32">
         <div
           aria-hidden="true"
