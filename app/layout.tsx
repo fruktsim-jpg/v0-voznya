@@ -33,6 +33,21 @@ export const viewport: Viewport = {
   themeColor: '#09090b',
 }
 
+/**
+ * Public Telegram bot id used by the branded login button. It's the integer
+ * part of the bot token BEFORE ":" — not a secret. Deriving it here (server
+ * side) means the branded popup works without requiring an extra public env var.
+ * An explicit NEXT_PUBLIC_TELEGRAM_BOT_ID still overrides it client-side.
+ */
+function getPublicBotId(): string | null {
+  const explicit = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID
+  if (explicit) return explicit
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return null
+  const id = token.split(':', 1)[0]
+  return /^\d+$/.test(id) ? id : null
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,7 +56,8 @@ export default function RootLayout({
   return (
     <html lang="ru" className="bg-background">
       <body className={`${geist.className} font-sans antialiased`}>
-        <SiteHeader />
+        <SiteHeader botId={getPublicBotId()} />
+
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

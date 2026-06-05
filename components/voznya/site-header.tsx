@@ -5,8 +5,12 @@ import Link from 'next/link'
 import { Activity } from 'lucide-react'
 import { UserMenu } from '@/components/auth/user-menu'
 
+interface SiteHeaderProps {
+  /** Public Telegram bot id for the branded login button (server-derived). */
+  botId?: string | null
+}
 
-export function SiteHeader() {
+export function SiteHeader({ botId }: SiteHeaderProps = {}) {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -22,27 +26,28 @@ export function SiteHeader() {
         scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent'
       }`}
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="text-lg font-bold tracking-tight text-gradient">
           ВОЗНЯ
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
+          {/* Stats link: icon-only on mobile to keep the header uncluttered. */}
           <Link
             href="/live"
-            className="group inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20"
+            aria-label="Живая статистика"
+            className="group inline-flex h-9 items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20 sm:px-4"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
             <Activity className="hidden h-4 w-4 text-primary sm:block" />
-            Статистика
+            <span className="hidden sm:inline">Статистика</span>
           </Link>
-          <UserMenu />
+          <UserMenu botId={botId} />
         </div>
       </div>
-
     </header>
   )
 }
