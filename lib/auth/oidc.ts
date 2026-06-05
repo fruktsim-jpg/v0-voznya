@@ -177,15 +177,24 @@ export async function verifyIdToken(
 }
 
 /**
- * Map the OIDC `sub` claim to the Telegram user id (== users.user_id).
+ * Validate and normalize the OIDC `sub` claim.
  *
- * The whole ecosystem keys on the numeric Telegram id, so `sub` must be that
- * number. If Telegram ever returns an opaque/non-numeric sub this returns null
- * and the caller fails the login (the classic widget fallback still works) —
- * we never invent or remap ids, since the bot owns the users table.
+ * IMPORTANT: Telegram's OIDC `sub` is NOT the Telegram user id. It is an opaque
+ * pairwise identifier tied to the client_id and is larger than 2^53 (verified
+ * live: a real login returned a 20-digit sub). It therefore CANNOT be parsed
+ * with Number() without losing precision, and it cannot be used directly as
+ * users.user_id. The real Telegram id is resolved separately via the
+ * account_links table (filled once through the bot deep-link flow).
+ *
+ * This helper only sanity-checks the sub and keeps it as a STRING. We never
+ * coerce it to a number anywhere in the auth path.
  */
-export function subToUserId(sub: string): number | null {
-  if (!/^\d+$/.test(sub)) return null
-  const uid = Number(sub)
-  return Number.isInteger(uid) && uid > 0 ? uid : null
+export function normalizeSub(sub: string): string | null {
+  const trimmed = sub.trim()
+  if (!trimmed || trimmed.length > 255) return null
+  // Telegram subs observed as decimal digits; stay strict but string-only.
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return null
+  return trimmed
 }
+
+

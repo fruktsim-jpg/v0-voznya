@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   exchangeCodeForIdToken,
   getOidcConfig,
-  subToUserId,
+  normalizeSub,
   verifyIdToken,
 } from '@/lib/auth/oidc'
+import { createLinkRequest, getUserIdBySub } from '@/lib/auth/account-link'
 import {
   createSessionToken,
   getSessionCookieName,
   getSessionCookieOptions,
 } from '@/lib/auth/session'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,13 +20,19 @@ export const dynamic = 'force-dynamic'
  * Telegram OIDC callback (Authorization Code + PKCE).
  *
  * Validates the `state` against the cookie set by /start, exchanges `code` for
- * an id_token, verifies its signature/issuer/audience/nonce, maps the `sub`
- * claim to the Telegram user id and issues the SAME Возня session cookie used
- * by the classic widget. JWT/session/cookie shape is unchanged.
+ * an id_token, and verifies its signature/issuer/audience/nonce.
  *
- * IMPORTANT: never writes to the database — the bot owns users. If the verified
- * user has never played, the profile page shows the "not registered" hint.
+ * Telegram's OIDC `sub` is NOT the Telegram user id, so we resolve the real
+ * users.user_id through the `account_links` table:
+ *   - linked   -> issue the SAME Возня session cookie used by the classic
+ *                 widget (JWT/session/cookie shape unchanged) and open the profile.
+ *   - unlinked -> create a one-time link request and send the user to /link,
+ *                 where they confirm ownership via the bot deep-link.
+ *
+ * The only DB write is the auth-only `oidc_link_requests` row (in the unlinked
+ * branch). Game tables (users, balances, ...) stay read-only — the bot owns them.
  */
+
 function clearTempCookies(res: NextResponse): NextResponse {
   const expired = { path: '/', maxAge: 0 }
   res.cookies.set('tg_oidc_state', '', expired)
@@ -65,22 +73,45 @@ export async function GET(request: NextRequest) {
     return fail(request, 'state_mismatch')
   }
 
-  let userId: number | null = null
+  let sub: string | null = null
   let claims: Awaited<ReturnType<typeof verifyIdToken>> | null = null
   try {
     const idToken = await exchangeCodeForIdToken({ code, codeVerifier, config })
     claims = await verifyIdToken(idToken, { clientId: config.clientId, nonce })
-    userId = subToUserId(claims.sub)
+    sub = normalizeSub(claims.sub)
   } catch {
     return fail(request, 'verify_failed')
   }
 
-  // The whole ecosystem keys on the numeric Telegram id. If sub isn't that
-  // number we refuse rather than guess — the classic widget remains available.
-  if (userId === null) {
-    return fail(request, 'sub_unmapped')
+  if (!sub) {
+    return fail(request, 'sub_invalid')
   }
 
+  // Resolve the real Telegram user id from the account_links table. The OIDC
+  // sub itself is opaque and is never used as users.user_id.
+  let userId: number | null = null
+  try {
+    userId = await getUserIdBySub(sub)
+  } catch {
+    return fail(request, 'db_unavailable')
+  }
+
+  // Not linked yet: create a one-time link request and send the user to /link
+  // to confirm ownership through the bot deep-link. No session is issued until
+  // the link is confirmed.
+  if (userId === null) {
+    let linkToken: string
+    try {
+      linkToken = await createLinkRequest(sub)
+    } catch {
+      return fail(request, 'db_unavailable')
+    }
+    return clearTempCookies(
+      NextResponse.redirect(new URL(`/link?token=${linkToken}`, request.url)),
+    )
+  }
+
+  // Linked: issue the standard session keyed on the real Telegram user id.
   const token = await createSessionToken({
     uid: userId,
     username: claims.preferredUsername ?? null,
@@ -93,3 +124,5 @@ export async function GET(request: NextRequest) {
   response.cookies.set(getSessionCookieName(), token, getSessionCookieOptions())
   return response
 }
+
+
