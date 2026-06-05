@@ -1,4 +1,4 @@
-'use client'
+ос'use client'
 
 import { motion } from 'framer-motion'
 import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
@@ -123,7 +123,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -309,7 +309,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                         {unlockedInCategory}/{category.achievements.length}
                       </span>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 sm:gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {category.achievements
                         .filter(a => a.unlocked)
                         .map((achievement, achIndex) => (
