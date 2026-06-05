@@ -58,7 +58,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
   })).filter(cat => cat.achievements.length > 0)
 
   return (
-    <div className="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
       {/* Breadcrumb Navigation */}
       <ProfileBreadcrumb playerName={profile.firstName} />
       
@@ -69,7 +69,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-xl border border-border p-4 sm:rounded-3xl sm:p-8"
+        className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8"
       >
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
           {/* Avatar - Bot themed */}
@@ -123,19 +123,19 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-4">
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-lg border border-border p-2 sm:rounded-xl sm:p-4"
+          className="glass rounded-xl border border-border p-3 sm:p-4"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="text-lg sm:text-2xl">💰</div>
+          <div className="flex items-center gap-2 sm:gap-2">
+            <div className="text-xl sm:text-2xl">💰</div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
-              <div className="text-[9px] text-muted-foreground sm:text-xs">Баланс</div>
+              <div className="text-base font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
+              <div className="text-[10px] text-muted-foreground sm:text-xs">Баланс</div>
             </div>
           </div>
         </motion.div>
@@ -207,7 +207,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
               <div className="text-sm font-bold text-foreground sm:text-xl">
                 {profile.farmStreak} / {profile.maxFarmStreak}
               </div>
-              <div className="text-[9px] text-muted-foreground sm:text-xs truncate">
+              <div className="text-[10px] text-muted-foreground sm:text-xs truncate">
                 Ферма • {profile.farmSuccessCount}
               </div>
             </div>
@@ -219,27 +219,27 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-xl border border-border p-3 sm:p-4"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="text-lg sm:text-2xl">📦</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xl sm:text-2xl">📦</div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
-              <div className="text-[9px] text-muted-foreground sm:text-xs">Клады</div>
+              <div className="text-base font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
+              <div className="text-[10px] text-muted-foreground sm:text-xs">Клады</div>
             </div>
           </div>
         </motion.div>
       </div>
 
       {/* Additional Info - Improved mobile layout */}
-      <div className="mt-3 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-4">
+      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
         {/* Marriage */}
         {profile.marriage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass rounded-lg border border-border p-3 sm:rounded-2xl sm:p-6"
+            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
           >
             <div className="flex items-center gap-3">
               <div className="text-2xl sm:text-3xl">💍</div>
@@ -301,39 +301,39 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.65 }}
-          className="mt-3 sm:mt-6"
+          className="mt-4 sm:mt-6"
         >
-          <div className="glass rounded-xl border border-border p-3 sm:rounded-3xl sm:p-8">
-            <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20 text-lg sm:h-12 sm:w-12 sm:text-2xl">
+          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
+            <div className="mb-4 flex items-center gap-3 sm:mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
                 🏆
               </div>
               <div>
-                <h2 className="text-base font-bold text-foreground sm:text-xl">Достижения</h2>
-                <p className="text-[10px] text-muted-foreground sm:text-sm">
+                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">
                   {profile.achievementsUnlocked} из 30 открыто
                 </p>
               </div>
             </div>
 
             {/* Achievement categories */}
-            <div className="space-y-3 sm:space-y-6">
+            <div className="space-y-5 sm:space-y-6">
               {achievementsByCategory.map((category, catIndex) => {
                 const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
                 if (unlockedInCategory === 0) return null
 
                 return (
                   <div key={category.code}>
-                    <div className="mb-2 flex items-center gap-1.5 sm:mb-3 sm:gap-2">
-                      <span className="text-sm sm:text-lg">{category.emoji}</span>
-                      <h3 className="text-xs font-semibold text-foreground sm:text-base">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-base sm:text-lg">{category.emoji}</span>
+                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
                         {category.name}
                       </h3>
-                      <span className="text-[10px] text-muted-foreground sm:text-xs">
+                      <span className="text-xs text-muted-foreground">
                         {unlockedInCategory}/{category.achievements.length}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {category.achievements
                         .filter(a => a.unlocked)
                         .map((achievement, achIndex) => (
@@ -359,9 +359,9 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
-                className="mt-3 rounded-xl border border-border/50 bg-white/[0.02] p-3 text-center sm:mt-6 sm:p-4"
+                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
               >
-                <p className="text-[10px] text-muted-foreground sm:text-sm">
+                <p className="text-xs text-muted-foreground sm:text-sm">
                   🎯 Ещё {30 - profile.achievementsUnlocked} {formatAchievements(30 - profile.achievementsUnlocked, false)} ждут тебя в боте!
                 </p>
               </motion.div>
