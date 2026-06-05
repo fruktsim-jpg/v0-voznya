@@ -207,81 +207,6 @@ export function PlayerCard({ profile }: PlayerCardProps) {
         </motion.div>
       </div>
 
-      {/* Achievements Section - NEW! */}
-      {profile.achievementsUnlocked > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-4 sm:mt-6"
-        >
-          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
-            <div className="mb-4 flex items-center gap-3 sm:mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-                🏆
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  {profile.achievementsUnlocked} из 30 открыто
-                </p>
-              </div>
-            </div>
-
-            {/* Achievement categories */}
-            <div className="space-y-5 sm:space-y-6">
-              {achievementsByCategory.map((category, catIndex) => {
-                const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
-                if (unlockedInCategory === 0) return null
-
-                return (
-                  <div key={category.code}>
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="text-base sm:text-lg">{category.emoji}</span>
-                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
-                        {category.name}
-                      </h3>
-                      <span className="text-xs text-muted-foreground">
-                        {unlockedInCategory}/{category.achievements.length}
-                      </span>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-                      {category.achievements
-                        .filter(a => a.unlocked)
-                        .map((achievement, achIndex) => (
-                          <AchievementBadge
-                            key={achievement.code}
-                            emoji={achievement.emoji}
-                            name={achievement.name}
-                            description={achievement.description}
-                            unlocked={achievement.unlocked}
-                            reward={achievement.reward}
-                            index={catIndex * 10 + achIndex}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Show locked achievements hint */}
-            {profile.achievementsUnlocked < 30 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
-              >
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  🎯 Ещё {30 - profile.achievementsUnlocked} {formatAchievements(30 - profile.achievementsUnlocked, false)} ждут тебя в боте!
-                </p>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-      )}
-
       {/* Additional Info - Improved mobile layout */}
       <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
         {/* Marriage */}
@@ -345,6 +270,81 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           </motion.div>
         )}
       </div>
+
+      {/* Achievements Section - NEW! */}
+      {profile.achievementsUnlocked > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+          className="mt-4 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
+            <div className="mb-4 flex items-center gap-3 sm:mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+                🏆
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  {profile.achievementsUnlocked} из 30 открыто
+                </p>
+              </div>
+            </div>
+
+            {/* Achievement categories */}
+            <div className="space-y-5 sm:space-y-6">
+              {achievementsByCategory.map((category, catIndex) => {
+                const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
+                if (unlockedInCategory === 0) return null
+
+                return (
+                  <div key={category.code}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-base sm:text-lg">{category.emoji}</span>
+                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                        {category.name}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {unlockedInCategory}/{category.achievements.length}
+                      </span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 sm:gap-3">
+                      {category.achievements
+                        .filter(a => a.unlocked)
+                        .map((achievement, achIndex) => (
+                          <AchievementBadge
+                            key={achievement.code}
+                            emoji={achievement.emoji}
+                            name={achievement.name}
+                            description={achievement.description}
+                            unlocked={achievement.unlocked}
+                            reward={achievement.reward}
+                            index={catIndex * 10 + achIndex}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Show locked achievements hint */}
+            {profile.achievementsUnlocked < 30 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
+              >
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  🎯 Ещё {30 - profile.achievementsUnlocked} {formatAchievements(30 - profile.achievementsUnlocked, false)} ждут тебя в боте!
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Member since */}
       <motion.div

@@ -24,17 +24,17 @@ export function AchievementBadge({
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.03, duration: 0.3 }}
+      transition={{ delay: index * 0.02, duration: 0.3 }}
       className={cn(
-        "relative overflow-hidden rounded-xl border p-3 transition-all",
+        "relative overflow-hidden rounded-lg border p-2.5 transition-all sm:rounded-xl sm:p-3",
         unlocked
           ? "glass border-primary/30 bg-primary/5"
           : "border-border/50 bg-white/[0.02] opacity-50"
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         <div className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl transition-all",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg transition-all sm:h-10 sm:w-10 sm:text-xl",
           unlocked 
             ? "bg-primary/20 scale-100" 
             : "bg-white/5 grayscale scale-90"
@@ -42,20 +42,20 @@ export function AchievementBadge({
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-1.5 sm:gap-2">
             <h4 className={cn(
-              "text-sm font-semibold leading-tight",
+              "text-xs font-semibold leading-tight sm:text-sm",
               unlocked ? "text-foreground" : "text-muted-foreground"
             )}>
               {name}
             </h4>
             {unlocked && reward && reward > 0 && (
-              <span className="shrink-0 text-xs font-bold text-primary">
+              <span className="shrink-0 text-[10px] font-bold text-primary sm:text-xs">
                 +{reward}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+          <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-1 sm:text-xs sm:line-clamp-2">
             {description}
           </p>
         </div>
@@ -64,8 +64,8 @@ export function AchievementBadge({
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ delay: index * 0.03 + 0.2 }}
-          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px]"
+          transition={{ delay: index * 0.02 + 0.15 }}
+          className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:text-[10px]"
         >
           ✓
         </motion.div>
