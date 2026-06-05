@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { titleForEarned } from '@/lib/voznya-bot'
+import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
 import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TelegramButton } from '@/components/voznya/telegram-button'
@@ -10,6 +10,7 @@ import { BackButton } from '@/components/profile/back-button'
 import { PlayerNavigation } from '@/components/profile/player-navigation'
 import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
+import { AchievementBadge } from '@/components/profile/achievement-badge'
 import type { PlayerProfile } from '@/lib/queries'
 
 interface PlayerCardProps {
@@ -42,38 +43,57 @@ export function PlayerCard({ profile }: PlayerCardProps) {
     ? Math.min(100, Math.round(((profile.totalEarned - titles[currentTitleIndex].minEarned) / (nextTitle.minEarned - titles[currentTitleIndex].minEarned)) * 100))
     : 100
 
+  // Get unlocked achievement codes
+  const unlockedCodes = new Set(profile.achievements.map(a => a.code))
+
+  // Group achievements by category
+  const achievementsByCategory = ACHIEVEMENT_CATEGORIES.map(category => ({
+    ...category,
+    achievements: ACHIEVEMENTS
+      .filter(a => a.category === category.code && !a.hidden)
+      .map(a => ({
+        ...a,
+        unlocked: unlockedCodes.has(a.code)
+      }))
+  })).filter(cat => cat.achievements.length > 0)
+
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
       {/* Breadcrumb Navigation */}
       <ProfileBreadcrumb playerName={profile.firstName} />
       
       {/* Back Button */}
       <BackButton />
       
-      {/* Header */}
+      {/* Header - Improved mobile spacing */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-3xl border border-border p-8"
+        className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8"
       >
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-          {/* Avatar placeholder */}
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-primary/10 text-5xl">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
+          {/* Avatar - Bot themed */}
+          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl">
             {title.emoji}
+            {profile.rankInTop && profile.rankInTop <= 3 && (
+              <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold">
+                {profile.rankInTop}
+              </div>
+            )}
           </div>
 
           {/* Info */}
           <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-foreground">{profile.firstName}</h1>
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{profile.firstName}</h1>
             {profile.username && (
               <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
             )}
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
-              <div className="rounded-full bg-primary/20 px-4 py-1.5 text-sm font-semibold text-primary">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-3">
+              <div className="rounded-full bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1.5 text-xs font-semibold text-primary sm:px-4 sm:text-sm">
                 {title.emoji} {title.name}
               </div>
               {profile.rankInTop && (
-                <div className="rounded-full bg-white/5 px-4 py-1.5 text-sm font-semibold text-muted-foreground">
+                <div className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground sm:px-4 sm:text-sm">
                   #{profile.rankInTop} в топе
                 </div>
               )}
@@ -83,8 +103,8 @@ export function PlayerCard({ profile }: PlayerCardProps) {
 
         {/* Progress to next title */}
         {nextTitle && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between text-sm">
+          <div className="mt-5 sm:mt-6">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
               <span className="text-muted-foreground">До {nextTitle.emoji} {nextTitle.name}</span>
               <span className="font-semibold text-foreground">
                 {formatCurrency(profile.totalEarned)} / {formatCurrency(nextTitle.minEarned)}
@@ -102,18 +122,18 @@ export function PlayerCard({ profile }: PlayerCardProps) {
         )}
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Stats Grid - Improved mobile layout */}
+      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">💰</div>
-          <div className="mt-2 text-2xl font-bold text-primary">{formatCurrency(profile.balance)}</div>
-          <div className="mt-1 text-sm text-muted-foreground">Баланс</div>
+          <div className="text-xl sm:text-2xl">💰</div>
+          <div className="mt-2 text-xl font-bold text-primary sm:text-2xl">{formatCurrency(profile.balance)}</div>
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">Баланс</div>
         </motion.div>
 
         {/* Total Earned */}
@@ -121,11 +141,11 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">📈</div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(profile.totalEarned)}</div>
-          <div className="mt-1 text-sm text-muted-foreground">Всего заработано</div>
+          <div className="text-xl sm:text-2xl">📈</div>
+          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">{formatCurrency(profile.totalEarned)}</div>
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">Всего заработано</div>
         </motion.div>
 
         {/* Achievements */}
@@ -133,13 +153,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">🏆</div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
+          <div className="text-xl sm:text-2xl">🏆</div>
+          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
             {profile.achievementsUnlocked} / 30
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">{formatAchievements(profile.achievementsUnlocked, false)}</div>
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{formatAchievements(profile.achievementsUnlocked, false)}</div>
         </motion.div>
 
         {/* Duels */}
@@ -147,13 +167,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">⚔️</div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
+          <div className="text-xl sm:text-2xl">⚔️</div>
+          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
             {profile.duelsWon} / {profile.duelsLost}
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Дуэли • {winRate}% побед
           </div>
         </motion.div>
@@ -163,13 +183,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">🌾</div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
+          <div className="text-xl sm:text-2xl">🌾</div>
+          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
             {profile.farmStreak} / {profile.maxFarmStreak}
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Серия фермы • {formatFarms(profile.farmSuccessCount)}
           </div>
         </motion.div>
@@ -179,34 +199,109 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="glass rounded-2xl border border-border p-6"
+          className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
         >
-          <div className="text-2xl">📦</div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{profile.treasuresFound}</div>
-          <div className="mt-1 text-sm text-muted-foreground">{formatTreasures(profile.treasuresFound, false)}</div>
+          <div className="text-xl sm:text-2xl">📦</div>
+          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">{profile.treasuresFound}</div>
+          <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{formatTreasures(profile.treasuresFound, false)}</div>
         </motion.div>
       </div>
 
-      {/* Additional Info */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {/* Achievements Section - NEW! */}
+      {profile.achievementsUnlocked > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-4 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
+            <div className="mb-4 flex items-center gap-3 sm:mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+                🏆
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  {profile.achievementsUnlocked} из 30 открыто
+                </p>
+              </div>
+            </div>
+
+            {/* Achievement categories */}
+            <div className="space-y-5 sm:space-y-6">
+              {achievementsByCategory.map((category, catIndex) => {
+                const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
+                if (unlockedInCategory === 0) return null
+
+                return (
+                  <div key={category.code}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-base sm:text-lg">{category.emoji}</span>
+                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                        {category.name}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {unlockedInCategory}/{category.achievements.length}
+                      </span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
+                      {category.achievements
+                        .filter(a => a.unlocked)
+                        .map((achievement, achIndex) => (
+                          <AchievementBadge
+                            key={achievement.code}
+                            emoji={achievement.emoji}
+                            name={achievement.name}
+                            description={achievement.description}
+                            unlocked={achievement.unlocked}
+                            reward={achievement.reward}
+                            index={catIndex * 10 + achIndex}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Show locked achievements hint */}
+            {profile.achievementsUnlocked < 30 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
+              >
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  🎯 Ещё {30 - profile.achievementsUnlocked} {formatAchievements(30 - profile.achievementsUnlocked, false)} ждут тебя в боте!
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Additional Info - Improved mobile layout */}
+      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
         {/* Marriage */}
         {profile.marriage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-2xl border border-border p-6"
+            transition={{ delay: 0.5 }}
+            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
           >
             <div className="flex items-center gap-3">
-              <div className="text-3xl">💍</div>
-              <div className="flex-1">
-                <div className="text-sm text-muted-foreground">В браке с</div>
+              <div className="text-2xl sm:text-3xl">💍</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-muted-foreground sm:text-sm">В браке с</div>
                 <PlayerLink
                   userId={profile.marriage.partnerId}
                   name={profile.marriage.partnerName}
-                  className="text-lg font-semibold text-foreground"
+                  className="text-base font-semibold text-foreground sm:text-lg"
                 />
-                <div className="mt-1 text-sm text-muted-foreground">
+                <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {formatDays(profile.marriage.days)}
                 </div>
               </div>
@@ -219,14 +314,14 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="glass rounded-2xl border border-border p-6"
+            transition={{ delay: 0.55 }}
+            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
           >
             <div className="flex items-center gap-3">
-              <div className="text-3xl">🏳️</div>
+              <div className="text-2xl sm:text-3xl">🏳️</div>
               <div className="flex-1">
-                <div className="text-sm text-muted-foreground">Пидор дня</div>
-                <div className="text-lg font-semibold text-foreground">{profile.pidorCount} раз</div>
+                <div className="text-xs text-muted-foreground sm:text-sm">Пидор дня</div>
+                <div className="text-base font-semibold text-foreground sm:text-lg">{profile.pidorCount} раз</div>
               </div>
             </div>
           </motion.div>
@@ -237,14 +332,14 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="glass rounded-2xl border border-border p-6"
+            transition={{ delay: 0.6 }}
+            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
           >
             <div className="flex items-center gap-3">
-              <div className="text-3xl">🎰</div>
+              <div className="text-2xl sm:text-3xl">🎰</div>
               <div className="flex-1">
-                <div className="text-sm text-muted-foreground">Игр в казино</div>
-                <div className="text-lg font-semibold text-foreground">{profile.casinoGamesCount}</div>
+                <div className="text-xs text-muted-foreground sm:text-sm">Игр в казино</div>
+                <div className="text-base font-semibold text-foreground sm:text-lg">{profile.casinoGamesCount}</div>
               </div>
             </div>
           </motion.div>
@@ -255,8 +350,8 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="mt-6 text-center text-sm text-muted-foreground"
+        transition={{ delay: 0.7 }}
+        className="mt-4 text-center text-xs text-muted-foreground sm:mt-6 sm:text-sm"
       >
         Участник с {new Date(profile.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
       </motion.div>
@@ -276,14 +371,23 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       {/* Quick Links */}
       <QuickLinks />
       
-      {/* Telegram Button */}
+      {/* Telegram Button - Bot integration CTA */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        className="mt-6 flex justify-center"
+        className="mt-4 sm:mt-6"
       >
-        <TelegramButton variant="secondary" />
+        <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 p-5 text-center sm:rounded-3xl sm:p-8">
+          <div className="mb-3 text-3xl sm:mb-4 sm:text-4xl">🤖</div>
+          <h3 className="mb-2 text-base font-bold text-foreground sm:text-lg">
+            Играй в ВОЗНЮ
+          </h3>
+          <p className="mb-4 text-xs text-muted-foreground sm:mb-5 sm:text-sm">
+            Зарабатывай ешки, открывай достижения и поднимайся в рейтинге
+          </p>
+          <TelegramButton variant="secondary" />
+        </div>
       </motion.div>
     </div>
   )

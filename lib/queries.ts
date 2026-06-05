@@ -231,6 +231,16 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
   }
 }
 
+export type UserAchievement = {
+  code: string
+  emoji: string
+  name: string
+  description: string
+  reward: number
+  category: string
+  unlockedAt: string
+}
+
 export type PlayerProfile = {
   userId: number
   username: string | null
@@ -248,6 +258,7 @@ export type PlayerProfile = {
   casinoGamesCount: number
   createdAt: string
   achievementsUnlocked: number
+  achievements: UserAchievement[]
   rankInTop: number | null
   marriage: {
     partnerId: number
@@ -292,11 +303,31 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
 
   const user = rows[0]
 
-  // Get achievements count
-  const achRows = await query<{ count: string }>(
-    `SELECT COUNT(*) AS count FROM user_achievements WHERE user_id = $1`,
+  // Get user's unlocked achievements with details
+  const achRows = await query<{ 
+    code: string
+    unlocked_at: string
+  }>(
+    `SELECT code, unlocked_at FROM user_achievements WHERE user_id = $1 ORDER BY unlocked_at DESC`,
     [userId],
   )
+
+  const unlockedCodes = new Set(achRows.map(a => a.code))
+  const achievements: UserAchievement[] = achRows
+    .map(row => {
+      const ach = ACHIEVEMENTS.find(a => a.code === row.code)
+      if (!ach) return null
+      return {
+        code: ach.code,
+        emoji: ach.emoji,
+        name: ach.name,
+        description: ach.description,
+        reward: ach.reward,
+        category: ach.category,
+        unlockedAt: String(row.unlocked_at),
+      }
+    })
+    .filter((a): a is UserAchievement => a !== null)
 
   // Get rank in top
   const rankRows = await query<{ rank: string }>(
@@ -358,7 +389,8 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     farmSuccessCount: Number(user.farm_success_count),
     casinoGamesCount: Number(user.casino_games_count),
     createdAt: String(user.created_at),
-    achievementsUnlocked: Number(achRows[0]?.count ?? 0),
+    achievementsUnlocked: achievements.length,
+    achievements,
     rankInTop: rankRows[0] ? Number(rankRows[0].rank) : null,
     marriage: marriage
       ? {
