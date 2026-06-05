@@ -58,7 +58,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
   })).filter(cat => cat.achievements.length > 0)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-10">
       {/* Breadcrumb Navigation */}
       <ProfileBreadcrumb playerName={profile.firstName} />
       
@@ -69,7 +69,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8"
+        className="glass rounded-xl border border-border p-4 sm:rounded-3xl sm:p-8"
       >
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
           {/* Avatar - Bot themed */}
@@ -123,13 +123,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-lg border border-border p-2 sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="text-lg sm:text-2xl">💰</div>
@@ -232,14 +232,14 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </div>
 
       {/* Additional Info - Improved mobile layout */}
-      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
+      <div className="mt-3 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-4">
         {/* Marriage */}
         {profile.marriage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
+            className="glass rounded-lg border border-border p-3 sm:rounded-2xl sm:p-6"
           >
             <div className="flex items-center gap-3">
               <div className="text-2xl sm:text-3xl">💍</div>
@@ -301,9 +301,9 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.65 }}
-          className="mt-4 sm:mt-6"
+          className="mt-3 sm:mt-6"
         >
-          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-8">
+          <div className="glass rounded-xl border border-border p-3 sm:rounded-3xl sm:p-8">
             <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20 text-lg sm:h-12 sm:w-12 sm:text-2xl">
                 🏆
