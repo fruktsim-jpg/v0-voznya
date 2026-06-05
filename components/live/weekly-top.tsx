@@ -9,10 +9,7 @@ import type { WeeklyEarner } from '@/lib/queries'
 const MEDALS = ['🥇', '🥈', '🥉']
 
 export function WeeklyTop() {
-  const { data } = useApi<WeeklyEarner[]>('/api/top-weekly?limit=10', 30_000)
-
-  // Hide the whole block until there is real weekly activity.
-  if (!data || data.length === 0) return null
+  const { data, error } = useApi<WeeklyEarner[]>('/api/top-weekly?limit=10', 30_000)
 
   return (
     <section id="top-weekly" className="px-6 py-10 sm:py-14">
@@ -22,6 +19,17 @@ export function WeeklyTop() {
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Больше всех заработали за последние 7 дней</p>
 
+        {error && !data ? (
+          <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>
+        ) : !data ? (
+          <div className="mt-8 space-y-2.5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/5" />
+            ))}
+          </div>
+        ) : data.length === 0 ? (
+          <p className="mt-6 text-center text-sm text-muted-foreground">Пока нет активности за последние 7 дней</p>
+        ) : (
         <div className="mt-8 space-y-2.5">
           {data.map((u, i) => {
             const top3 = u.rank <= 3
@@ -49,6 +57,7 @@ export function WeeklyTop() {
             )
           })}
         </div>
+        )}
       </div>
     </section>
   )

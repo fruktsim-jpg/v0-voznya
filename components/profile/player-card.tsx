@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
 import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements } from '@/lib/pluralize'
+import Link from 'next/link'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TelegramButton } from '@/components/voznya/telegram-button'
 import { ProfileBreadcrumb } from '@/components/profile/profile-breadcrumb'
@@ -89,9 +90,12 @@ export function PlayerCard({ profile }: PlayerCardProps) {
               <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
             )}
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-3">
-              <div className="rounded-full bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1.5 text-xs font-semibold text-primary sm:px-4 sm:text-sm">
+              <Link
+                href="/live#titles"
+                className="rounded-full bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:from-primary/30 hover:to-accent/30 sm:px-4 sm:text-sm"
+              >
                 {title.emoji} {title.name}
-              </div>
+              </Link>
               {profile.rankInTop && (
                 <div className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground sm:px-4 sm:text-sm">
                   #{profile.rankInTop} в топе
@@ -253,6 +257,12 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                 <div className="text-[9px] text-muted-foreground sm:text-xs">
                   {formatDays(profile.marriage.days)}
                 </div>
+                <Link
+                  href="/live#families"
+                  className="mt-0.5 inline-block text-[9px] font-medium text-primary hover:underline sm:text-xs"
+                >
+                  Рейтинг семей →
+                </Link>
               </div>
             </div>
           </motion.div>
@@ -316,11 +326,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
               </div>
             </div>
 
-            {/* Achievement categories */}
+            {/* Achievement categories — show both unlocked and locked, unlocked first */}
             <div className="space-y-5 sm:space-y-6">
               {achievementsByCategory.map((category, catIndex) => {
                 const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
-                if (unlockedInCategory === 0) return null
+                const sorted = [...category.achievements].sort(
+                  (a, b) => Number(b.unlocked) - Number(a.unlocked)
+                )
 
                 return (
                   <div key={category.code}>
@@ -334,19 +346,17 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                       </span>
                     </div>
                     <div className="space-y-2.5">
-                      {category.achievements
-                        .filter(a => a.unlocked)
-                        .map((achievement, achIndex) => (
-                          <AchievementBadge
-                            key={achievement.code}
-                            emoji={achievement.emoji}
-                            name={achievement.name}
-                            description={achievement.description}
-                            unlocked={achievement.unlocked}
-                            reward={achievement.reward}
-                            index={catIndex * 10 + achIndex}
-                          />
-                        ))}
+                      {sorted.map((achievement, achIndex) => (
+                        <AchievementBadge
+                          key={achievement.code}
+                          emoji={achievement.emoji}
+                          name={achievement.name}
+                          description={achievement.description}
+                          unlocked={achievement.unlocked}
+                          reward={achievement.reward}
+                          index={catIndex * 10 + achIndex}
+                        />
+                      ))}
                     </div>
                   </div>
                 )

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Link2, Check } from 'lucide-react'
+import { Link2, Check, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface ShareButtonProps {
@@ -12,6 +12,13 @@ interface ShareButtonProps {
 
 export function ShareButton({ userId, playerName }: ShareButtonProps) {
   const [copied, setCopied] = useState(false)
+
+  const handleTelegramShare = () => {
+    const url = `${window.location.origin}/profile/${userId}`
+    const text = `Профиль ${playerName} в ВОЗНЕ`
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+    window.open(shareUrl, '_blank', 'noopener,noreferrer')
+  }
 
   const handleCopy = async () => {
     const url = `${window.location.origin}/profile/${userId}`
@@ -44,8 +51,15 @@ export function ShareButton({ userId, playerName }: ShareButtonProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.85 }}
-      className="mt-4"
+      className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2"
     >
+      <Button
+        onClick={handleTelegramShare}
+        className="w-full gap-2"
+      >
+        <Send className="h-4 w-4" />
+        <span>Поделиться в Telegram</span>
+      </Button>
       <Button
         variant="outline"
         onClick={handleCopy}
@@ -60,7 +74,7 @@ export function ShareButton({ userId, playerName }: ShareButtonProps) {
         ) : (
           <>
             <Link2 className="h-4 w-4" />
-            <span>Скопировать ссылку на профиль</span>
+            <span>Скопировать ссылку</span>
           </>
         )}
       </Button>

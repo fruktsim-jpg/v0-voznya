@@ -19,8 +19,8 @@ export function ScrollToAnchor() {
         const element = document.getElementById(id)
         
         if (element) {
-          // Scroll with smooth behavior and offset for header
-          const yOffset = -80 // Offset for fixed header if any
+          // Scroll with smooth behavior and a small breathing offset
+          const yOffset = -16
           const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset
           
           window.scrollTo({

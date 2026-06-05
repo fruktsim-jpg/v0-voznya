@@ -11,8 +11,6 @@ const MEDALS = ['🥇', '🥈', '🥉']
 export function FamiliesTop() {
   const { data, error } = useApi<Family[]>('/api/families', 30_000)
 
-  if (error || !data || data.length === 0) return null
-
   return (
     <section id="families" className="px-6 py-10 sm:py-14">
       <div className="mx-auto max-w-3xl">
@@ -23,6 +21,17 @@ export function FamiliesTop() {
           Самые крепкие браки сообщества
         </p>
 
+        {error && !data ? (
+          <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>
+        ) : !data ? (
+          <div className="mt-8 space-y-2.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />
+            ))}
+          </div>
+        ) : data.length === 0 ? (
+          <p className="mt-6 text-center text-sm text-muted-foreground">Пока нет браков в сообществе</p>
+        ) : (
         <div className="mt-8 space-y-2.5">
           {data.map((family, i) => {
             const top3 = family.rank <= 3
@@ -67,6 +76,7 @@ export function FamiliesTop() {
             )
           })}
         </div>
+        )}
       </div>
     </section>
   )

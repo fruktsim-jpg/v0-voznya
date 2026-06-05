@@ -12,6 +12,7 @@ import { BotFeatures } from '@/components/live/bot-features'
 import { CommandsExplorer } from '@/components/live/commands-explorer'
 import { SiteFooter } from '@/components/voznya/site-footer'
 import { ScrollToAnchor } from '@/components/live/scroll-to-anchor'
+import { LiveNav } from '@/components/live/live-nav'
 
 export const metadata: Metadata = {
   title: 'Живая статистика ВОЗНИ',
@@ -43,6 +44,8 @@ export default function LivePage() {
           </p>
         </div>
       </section>
+
+      <LiveNav />
 
       <LiveCommunityStats />
       <TopRich />

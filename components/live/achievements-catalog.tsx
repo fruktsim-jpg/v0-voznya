@@ -23,7 +23,7 @@ export function AchievementsCatalog() {
   }
 
   return (
-    <section className="px-6 py-10 sm:py-14">
+    <section id="achievements" className="px-6 py-10 sm:py-14">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
           <span className="text-gradient">Ачивки</span>
@@ -147,7 +147,7 @@ function AchievementCard({
             </span>
           )}
         </div>
-        <p className="truncate text-xs text-muted-foreground">{achievement.description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{achievement.description}</p>
       </div>
       <div className="shrink-0 text-center">
         <div className="text-base font-bold text-foreground">{unlocked}</div>
