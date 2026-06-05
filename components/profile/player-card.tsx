@@ -123,19 +123,19 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4">
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">💰</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">💰</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Баланс</div>
+              <div className="text-sm font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Баланс</div>
             </div>
           </div>
         </motion.div>
@@ -145,13 +145,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">📈</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">📈</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl truncate">{formatCurrency(profile.totalEarned)}</div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Заработано</div>
+              <div className="text-sm font-bold text-foreground sm:text-xl truncate">{formatCurrency(profile.totalEarned)}</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Заработано</div>
             </div>
           </div>
         </motion.div>
@@ -161,15 +161,15 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">🏆</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">🏆</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl">
+              <div className="text-sm font-bold text-foreground sm:text-xl">
                 {profile.achievementsUnlocked} / 30
               </div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Достижения</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Достижения</div>
             </div>
           </div>
         </motion.div>
@@ -179,15 +179,15 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">⚔️</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">⚔️</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl">
+              <div className="text-sm font-bold text-foreground sm:text-xl">
                 {profile.duelsWon} / {profile.duelsLost}
               </div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">
+              <div className="text-[9px] text-muted-foreground sm:text-xs">
                 Дуэли • {winRate}%
               </div>
             </div>
@@ -199,15 +199,15 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">🌾</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">🌾</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl">
+              <div className="text-sm font-bold text-foreground sm:text-xl">
                 {profile.farmStreak} / {profile.maxFarmStreak}
               </div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs truncate">
+              <div className="text-[9px] text-muted-foreground sm:text-xs truncate">
                 Ферма • {profile.farmSuccessCount}
               </div>
             </div>
@@ -219,13 +219,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-xl border border-border p-2.5 sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">📦</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">📦</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Клады</div>
+              <div className="text-sm font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Клады</div>
             </div>
           </div>
         </motion.div>
