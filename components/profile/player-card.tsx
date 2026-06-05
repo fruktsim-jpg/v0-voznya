@@ -123,19 +123,19 @@ export function PlayerCard({ profile }: PlayerCardProps) {
       </motion.div>
 
       {/* Stats Grid - Improved mobile layout */}
-      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-4">
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
-          <div className="flex items-center gap-2 sm:gap-2">
-            <div className="text-xl sm:text-2xl">💰</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">💰</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Баланс</div>
+              <div className="text-sm font-bold text-primary sm:text-xl truncate">{formatCurrency(profile.balance)}</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Баланс</div>
             </div>
           </div>
         </motion.div>
@@ -145,7 +145,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="text-lg sm:text-2xl">📈</div>
@@ -161,7 +161,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="text-lg sm:text-2xl">🏆</div>
@@ -179,7 +179,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="text-lg sm:text-2xl">⚔️</div>
@@ -199,7 +199,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass rounded-xl border border-border p-2.5 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="text-lg sm:text-2xl">🌾</div>
@@ -207,7 +207,7 @@ export function PlayerCard({ profile }: PlayerCardProps) {
               <div className="text-sm font-bold text-foreground sm:text-xl">
                 {profile.farmStreak} / {profile.maxFarmStreak}
               </div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs truncate">
+              <div className="text-[9px] text-muted-foreground sm:text-xs truncate">
                 Ферма • {profile.farmSuccessCount}
               </div>
             </div>
@@ -219,38 +219,38 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="glass rounded-xl border border-border p-3 sm:p-4"
+          className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
         >
-          <div className="flex items-center gap-2">
-            <div className="text-xl sm:text-2xl">📦</div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="text-lg sm:text-2xl">📦</div>
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
-              <div className="text-[10px] text-muted-foreground sm:text-xs">Клады</div>
+              <div className="text-sm font-bold text-foreground sm:text-xl">{profile.treasuresFound}</div>
+              <div className="text-[9px] text-muted-foreground sm:text-xs">Клады</div>
             </div>
           </div>
         </motion.div>
       </div>
 
       {/* Additional Info - Improved mobile layout */}
-      <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
         {/* Marriage */}
         {profile.marriage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
+            className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
           >
-            <div className="flex items-center gap-3">
-              <div className="text-2xl sm:text-3xl">💍</div>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="text-lg sm:text-2xl">💍</div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground sm:text-sm">В браке с</div>
+                <div className="text-[9px] text-muted-foreground sm:text-xs">В браке с</div>
                 <PlayerLink
                   userId={profile.marriage.partnerId}
                   name={profile.marriage.partnerName}
-                  className="text-base font-semibold text-foreground sm:text-lg"
+                  className="text-sm font-semibold text-foreground sm:text-base truncate block"
                 />
-                <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                <div className="text-[9px] text-muted-foreground sm:text-xs">
                   {formatDays(profile.marriage.days)}
                 </div>
               </div>
@@ -264,13 +264,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55 }}
-            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
+            className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
           >
-            <div className="flex items-center gap-3">
-              <div className="text-2xl sm:text-3xl">🏳️</div>
-              <div className="flex-1">
-                <div className="text-xs text-muted-foreground sm:text-sm">Пидор дня</div>
-                <div className="text-base font-semibold text-foreground sm:text-lg">{profile.pidorCount} раз</div>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="text-lg sm:text-2xl">🏳️</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-foreground sm:text-xl">{profile.pidorCount}</div>
+                <div className="text-[9px] text-muted-foreground sm:text-xs">Пидор дня</div>
               </div>
             </div>
           </motion.div>
@@ -282,13 +282,13 @@ export function PlayerCard({ profile }: PlayerCardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass rounded-xl border border-border p-4 sm:rounded-2xl sm:p-6"
+            className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
           >
-            <div className="flex items-center gap-3">
-              <div className="text-2xl sm:text-3xl">🎰</div>
-              <div className="flex-1">
-                <div className="text-xs text-muted-foreground sm:text-sm">Игр в казино</div>
-                <div className="text-base font-semibold text-foreground sm:text-lg">{profile.casinoGamesCount}</div>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="text-lg sm:text-2xl">🎰</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-foreground sm:text-xl">{profile.casinoGamesCount}</div>
+                <div className="text-[9px] text-muted-foreground sm:text-xs">Казино</div>
               </div>
             </div>
           </motion.div>
