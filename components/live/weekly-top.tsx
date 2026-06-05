@@ -15,7 +15,7 @@ export function WeeklyTop() {
   if (!data || data.length === 0) return null
 
   return (
-    <section className="px-6 py-10 sm:py-14">
+    <section id="top-weekly" className="px-6 py-10 sm:py-14">
       <div className="mx-auto max-w-3xl">
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
           Топ <span className="text-gradient">недели</span>
