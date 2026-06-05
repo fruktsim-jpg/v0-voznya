@@ -1,21 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
- * Branded Возня login button.
+ * Branded Возня login control with a safe fallback.
  *
- * Visually this is a native Возня pill (matches the header "Статистика" button)
- * instead of Telegram's off-brand iframe widget. Functionally it still uses the
- * OFFICIAL Telegram widget script: clicking opens Telegram's verified auth popup
- * via `window.Telegram.Login.auth(...)`. On success Telegram hands us the signed
- * login payload, which we forward to the EXISTING `/api/auth/telegram` GET route
- * (same params Telegram's redirect mode would have produced). That route owns all
- * HMAC verification and session issuing — none of which changes here.
+ * Two modes, chosen automatically from env so the button is NEVER hidden when
+ * login is configured:
  *
- * Requires NEXT_PUBLIC_TELEGRAM_BOT_ID (the integer before ":" in the bot token —
- * public, safe to expose) and the site domain registered in @BotFather via
- * /setdomain. Without the env var the control degrades to nothing.
+ *  1. Branded popup (preferred) — when NEXT_PUBLIC_TELEGRAM_BOT_ID is set.
+ *     Renders a native Возня pill; clicking opens Telegram's OFFICIAL verified
+ *     auth popup via `window.Telegram.Login.auth({ bot_id })`.
+ *
+ *  2. Official widget fallback — when only NEXT_PUBLIC_TELEGRAM_BOT_USERNAME is
+ *     set. Renders Telegram's standard Login Widget. Less on-brand, but it keeps
+ *     login working without requiring the newer BOT_ID env var.
+ *
+ * In BOTH modes the signed payload goes to the EXISTING `/api/auth/telegram`
+ * route, which owns all HMAC verification and session issuing. None of that
+ * changes here. The site domain must be registered in @BotFather via /setdomain.
+ *
+ * Only when NEITHER env var is configured does the control render nothing.
  */
 
 type TelegramAuthData = Record<string, string | number | undefined>
@@ -37,13 +42,18 @@ const WIDGET_SRC = 'https://telegram.org/js/telegram-widget.js?22'
 
 export function TelegramLoginButton() {
   const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+  // Popup mode requires the numeric bot id; otherwise fall back to the widget.
+  const usePopup = Boolean(botId)
+
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
+  const widgetRef = useRef<HTMLDivElement>(null)
 
+  // Popup mode: load the widget script so window.Telegram.Login is available.
   useEffect(() => {
-    if (!botId) return
+    if (!usePopup) return
 
-    // Reuse the widget script if it's already on the page.
     const existing = document.querySelector<HTMLScriptElement>(
       `script[src="${WIDGET_SRC}"]`,
     )
@@ -61,7 +71,24 @@ export function TelegramLoginButton() {
     script.async = true
     script.onload = () => setReady(true)
     document.body.appendChild(script)
-  }, [botId])
+  }, [usePopup])
+
+  // Fallback mode: inject the official Telegram Login Widget (redirect mode).
+  useEffect(() => {
+    if (usePopup || !botUsername) return
+    const container = widgetRef.current
+    if (!container || container.querySelector('script')) return
+
+    const script = document.createElement('script')
+    script.src = WIDGET_SRC
+    script.async = true
+    script.setAttribute('data-telegram-login', botUsername)
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-radius', '12')
+    script.setAttribute('data-request-access', 'write')
+    script.setAttribute('data-auth-url', '/api/auth/telegram')
+    container.appendChild(script)
+  }, [usePopup, botUsername])
 
   const handleLogin = useCallback(() => {
     if (!botId || !window.Telegram?.Login) return
@@ -87,11 +114,17 @@ export function TelegramLoginButton() {
     )
   }, [botId])
 
-  if (!botId) {
-    // Login not configured — render nothing so the UI degrades gracefully.
+  // Neither configured — nothing to render.
+  if (!botId && !botUsername) {
     return null
   }
 
+  // Fallback: official Telegram widget.
+  if (!usePopup) {
+    return <div ref={widgetRef} className="inline-flex min-h-[40px] items-center" />
+  }
+
+  // Preferred: branded popup button.
   return (
     <button
       type="button"
