@@ -183,7 +183,7 @@ export async function getAchievementsProgress(): Promise<AchievementsResult> {
   return { totalUnlocked, items }
 }
 
-export type MessageTop = { rank: number; name: string; count: number }
+export type MessageTop = { rank: number; userId: number; name: string; count: number }
 export type MessageActivityPoint = { day: string; count: number }
 export type MessageStats = {
   total: number
@@ -201,11 +201,12 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
     `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
   )
   const topRows = await query<{
+    user_id: string
     first_name: string | null
     username: string | null
     messages_count: string
   }>(
-    `SELECT first_name, username, messages_count
+    `SELECT user_id, first_name, username, messages_count
        FROM users
       WHERE messages_count > 0
       ORDER BY messages_count DESC, user_id ASC
@@ -224,6 +225,7 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
     total: Number(totalRows[0]?.total ?? 0),
     top: topRows.map((r, i) => ({
       rank: i + 1,
+      userId: Number(r.user_id),
       name: displayName(r.first_name, r.username),
       count: Number(r.messages_count),
     })),

@@ -145,3 +145,17 @@ export function formatAchievements(achievements: number, withNumber = true): str
   const word = pluralize(achievements, 'достижение', 'достижения', 'достижений')
   return withNumber ? `${formatted} ${word}` : word
 }
+
+/**
+ * Formats messages with proper pluralization.
+ * 
+ * @example
+ * formatMessages(1) // "1 сообщение"
+ * formatMessages(2) // "2 сообщения"
+ * formatMessages(5) // "5 сообщений"
+ */
+export function formatMessages(messages: number, withNumber = true): string {
+  const formatted = messages.toLocaleString('ru-RU')
+  const word = pluralize(messages, 'сообщение', 'сообщения', 'сообщений')
+  return withNumber ? `${formatted} ${word}` : word
+}

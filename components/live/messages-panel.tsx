@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { AnimatedCounter } from '@/components/voznya/animated-counter'
+import { PlayerLink } from '@/components/ui/player-link'
+import { formatMessages } from '@/lib/pluralize'
 import { useApi } from '@/hooks/use-api'
 import type { MessageStats } from '@/lib/queries'
 
@@ -76,18 +78,23 @@ export function MessagesPanel() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true, margin: '-30px' }}
                     transition={{ duration: 0.4, delay: i * 0.04 }}
-                    className={`glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4 ${
+                    className={`glass flex items-center gap-3 rounded-2xl border p-3.5 sm:gap-4 sm:p-4 ${
                       top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
                     }`}
                   >
-                    <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
+                    <div className="flex w-8 shrink-0 justify-center text-xl sm:w-9 sm:text-2xl">
                       {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
                     </div>
-                    <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground sm:text-base">
-                      {u.name}
+                    <div className="min-w-0 flex-1">
+                      <PlayerLink
+                        userId={u.userId}
+                        name={u.name}
+                        className="truncate text-sm font-semibold text-foreground hover:text-primary sm:text-base"
+                      />
                     </div>
-                    <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
-                      {u.count.toLocaleString('ru-RU')} <span className="text-muted-foreground">сообщ.</span>
+                    <div className="shrink-0 text-right text-xs font-bold text-primary sm:text-sm">
+                      <div>{u.count.toLocaleString('ru-RU')}</div>
+                      <div className="text-[10px] text-muted-foreground sm:text-xs">{formatMessages(u.count, false)}</div>
                     </div>
                   </motion.div>
                 )
