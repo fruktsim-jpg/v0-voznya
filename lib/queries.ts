@@ -405,6 +405,52 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
   }
 }
 
+export type Family = {
+  rank: number
+  user1Id: number
+  user1Name: string
+  user2Id: number
+  user2Name: string
+  marriedAt: string
+  days: number
+}
+
+export async function getTopFamilies(limit = 10): Promise<Family[]> {
+  const rows = await query<{
+    user_id_1: string
+    user_id_2: string
+    f1: string | null
+    u1: string | null
+    f2: string | null
+    u2: string | null
+    married_at: string
+    days: string
+  }>(
+    `SELECT 
+       m.user_id_1, m.user_id_2,
+       u1.first_name AS f1, u1.username AS u1,
+       u2.first_name AS f2, u2.username AS u2,
+       m.married_at,
+       EXTRACT(DAY FROM NOW() - m.married_at) AS days
+     FROM marriages m
+     JOIN users u1 ON u1.user_id = m.user_id_1
+     JOIN users u2 ON u2.user_id = m.user_id_2
+     WHERE m.divorced_at IS NULL
+     ORDER BY m.married_at ASC
+     LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    user1Id: Number(r.user_id_1),
+    user1Name: displayName(r.f1, r.u1),
+    user2Id: Number(r.user_id_2),
+    user2Name: displayName(r.f2, r.u2),
+    marriedAt: String(r.married_at),
+    days: Number(r.days),
+  }))
+}
+
 export type Daily = {
   pidor: { name: string; date: string; count: number } | null
   para: { first: string; second: string; date: string } | null
