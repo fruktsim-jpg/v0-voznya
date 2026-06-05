@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Activity } from 'lucide-react'
+import { UserMenu } from '@/components/auth/user-menu'
+
 
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false)
@@ -25,18 +27,22 @@ export function SiteHeader() {
           ВОЗНЯ
         </Link>
 
-        <Link
-          href="/live"
-          className="group inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <Activity className="hidden h-4 w-4 text-primary sm:block" />
-          Статистика
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/live"
+            className="group inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            <Activity className="hidden h-4 w-4 text-primary sm:block" />
+            Статистика
+          </Link>
+          <UserMenu />
+        </div>
       </div>
+
     </header>
   )
 }

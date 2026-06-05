@@ -48,10 +48,24 @@ export async function getCommunityStats(): Promise<CommunityStats> {
   }
 }
 
+/**
+ * Read-only existence check. Used by the auth layer to decide whether a
+ * logged-in Telegram user already exists in the game. NEVER inserts — the bot
+ * is the single source of truth for the `users` table.
+ */
+export async function userExists(userId: number): Promise<boolean> {
+  const rows = await query<{ exists: boolean }>(
+    `SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1) AS exists`,
+    [userId],
+  )
+  return Boolean(rows[0]?.exists)
+}
+
 export type Economy = {
   treasury: number
   avgBalance: number
   maxBalance: number
+
   farmers: number
   richest: { name: string; balance: number } | null
 }

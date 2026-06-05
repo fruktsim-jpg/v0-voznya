@@ -2,6 +2,9 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPlayerProfile } from '@/lib/queries'
 import { PlayerCard } from '@/components/profile/player-card'
+import { NotRegistered } from '@/components/auth/not-registered'
+import { getSession } from '@/lib/auth/get-session'
+
 
 interface ProfilePageProps {
   params: Promise<{ id: string }>
@@ -53,11 +56,22 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     notFound()
   }
 
+  const session = await getSession()
+  const isOwner = session?.uid === userId
+
   const profile = await getPlayerProfile(userId)
 
   if (!profile) {
+    // A logged-in user looking at their own (non-existent) profile means they
+    // authenticated via Telegram but never played — show a friendly hint
+    // instead of a 404. The bot remains the only thing that creates users.
+    if (isOwner) {
+      return <NotRegistered />
+    }
     notFound()
   }
 
-  return <PlayerCard profile={profile} />
+  return <PlayerCard profile={profile} isOwner={isOwner} />
 }
+
+

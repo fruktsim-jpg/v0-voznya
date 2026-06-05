@@ -16,9 +16,11 @@ import type { PlayerProfile } from '@/lib/queries'
 
 interface PlayerCardProps {
   profile: PlayerProfile
+  isOwner?: boolean
 }
 
-export function PlayerCard({ profile }: PlayerCardProps) {
+export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
+
   const title = titleForEarned(profile.totalEarned)
   const duelsTotal = profile.duelsWon + profile.duelsLost
   const winRate = duelsTotal > 0 ? Math.round((profile.duelsWon / duelsTotal) * 100) : 0
@@ -85,7 +87,15 @@ export function PlayerCard({ profile }: PlayerCardProps) {
 
           {/* Info */}
           <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{profile.firstName}</h1>
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{profile.firstName}</h1>
+              {isOwner && (
+                <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                  Это ты
+                </span>
+              )}
+            </div>
+
             {profile.username && (
               <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
             )}
