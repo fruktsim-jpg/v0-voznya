@@ -21,9 +21,27 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
     return { title: 'Профиль не найден' }
   }
 
+  const title = `${profile.firstName} | ВОЗНЯ`
+  const description = `Профиль игрока ${profile.firstName}. Баланс: ${profile.balance} ешек, заработано: ${profile.totalEarned} ешек. ${profile.rankInTop ? `#${profile.rankInTop} в топе богачей.` : ''} ${profile.achievementsUnlocked} достижений из 30.`
+
   return {
-    title: `${profile.firstName} — ВОЗНЯ`,
-    description: `Профиль игрока ${profile.firstName}. Баланс: ${profile.balance} ешек, заработано: ${profile.totalEarned} ешек.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'profile',
+      url: `https://voznya.ru/profile/${userId}`,
+      siteName: 'ВОЗНЯ',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+    alternates: {
+      canonical: `/profile/${userId}`,
+    },
   }
 }
 

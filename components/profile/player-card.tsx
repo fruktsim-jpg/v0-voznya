@@ -5,6 +5,11 @@ import { titleForEarned } from '@/lib/voznya-bot'
 import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TelegramButton } from '@/components/voznya/telegram-button'
+import { ProfileBreadcrumb } from '@/components/profile/profile-breadcrumb'
+import { BackButton } from '@/components/profile/back-button'
+import { PlayerNavigation } from '@/components/profile/player-navigation'
+import { ShareButton } from '@/components/profile/share-button'
+import { QuickLinks } from '@/components/profile/quick-links'
 import type { PlayerProfile } from '@/lib/queries'
 
 interface PlayerCardProps {
@@ -39,6 +44,12 @@ export function PlayerCard({ profile }: PlayerCardProps) {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
+      {/* Breadcrumb Navigation */}
+      <ProfileBreadcrumb playerName={profile.firstName} />
+      
+      {/* Back Button */}
+      <BackButton />
+      
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -250,11 +261,26 @@ export function PlayerCard({ profile }: PlayerCardProps) {
         Участник с {new Date(profile.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
       </motion.div>
 
+      {/* Player Navigation (Prev/Next) */}
+      <PlayerNavigation 
+        currentUserId={profile.userId} 
+        currentRank={profile.rankInTop} 
+      />
+      
+      {/* Share Button */}
+      <ShareButton 
+        userId={profile.userId} 
+        playerName={profile.firstName} 
+      />
+      
+      {/* Quick Links */}
+      <QuickLinks />
+      
       {/* Telegram Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
+        transition={{ delay: 0.9 }}
         className="mt-6 flex justify-center"
       >
         <TelegramButton variant="secondary" />
