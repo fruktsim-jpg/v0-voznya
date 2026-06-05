@@ -61,6 +61,46 @@ export async function userExists(userId: number): Promise<boolean> {
   return Boolean(rows[0]?.exists)
 }
 
+export type UserSummary = {
+  registered: boolean
+  name: string | null
+  balance: number | null
+  rank: number | null
+}
+
+/**
+ * Read-only snapshot for the header user menu: display name, ешки balance and
+ * leaderboard position. NEVER writes — the bot owns the `users` table. Returns
+ * `registered: false` when the logged-in Telegram user has never played.
+ */
+export async function getUserSummary(userId: number): Promise<UserSummary> {
+  const rows = await query<{
+    first_name: string | null
+    username: string | null
+    balance: string
+    rank: string
+  }>(
+    `SELECT first_name, username, balance, rank FROM (
+       SELECT user_id, first_name, username, balance,
+              ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rank
+         FROM users
+     ) ranked
+     WHERE user_id = $1`,
+    [userId],
+  )
+  const row = rows[0]
+  if (!row) {
+    return { registered: false, name: null, balance: null, rank: null }
+  }
+  return {
+    registered: true,
+    name: displayName(row.first_name, row.username),
+    balance: Number(row.balance),
+    rank: Number(row.rank),
+  }
+}
+
+
 export type Economy = {
   treasury: number
   avgBalance: number
