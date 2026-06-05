@@ -26,15 +26,15 @@ export function AchievementBadge({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.02, duration: 0.3 }}
       className={cn(
-        "relative overflow-hidden rounded-lg border p-2.5 transition-all sm:rounded-xl sm:p-3",
+        "relative overflow-hidden rounded-lg border p-2 transition-all sm:rounded-xl sm:p-3",
         unlocked
           ? "glass border-primary/30 bg-primary/5"
           : "border-border/50 bg-white/[0.02] opacity-50"
       )}
     >
-      <div className="flex items-start gap-2 sm:gap-3">
+      <div className="flex items-start gap-1.5 sm:gap-3">
         <div className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg transition-all sm:h-10 sm:w-10 sm:text-xl",
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base transition-all sm:h-10 sm:w-10 sm:text-xl",
           unlocked 
             ? "bg-primary/20 scale-100" 
             : "bg-white/5 grayscale scale-90"
@@ -42,20 +42,20 @@ export function AchievementBadge({
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-start justify-between gap-1 sm:gap-2">
             <h4 className={cn(
-              "text-xs font-semibold leading-tight sm:text-sm",
+              "text-[11px] font-semibold leading-tight sm:text-sm",
               unlocked ? "text-foreground" : "text-muted-foreground"
             )}>
               {name}
             </h4>
             {unlocked && reward && reward > 0 && (
-              <span className="shrink-0 text-[10px] font-bold text-primary sm:text-xs">
+              <span className="shrink-0 text-[9px] font-bold text-primary sm:text-xs">
                 +{reward}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-1 sm:text-xs sm:line-clamp-2">
+          <p className="mt-0.5 text-[9px] text-muted-foreground line-clamp-1 sm:text-xs sm:line-clamp-2">
             {description}
           </p>
         </div>

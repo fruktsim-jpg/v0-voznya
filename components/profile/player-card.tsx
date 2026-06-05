@@ -303,37 +303,37 @@ export function PlayerCard({ profile }: PlayerCardProps) {
           transition={{ delay: 0.65 }}
           className="mt-4 sm:mt-6"
         >
-          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
-            <div className="mb-4 flex items-center gap-3 sm:mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-8">
+            <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20 text-lg sm:h-12 sm:w-12 sm:text-2xl">
                 🏆
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
-                <p className="text-xs text-muted-foreground sm:text-sm">
+                <h2 className="text-base font-bold text-foreground sm:text-xl">Достижения</h2>
+                <p className="text-[10px] text-muted-foreground sm:text-sm">
                   {profile.achievementsUnlocked} из 30 открыто
                 </p>
               </div>
             </div>
 
             {/* Achievement categories */}
-            <div className="space-y-5 sm:space-y-6">
+            <div className="space-y-3 sm:space-y-6">
               {achievementsByCategory.map((category, catIndex) => {
                 const unlockedInCategory = category.achievements.filter(a => a.unlocked).length
                 if (unlockedInCategory === 0) return null
 
                 return (
                   <div key={category.code}>
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="text-base sm:text-lg">{category.emoji}</span>
-                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                    <div className="mb-2 flex items-center gap-1.5 sm:mb-3 sm:gap-2">
+                      <span className="text-sm sm:text-lg">{category.emoji}</span>
+                      <h3 className="text-xs font-semibold text-foreground sm:text-base">
                         {category.name}
                       </h3>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground sm:text-xs">
                         {unlockedInCategory}/{category.achievements.length}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
                       {category.achievements
                         .filter(a => a.unlocked)
                         .map((achievement, achIndex) => (
@@ -359,9 +359,9 @@ export function PlayerCard({ profile }: PlayerCardProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
-                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
+                className="mt-3 rounded-xl border border-border/50 bg-white/[0.02] p-3 text-center sm:mt-6 sm:p-4"
               >
-                <p className="text-xs text-muted-foreground sm:text-sm">
+                <p className="text-[10px] text-muted-foreground sm:text-sm">
                   🎯 Ещё {30 - profile.achievementsUnlocked} {formatAchievements(30 - profile.achievementsUnlocked, false)} ждут тебя в боте!
                 </p>
               </motion.div>
