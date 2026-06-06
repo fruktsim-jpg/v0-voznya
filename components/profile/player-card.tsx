@@ -15,6 +15,7 @@ import { PlayerNavigation } from '@/components/profile/player-navigation'
 import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
+import { InventoryShowcase } from '@/components/profile/inventory-showcase'
 import type { PlayerProfile } from '@/lib/queries'
 
 interface PlayerCardProps {
@@ -302,20 +303,20 @@ export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
               label="Достижения"
             />
           </div>
-
-          {/* Инвентарь — компактная строка, если есть */}
-          {profile.inventory && profile.inventory.uniqueItems > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:gap-3">
-              <StatTile emoji="🎒" value={profile.inventory.items.toLocaleString('ru-RU')} label="Предметов" />
-              <StatTile
-                emoji="✨"
-                value={profile.inventory.uniqueItems.toLocaleString('ru-RU')}
-                label="Уникальных"
-              />
-            </div>
-          )}
         </div>
       </motion.div>
+
+      {/* ============================================================== */}
+      {/* Инвентарь — read-only витрина предметов (если есть)            */}
+      {/* ============================================================== */}
+      {profile.inventory && profile.inventory.list.length > 0 && (
+        <InventoryShowcase
+          items={profile.inventory.list}
+          totalItems={profile.inventory.items}
+          uniqueItems={profile.inventory.uniqueItems}
+          delay={0.2}
+        />
+      )}
 
       {/* Брак — отдельная карточка (связь с другим игроком) */}
       {profile.marriage && (

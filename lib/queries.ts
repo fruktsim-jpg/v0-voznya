@@ -393,6 +393,19 @@ export type UserAchievement = {
   unlockedAt: string
 }
 
+// Один предмет инвентаря игрока (владение + данные каталога). Read-only.
+export type InventoryItemView = {
+  itemCode: string
+  name: string
+  description: string | null
+  // Один из ITEM_RARITIES каталога (common..legendary). 'common' по умолчанию.
+  rarity: string
+  // Один из ITEM_TYPES каталога (cosmetic/title/badge/...). 'cosmetic' по умолч.
+  type: string
+  quantity: number
+  equipped: boolean
+}
+
 export type PlayerProfile = {
   userId: number
   username: string | null
@@ -423,9 +436,14 @@ export type PlayerProfile = {
   mmrRank: MmrRank | null
   // Социальный рейтинг (репутация). null когда нет таблицы reputation_entries.
   reputation: number | null
-  // Статистика инвентаря (без полного UI предметов). null когда нет таблицы
-  // inventory. items — суммарное количество, uniqueItems — число видов.
-  inventory: { items: number; uniqueItems: number } | null
+  // Инвентарь игрока (read-only). null когда нет таблицы inventory.
+  // items — суммарное количество, uniqueItems — число видов, list — сами
+  // предметы (с данными каталога) для отображения.
+  inventory: {
+    items: number
+    uniqueItems: number
+    list: InventoryItemView[]
+  } | null
 
   // Позиции в лидербордах (ROW_NUMBER по соответствующей метрике). null если
   // метрика недоступна или у игрока нет значения.
@@ -643,19 +661,43 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     rankByReputation = posRows[0] ? Number(posRows[0].pos) : null
   }
 
-  // --- Инвентарь (только статистика, без UI предметов) --------------------
+  // --- Инвентарь (read-only список предметов) -----------------------------
   // items — суммарное количество (с учётом quantity), uniqueItems — число
-  // различных видов. Таблица появляется миграцией 0009; до неё блок скрыт.
-  let inventory: { items: number; uniqueItems: number } | null = null
+  // различных видов, list — сами предметы с данными каталога (LEFT JOIN по
+  // коду, чтобы пережить рассинхрон). Таблица появляется миграцией 0009; до
+  // неё блок скрыт. Экипированные — выше, затем по дате получения.
+  let inventory: PlayerProfile['inventory'] = null
   if (await tableExists('inventory')) {
-    const invRows = await query<{ items: string | null; unique_items: string }>(
-      `SELECT COALESCE(SUM(quantity), 0) AS items, COUNT(*) AS unique_items
-         FROM inventory WHERE user_id = $1`,
+    const itemRows = await query<{
+      item_code: string
+      quantity: string
+      equipped: boolean
+      name: string | null
+      rarity: string | null
+      type: string | null
+      description: string | null
+    }>(
+      `SELECT inv.item_code, inv.quantity, inv.equipped,
+              cat.name, cat.rarity, cat.type, cat.description
+         FROM inventory inv
+         LEFT JOIN inventory_items cat ON cat.code = inv.item_code
+        WHERE inv.user_id = $1
+        ORDER BY inv.equipped DESC, inv.acquired_at DESC`,
       [userId],
     )
+    const list: InventoryItemView[] = itemRows.map((r) => ({
+      itemCode: r.item_code,
+      name: r.name || r.item_code,
+      description: r.description,
+      rarity: r.rarity || 'common',
+      type: r.type || 'cosmetic',
+      quantity: Number(r.quantity ?? 0),
+      equipped: Boolean(r.equipped),
+    }))
     inventory = {
-      items: Number(invRows[0]?.items ?? 0),
-      uniqueItems: Number(invRows[0]?.unique_items ?? 0),
+      items: list.reduce((sum, it) => sum + it.quantity, 0),
+      uniqueItems: list.length,
+      list,
     }
   }
 
