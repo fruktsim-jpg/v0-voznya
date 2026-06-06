@@ -260,6 +260,52 @@ async function hasCombotUserStats(): Promise<boolean> {
 }
 
 /**
+ * Generic, process-cached check for whether a table exists. Used to guard
+ * queries against tables added by newer bot migrations (reputation_entries,
+ * mmr_entries, inventory) that may not be present on every deployment yet.
+ * Schema doesn't change at runtime, so caching per process is safe.
+ */
+const tablePresence = new Map<string, boolean>()
+async function tableExists(table: string): Promise<boolean> {
+  const cached = tablePresence.get(table)
+  if (cached !== undefined) return cached
+  const rows = await query<{ reg: string | null }>(
+    `SELECT to_regclass($1) AS reg`,
+    [table],
+  )
+  const present = Boolean(rows[0]?.reg)
+  tablePresence.set(table, present)
+  return present
+}
+
+/**
+ * MMR ranks — TypeScript mirror of `app/settings/mmr.py` (RANKS). Keep the two
+ * in sync. Thresholds are display-only (no migration needed to change them).
+ * The rank is NEVER hardcoded in components — they read it from the profile,
+ * which derives it here via `mmrRank()`.
+ */
+export type MmrRank = { minMmr: number; emoji: string; name: string }
+
+export const MMR_RANKS: readonly MmrRank[] = [
+  { minMmr: 0, emoji: '🥉', name: 'Новичок' },
+  { minMmr: 1000, emoji: '🥈', name: 'Бродяга' },
+  { minMmr: 2500, emoji: '🥇', name: 'Авторитет' },
+  { minMmr: 5000, emoji: '💎', name: 'Легенда' },
+  { minMmr: 10000, emoji: '👑', name: 'Элита' },
+  { minMmr: 25000, emoji: '🔥', name: 'Боженька Возни' },
+]
+
+export function mmrRank(mmr: number): MmrRank {
+  let current = MMR_RANKS[0]
+  for (const rank of MMR_RANKS) {
+    if (mmr >= rank.minMmr) current = rank
+    else break
+  }
+  return current
+}
+
+
+/**
  * Message statistics. Relies on bot tables added in migration 0004
  * (users.messages_count and message_daily). If those don't exist yet, the
  * query throws and the API returns 503 — the UI then hides the messages block.
@@ -355,6 +401,25 @@ export type PlayerProfile = {
   joinedAt: string | null
   achievementsUnlocked: number
 
+  // Игровой прогресс (MMR). mmr — текущий рейтинг (SUM по mmr_entries),
+  // rank — визуальный ранг по порогам (НЕ хардкод, см. mmrRank). null когда
+  // система MMR ещё не развёрнута (нет таблицы mmr_entries).
+  mmr: number | null
+  mmrRank: MmrRank | null
+  // Социальный рейтинг (репутация). null когда нет таблицы reputation_entries.
+  reputation: number | null
+  // Статистика инвентаря (без полного UI предметов). null когда нет таблицы
+  // inventory. items — суммарное количество, uniqueItems — число видов.
+  inventory: { items: number; uniqueItems: number } | null
+
+  // Позиции в лидербордах (ROW_NUMBER по соответствующей метрике). null если
+  // метрика недоступна или у игрока нет значения.
+  ranks: {
+    byMmr: number | null
+    byReputation: number | null
+    byMessages: number | null
+  }
+
   achievements: UserAchievement[]
   rankInTop: number | null
   marriage: {
@@ -363,7 +428,17 @@ export type PlayerProfile = {
     marriedAt: string
     days: number
   } | null
+
+  // Зарезервировано под будущую косметику (титулы/рамки/бейджи). Сейчас всегда
+  // пустой объект — экипировки ещё нет. Компоненты могут безопасно читать эти
+  // поля и рисовать, когда они появятся, без изменения контракта профиля.
+  cosmetics: {
+    title: { name: string; emoji: string | null } | null
+    frame: { code: string; payload: Record<string, unknown> | null } | null
+    badges: { code: string; emoji: string | null }[]
+  }
 }
+
 
 export async function getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
   const rows = await query<{
@@ -490,6 +565,92 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
 
   const marriage = marriageRows[0]
 
+  // --- MMR (игровой рейтинг) + место по MMR -------------------------------
+  // Источник правды — журнал mmr_entries (текущий MMR = SUM(amount)). Таблица
+  // появляется миграцией 0014; до неё блок просто скрыт (null).
+  let mmr: number | null = null
+  let mmrRankValue: MmrRank | null = null
+  let rankByMmr: number | null = null
+  if (await tableExists('mmr_entries')) {
+    const mmrRows = await query<{ mmr: string | null }>(
+      `SELECT COALESCE(SUM(amount), 0) AS mmr FROM mmr_entries WHERE player_id = $1`,
+      [userId],
+    )
+    mmr = Number(mmrRows[0]?.mmr ?? 0)
+    mmrRankValue = mmrRank(mmr)
+    // Место в лидерборде по MMR (только среди игроков с записями рейтинга).
+    const posRows = await query<{ pos: string }>(
+      `SELECT pos FROM (
+         SELECT player_id, ROW_NUMBER() OVER (ORDER BY SUM(amount) DESC, player_id ASC) AS pos
+           FROM mmr_entries GROUP BY player_id
+       ) ranked WHERE player_id = $1`,
+      [userId],
+    )
+    rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
+  }
+
+  // --- Репутация (социальный рейтинг) + место по репутации ----------------
+  // Источник правды — журнал reputation_entries (репутация = SUM(value) по
+  // получателю). Таблица появляется миграцией 0013; до неё блок скрыт (null).
+  let reputation: number | null = null
+  let rankByReputation: number | null = null
+  if (await tableExists('reputation_entries')) {
+    const repRows = await query<{ rep: string | null }>(
+      `SELECT COALESCE(SUM(value), 0) AS rep FROM reputation_entries WHERE target_user_id = $1`,
+      [userId],
+    )
+    reputation = Number(repRows[0]?.rep ?? 0)
+    const posRows = await query<{ pos: string }>(
+      `SELECT pos FROM (
+         SELECT target_user_id, ROW_NUMBER() OVER (ORDER BY SUM(value) DESC, target_user_id ASC) AS pos
+           FROM reputation_entries GROUP BY target_user_id
+       ) ranked WHERE target_user_id = $1`,
+      [userId],
+    )
+    rankByReputation = posRows[0] ? Number(posRows[0].pos) : null
+  }
+
+  // --- Инвентарь (только статистика, без UI предметов) --------------------
+  // items — суммарное количество (с учётом quantity), uniqueItems — число
+  // различных видов. Таблица появляется миграцией 0009; до неё блок скрыт.
+  let inventory: { items: number; uniqueItems: number } | null = null
+  if (await tableExists('inventory')) {
+    const invRows = await query<{ items: string | null; unique_items: string }>(
+      `SELECT COALESCE(SUM(quantity), 0) AS items, COUNT(*) AS unique_items
+         FROM inventory WHERE user_id = $1`,
+      [userId],
+    )
+    inventory = {
+      items: Number(invRows[0]?.items ?? 0),
+      uniqueItems: Number(invRows[0]?.unique_items ?? 0),
+    }
+  }
+
+  // --- Место по сообщениям (единый счётчик current + Combot) --------------
+  // Считаем позицию по тому же объединённому счётчику, что показываем игроку.
+  let rankByMessages: number | null = null
+  {
+    const withCombot = await hasCombotUserStats()
+    const posRows = await query<{ pos: string }>(
+      withCombot
+        ? `SELECT pos FROM (
+             SELECT u.user_id,
+                    ROW_NUMBER() OVER (
+                      ORDER BY (u.messages_count + COALESCE(c.messages, 0)) DESC, u.user_id ASC
+                    ) AS pos
+               FROM users u
+               LEFT JOIN combot_user_stats c ON c.user_id = u.user_id
+              WHERE (u.messages_count + COALESCE(c.messages, 0)) > 0
+           ) ranked WHERE user_id = $1`
+        : `SELECT pos FROM (
+             SELECT user_id, ROW_NUMBER() OVER (ORDER BY messages_count DESC, user_id ASC) AS pos
+               FROM users WHERE messages_count > 0
+           ) ranked WHERE user_id = $1`,
+      [userId],
+    )
+    rankByMessages = posRows[0] ? Number(posRows[0].pos) : null
+  }
+
   return {
     userId: Number(user.user_id),
     username: user.username,
@@ -510,6 +671,16 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     joinedAt,
     achievementsUnlocked: achievements.length,
 
+    mmr,
+    mmrRank: mmrRankValue,
+    reputation,
+    inventory,
+    ranks: {
+      byMmr: rankByMmr,
+      byReputation: rankByReputation,
+      byMessages: rankByMessages,
+    },
+
     achievements,
     rankInTop: rankRows[0] ? Number(rankRows[0].rank) : null,
     marriage: marriage
@@ -520,8 +691,17 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
           days: Number(marriage.days),
         }
       : null,
+
+    // Косметика ещё не реализована (нет экипировки). Возвращаем пустую
+    // структуру-заглушку, чтобы UI мог готовить место под титулы/рамки/бейджи.
+    cosmetics: {
+      title: null,
+      frame: null,
+      badges: [],
+    },
   }
 }
+
 
 export type Family = {
   rank: number

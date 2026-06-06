@@ -137,8 +137,202 @@ export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
         )}
       </motion.div>
 
+      {/* === Игровой прогресс (MMR) === */}
+      {profile.mmr !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="mt-3 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+              <span className="text-lg sm:text-xl">🏆</span> Игровой прогресс
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+              {/* MMR */}
+              <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="text-lg sm:text-2xl">🏆</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-primary sm:text-xl truncate">
+                      {profile.mmr.toLocaleString('ru-RU')}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground sm:text-xs">
+                      MMR{profile.ranks.byMmr ? ` • #${profile.ranks.byMmr}` : ''}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Ранг MMR (из настроек, не хардкод) */}
+              {profile.mmrRank && (
+                <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="text-lg sm:text-2xl">{profile.mmrRank.emoji}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                        {profile.mmrRank.name}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground sm:text-xs">Ранг</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* === Сообщество === */}
+      {(profile.messages > 0 || profile.reputation !== null || profile.joinedAt) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mt-3 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+              <span className="text-lg sm:text-xl">👥</span> Сообщество
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+              {/* Сообщения — единый счётчик (current + Combot history) */}
+              {profile.messages > 0 && (
+                <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="text-lg sm:text-2xl">💬</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                        {profile.messages.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground sm:text-xs">
+                        {formatMessages(profile.messages, false)}
+                        {profile.ranks.byMessages ? ` • #${profile.ranks.byMessages}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Репутация */}
+              {profile.reputation !== null && (
+                <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="text-lg sm:text-2xl">❤️</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                        {profile.reputation.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground sm:text-xs">
+                        Репутация{profile.ranks.byReputation ? ` • #${profile.ranks.byReputation}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* В чате с (историческая дата из Combot) */}
+              {profile.joinedAt && (
+                <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="text-lg sm:text-2xl">📅</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-foreground sm:text-base truncate">
+                        {new Date(profile.joinedAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground sm:text-xs">В чате с</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* === Экономика === */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12 }}
+        className="mt-3 sm:mt-6"
+      >
+        <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+            <span className="text-lg sm:text-xl">🥚</span> Экономика
+          </h2>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+            {/* Ешки (баланс) */}
+            <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="text-lg sm:text-2xl">🥚</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-primary sm:text-xl truncate">
+                    {formatCurrency(profile.balance)}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground sm:text-xs">
+                    Ешки{profile.rankInTop ? ` • #${profile.rankInTop}` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Заработано всего */}
+            <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="text-lg sm:text-2xl">📈</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                    {formatCurrency(profile.totalEarned)}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground sm:text-xs">Заработано</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* === Инвентарь (только статистика, без UI предметов) === */}
+      {profile.inventory && profile.inventory.uniqueItems > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="mt-3 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+              <span className="text-lg sm:text-xl">🎒</span> Инвентарь
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+              <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="text-lg sm:text-2xl">📦</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                      {profile.inventory.items.toLocaleString('ru-RU')}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground sm:text-xs">Предметов</div>
+                  </div>
+                </div>
+              </div>
+              <div className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="text-lg sm:text-2xl">✨</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                      {profile.inventory.uniqueItems.toLocaleString('ru-RU')}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground sm:text-xs">Уникальных</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Stats Grid - Improved mobile layout */}
       <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
+
         {/* Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

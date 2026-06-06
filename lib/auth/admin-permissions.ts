@@ -35,7 +35,11 @@ export const PERM = {
   ROLES_MANAGE: 'roles.manage',
   GIFT_VIEW: 'gift.view',
   GIFT_MANAGE: 'gift.manage',
+  MMR_VIEW: 'mmr.view',
+  MMR_ADD: 'mmr.add',
+  MMR_REMOVE: 'mmr.remove',
 } as const
+
 
 export type Permission = (typeof PERM)[keyof typeof PERM]
 
@@ -47,7 +51,9 @@ const SUPPORT: ReadonlySet<string> = new Set([
   PERM.SHOP_VIEW,
   PERM.MODERATION_VIEW,
   PERM.GIFT_VIEW,
+  PERM.MMR_VIEW,
 ])
+
 
 const MODERATOR: ReadonlySet<string> = new Set([
   ...SUPPORT,
@@ -64,7 +70,10 @@ const ADMIN: ReadonlySet<string> = new Set([
   PERM.INVENTORY_REVOKE,
   PERM.SHOP_MANAGE,
   PERM.GIFT_MANAGE,
+  PERM.MMR_ADD,
+  PERM.MMR_REMOVE,
 ])
+
 
 const OWNER: ReadonlySet<string> = new Set([...ADMIN, PERM.ROLES_MANAGE])
 
