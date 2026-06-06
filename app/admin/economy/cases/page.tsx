@@ -45,6 +45,8 @@ export default async function CasesAnalyticsPage() {
   }
 
   const totalOpenings = stats.reduce((s, c) => s + c.openings, 0)
+  const totalUnpriced = stats.reduce((s, c) => s + c.itemRewardsUnpriced, 0)
+
 
   return (
     <div className="space-y-8">
@@ -70,9 +72,10 @@ export default async function CasesAnalyticsPage() {
                   <th className="px-3 py-2 font-semibold">Кейс</th>
                   <th className="px-3 py-2 text-right font-semibold">Открытий</th>
                   <th className="px-3 py-2 text-right font-semibold">Сожжено</th>
-                  <th className="px-3 py-2 text-right font-semibold">Выдано</th>
+                  <th className="px-3 py-2 text-right font-semibold">Выдано (валюта)</th>
+                  <th className="px-3 py-2 text-right font-semibold">Выдано (предметы)</th>
                   <th className="px-3 py-2 text-right font-semibold">Нетто</th>
-                  <th className="px-3 py-2 text-right font-semibold">EV (валюта)</th>
+                  <th className="px-3 py-2 text-right font-semibold">EV полный</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,29 +88,47 @@ export default async function CasesAnalyticsPage() {
                     <td className="px-3 py-2 text-right text-foreground">{fmt(c.openings)}</td>
                     <td className="px-3 py-2 text-right text-rose-400">{fmt(c.eshkiBurned)}</td>
                     <td className="px-3 py-2 text-right text-emerald-400">{fmt(c.eshkiGranted)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-400">
+                      {fmt(c.itemValueGranted)}
+                      {c.itemRewardsUnpriced > 0 && (
+                        <span className="ml-1 text-[10px] text-amber-300" title="предметные выпадения без оценочной стоимости">
+                          (+{fmt(c.itemRewardsUnpriced)}?)
+                        </span>
+                      )}
+                    </td>
                     <td className={`px-3 py-2 text-right font-semibold ${c.net >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
                       {fmtSigned(c.net)}
                     </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">{fmt(c.avgGrantedPerOpen)}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">{fmt(c.avgFullEvPerOpen)}</td>
                   </tr>
                 ))}
               </tbody>
+
             </table>
           </div>
         )}
         <div className="mt-3 space-y-2">
           <Note>
-            «Нетто» = сожжено (стоимость открытия) − выдано (валютные награды).
-            Положительное = кейс приносит сток ешек (house edge). Учитывается
-            только валютная часть наград.
+            «Нетто» = сожжено (стоимость открытия) − выдано (валюта + предметы по
+            оценочной стоимости). Положительное = кейс приносит сток ешек (house
+            edge), отрицательное = кейс убыточен.
           </Note>
           <Note>
-            «EV (валюта)» — средняя валютная выдача за открытие. Предметные
-            награды не имеют стоимости в ешках, поэтому в EV не входят. Чтобы EV
-            был полным, нужно начать вести эталонную стоимость предметов
-            (см. отчёт об аудите).
+            «Выдано (предметы)» и «EV полный» учитывают оценочную стоимость
+            предметов (<code className="rounded bg-white/[0.06] px-1">inventory_items.ref_value</code>).
+            {totalUnpriced > 0 ? (
+              <>
+                {' '}Сейчас {fmt(totalUnpriced)} предметных выпадений без
+                проставленного <code className="rounded bg-white/[0.06] px-1">ref_value</code> —
+                они помечены «?» и не входят в стоимость. Проставь стоимость
+                предметам, чтобы EV стал точным.
+              </>
+            ) : (
+              <> Все выпавшие предметы оценены — EV полный и точный.</>
+            )}
           </Note>
         </div>
+
       </section>
 
       <section>

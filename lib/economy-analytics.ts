@@ -164,21 +164,26 @@ export type CaseStat = {
   name: string | null
   openings: number
   eshkiGranted: number // currency rewards paid out
+  itemValueGranted: number // estimated eshki value of item rewards (ref_value)
+  itemRewardsUnpriced: number // item-reward openings with NULL ref_value
   eshkiBurned: number // open-cost debited (reason=purchase, source=case_open)
-  net: number // burned - granted (positive = house edge in eshki)
+  net: number // burned - (granted + itemValue): positive = house edge
   avgGrantedPerOpen: number | null // currency-only EV; null if no openings
+  avgFullEvPerOpen: number | null // (currency + item value) EV; null if no openings
 }
 
 /**
  * Per-case economy. Openings + granted come from case_openings; burned comes
  * from the ledger (transactions reason='purchase', meta.source='case_open',
- * meta.case=<item_code>). The two are merged in JS by case code.
+ * meta.case=<item_code>). Item-reward value is estimated from
+ * inventory_items.ref_value (migration 0019). The three are merged in JS by
+ * case code.
  *
- * Caveat: item rewards carry no eshki value, so avgGrantedPerOpen is the
- * currency-only EV, not the full reward EV.
+ * Caveat: item rewards with NULL ref_value are not priced (counted in
+ * itemRewardsUnpriced) — full EV is exact only when all dropped items are valued.
  */
 export async function loadCaseStats(): Promise<CaseStat[]> {
-  const [openings, burns, names] = await Promise.all([
+  const [openings, items, burns, names] = await Promise.all([
     safeRows<{
       case_code: string
       openings: string
@@ -189,6 +194,19 @@ export async function loadCaseStats(): Promise<CaseStat[]> {
               COALESCE(SUM(amount) FILTER (WHERE reward_kind = 'currency'), 0)::text AS granted
          FROM case_openings
         GROUP BY case_item_code`,
+    ),
+    safeRows<{
+      case_code: string
+      item_value: string | null
+      unpriced: string | null
+    }>(
+      `SELECT o.case_item_code AS case_code,
+              COALESCE(SUM(o.qty * i.ref_value) FILTER (WHERE i.ref_value IS NOT NULL), 0)::text AS item_value,
+              COUNT(*) FILTER (WHERE o.reward_kind = 'item' AND (i.ref_value IS NULL OR i.code IS NULL))::text AS unpriced
+         FROM case_openings o
+         LEFT JOIN inventory_items i ON i.code = o.reward_item_code
+        WHERE o.reward_kind = 'item'
+        GROUP BY o.case_item_code`,
     ),
     safeRows<{ case_code: string; burned: string | null }>(
       `SELECT meta->>'case' AS case_code,
@@ -206,10 +224,17 @@ export async function loadCaseStats(): Promise<CaseStat[]> {
 
   const nameByCode = new Map(names.map((n) => [n.item_code, n.name]))
   const burnByCode = new Map(burns.map((b) => [b.case_code, NUM(b.burned)]))
+  const itemByCode = new Map(
+    items.map((i) => [
+      i.case_code,
+      { value: NUM(i.item_value), unpriced: NUM(i.unpriced) },
+    ]),
+  )
 
   const codes = new Set<string>([
     ...openings.map((o) => o.case_code),
     ...burns.map((b) => b.case_code),
+    ...items.map((i) => i.case_code),
   ])
 
   const stats: CaseStat[] = []
@@ -218,19 +243,26 @@ export async function loadCaseStats(): Promise<CaseStat[]> {
     const openCount = o ? NUM(o.openings) : 0
     const granted = o ? NUM(o.granted) : 0
     const burned = burnByCode.get(code) ?? 0
+    const item = itemByCode.get(code) ?? { value: 0, unpriced: 0 }
+    const fullGranted = granted + item.value
     stats.push({
       caseCode: code,
       name: nameByCode.get(code) ?? null,
       openings: openCount,
       eshkiGranted: granted,
+      itemValueGranted: item.value,
+      itemRewardsUnpriced: item.unpriced,
       eshkiBurned: burned,
-      net: burned - granted,
+      net: burned - fullGranted,
       avgGrantedPerOpen: openCount > 0 ? Math.round(granted / openCount) : null,
+      avgFullEvPerOpen:
+        openCount > 0 ? Math.round(fullGranted / openCount) : null,
     })
   }
   stats.sort((a, b) => b.openings - a.openings)
   return stats
 }
+
 
 export type RewardDistRow = {
   caseCode: string
