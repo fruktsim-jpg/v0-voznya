@@ -1,11 +1,47 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { withTransaction } from '@/lib/db'
+import { query, withTransaction } from '@/lib/db'
 import { getAdminSession, writeAudit } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+/**
+ * GET /api/admin/inventory — return the active item catalog for autocomplete.
+ * Read-only; requires inventory.view (any admin role). Shapes the rows the
+ * admin item picker needs (code, name, rarity, type) and keeps the payload
+ * small. Gracefully returns an empty list if the catalog table is missing
+ * (foundation-only on un-migrated DBs).
+ */
+export async function GET() {
+  const session = await getAdminSession()
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  if (!hasPermission(session.role, PERM.INVENTORY_VIEW)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
+
+  try {
+    const items = await query<{
+      code: string
+      name: string | null
+      rarity: string | null
+      type: string | null
+    }>(
+      `SELECT code, name, rarity, type
+         FROM inventory_items
+        WHERE is_active = true
+        ORDER BY name NULLS LAST, code`,
+    )
+    return NextResponse.json({ items })
+  } catch {
+    // Catalog not migrated yet — return empty so the picker degrades to manual.
+    return NextResponse.json({ items: [] })
+  }
+}
+
 
 /**
  * POST /api/admin/inventory — grant or revoke an item for a player.

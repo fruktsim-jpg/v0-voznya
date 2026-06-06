@@ -1,14 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
+import { rarityStyle, typeEmoji } from '@/lib/inventory'
+
+
+type LiveStats = { balance: number; mmr: number | null; reputation: number | null }
 
 /**
  * Admin action panel for a player: economy, MMR, reputation, inventory and
  * achievements. Built around quick-amount buttons so a moderator rarely has to
- * type. Each submit hits its API route and refreshes the page on success. The
- * server re-checks permissions regardless of which buttons are shown.
+ * type. Point actions (ешки/MMR/репутация) update the live stat tiles in place
+ * from the API response — no full-page reload. Inventory/achievements still call
+ * router.refresh() because their lists are server-rendered below. The server
+ * re-checks permissions regardless of which buttons are shown.
  */
 export function PlayerActions({
   userId,
@@ -17,6 +23,7 @@ export function PlayerActions({
   canMmr,
   canReputation,
   canAchievements,
+  initialStats,
 }: {
   userId: number
   canEconomy: boolean
@@ -24,53 +31,91 @@ export function PlayerActions({
   canMmr: boolean
   canReputation: boolean
   canAchievements: boolean
+  initialStats: LiveStats
 }) {
+  const [stats, setStats] = useState<LiveStats>(initialStats)
+  const fmt = (n: number) => n.toLocaleString('ru-RU')
+
+  const tiles = [
+    { emoji: '💰', label: 'Баланс', value: fmt(stats.balance), tone: 'text-amber-200' },
+    { emoji: '🏆', label: 'MMR', value: stats.mmr == null ? '—' : fmt(stats.mmr), tone: 'text-primary' },
+    {
+      emoji: '❤️',
+      label: 'Репутация',
+      value: stats.reputation == null ? '—' : fmt(stats.reputation),
+      tone: 'text-rose-200',
+    },
+  ]
+
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {canEconomy && (
-        <PointsCard
-          userId={userId}
-          emoji="💰"
-          title="Ешки"
-          endpoint="/api/admin/economy"
-          presets={[100, 500, 1000]}
-          unit="ешек"
-          accent="amber"
-          resultKey="balance"
-          resultLabel="Баланс"
-        />
-      )}
-      {canMmr && (
-        <PointsCard
-          userId={userId}
-          emoji="🏆"
-          title="MMR"
-          endpoint="/api/admin/mmr"
-          presets={[50, 100, 500]}
-          unit="MMR"
-          accent="violet"
-          resultKey="mmr"
-          resultLabel="MMR"
-        />
-      )}
-      {canReputation && (
-        <PointsCard
-          userId={userId}
-          emoji="❤️"
-          title="Репутация"
-          endpoint="/api/admin/reputation"
-          presets={[1, 5, 10]}
-          unit="репутации"
-          accent="rose"
-          resultKey="reputation"
-          resultLabel="Репутация"
-        />
-      )}
-      {canInventory && <InventoryCard userId={userId} />}
-      {canAchievements && <AchievementsCard userId={userId} />}
+    <div className="space-y-3">
+      {/* Live stat tiles — update instantly after a point action. */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {tiles.map((t) => (
+          <div key={t.label} className="glass rounded-2xl border border-border p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{t.emoji}</span>
+              <div className="min-w-0">
+                <div className={`text-base font-bold ${t.tone}`}>{t.value}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {t.label}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {canEconomy && (
+          <PointsCard
+            userId={userId}
+            emoji="💰"
+            title="Ешки"
+            endpoint="/api/admin/economy"
+            presets={[100, 500, 1000]}
+            unit="ешек"
+            accent="amber"
+            resultKey="balance"
+            resultLabel="Баланс"
+            onResult={(v) => setStats((s) => ({ ...s, balance: v }))}
+          />
+        )}
+        {canMmr && (
+          <PointsCard
+            userId={userId}
+            emoji="🏆"
+            title="MMR"
+            endpoint="/api/admin/mmr"
+            presets={[50, 100, 500]}
+            unit="MMR"
+            accent="violet"
+            resultKey="mmr"
+            resultLabel="MMR"
+            onResult={(v) => setStats((s) => ({ ...s, mmr: v }))}
+          />
+        )}
+        {canReputation && (
+          <PointsCard
+            userId={userId}
+            emoji="❤️"
+            title="Репутация"
+            endpoint="/api/admin/reputation"
+            presets={[1, 5, 10]}
+            unit="репутации"
+            accent="rose"
+            resultKey="reputation"
+            resultLabel="Репутация"
+            onResult={(v) => setStats((s) => ({ ...s, reputation: v }))}
+          />
+        )}
+        {canInventory && <InventoryCard userId={userId} />}
+        {canAchievements && <AchievementsCard userId={userId} />}
+      </div>
     </div>
   )
 }
+
 
 type Accent = 'amber' | 'violet' | 'rose' | 'sky'
 
@@ -123,6 +168,7 @@ function PointsCard({
   accent,
   resultKey,
   resultLabel,
+  onResult,
 }: {
   userId: number
   emoji: string
@@ -133,8 +179,8 @@ function PointsCard({
   accent: Accent
   resultKey: string
   resultLabel: string
+  onResult: (total: number) => void
 }) {
-  const router = useRouter()
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -165,13 +211,15 @@ function PointsCard({
             : 'Готово.',
       })
       setAmount('')
-      router.refresh()
+      // Update the live tile in place instead of a full server refresh.
+      if (total != null) onResult(Number(total))
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
     } finally {
       setBusy(false)
     }
   }
+
 
   return (
     <div className={cardClass(a.border)}>
@@ -235,6 +283,151 @@ function PointsCard({
   )
 }
 
+type CatalogItem = {
+  code: string
+  name: string | null
+  rarity: string | null
+  type: string | null
+}
+
+/** Loads the active item catalog once and caches it for the page session. */
+function useItemCatalog() {
+  const [items, setItems] = useState<CatalogItem[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/inventory')
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d) => {
+        if (alive) setItems(Array.isArray(d.items) ? d.items : [])
+      })
+      .catch(() => {
+        if (alive) setItems([])
+      })
+      .finally(() => {
+        if (alive) setLoaded(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  return { items, loaded }
+}
+
+/**
+ * Searchable item picker (combobox) — no external deps. Filters the catalog by
+ * code/name as the admin types and lets them pick with mouse or keyboard. Falls
+ * back to free text if the catalog is empty (un-migrated DB) so the field never
+ * blocks a valid manual code.
+ */
+function ItemPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (code: string) => void
+  disabled?: boolean
+}) {
+  const { items, loaded } = useItemCatalog()
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const boxRef = useRef<HTMLDivElement>(null)
+
+  // Close on outside click.
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const selected = useMemo(
+    () => items.find((i) => i.code === value) ?? null,
+    [items, value],
+  )
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return items.slice(0, 50)
+    return items
+      .filter(
+        (i) =>
+          i.code.toLowerCase().includes(q) ||
+          (i.name ?? '').toLowerCase().includes(q),
+      )
+      .slice(0, 50)
+  }, [items, query])
+
+  // No catalog available — degrade to a plain text input so the action still works.
+  if (loaded && items.length === 0) {
+    return (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Код предмета"
+        className={inputClass}
+        disabled={disabled}
+      />
+    )
+  }
+
+  return (
+    <div ref={boxRef} className="relative flex-1">
+      <input
+        value={open ? query : selected ? `${typeEmoji(selected.type ?? '')} ${selected.name ?? selected.code}` : value}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          if (!open) setOpen(true)
+        }}
+        onFocus={() => {
+          setQuery('')
+          setOpen(true)
+        }}
+        placeholder={loaded ? 'Поиск предмета…' : 'Загрузка каталога…'}
+        className={inputClass}
+        disabled={disabled || !loaded}
+        autoComplete="off"
+      />
+      {open && (
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-popover/95 p-1 shadow-xl backdrop-blur">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">Ничего не найдено</div>
+          ) : (
+            filtered.map((i) => {
+              const rs = rarityStyle(i.rarity ?? 'common')
+              return (
+                <button
+                  key={i.code}
+                  type="button"
+                  onClick={() => {
+                    onChange(i.code)
+                    setOpen(false)
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition hover:bg-white/5 ${i.code === value ? 'bg-white/5' : ''}`}
+                >
+                  <span className="text-base">{typeEmoji(i.type ?? '')}</span>
+                  <span className="min-w-0 flex-1 truncate text-foreground">
+                    {i.name ?? i.code}
+                  </span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${rs.className}`}>
+                    {rs.label}
+                  </span>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function InventoryCard({ userId }: { userId: number }) {
   const router = useRouter()
   const [itemCode, setItemCode] = useState('')
@@ -243,6 +436,7 @@ function InventoryCard({ userId }: { userId: number }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const a = ACCENT.sky
+
 
   async function submit(action: 'grant' | 'revoke') {
     const code = itemCode.trim()
@@ -282,12 +476,7 @@ function InventoryCard({ userId }: { userId: number }) {
         <h3 className="text-sm font-semibold text-foreground">Инвентарь</h3>
       </div>
       <div className="flex gap-2">
-        <input
-          value={itemCode}
-          onChange={(e) => setItemCode(e.target.value)}
-          placeholder="Код предмета"
-          className={inputClass}
-        />
+        <ItemPicker value={itemCode} onChange={setItemCode} disabled={busy} />
         <input
           type="number"
           min={1}
@@ -297,6 +486,7 @@ function InventoryCard({ userId }: { userId: number }) {
           className={`${inputClass} w-20`}
         />
       </div>
+
       <input
         value={reason}
         onChange={(e) => setReason(e.target.value)}

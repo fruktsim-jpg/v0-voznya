@@ -111,19 +111,14 @@ export default async function PlayerPage({
 
   const fmt = (n: number) => n.toLocaleString('ru-RU')
 
+  // Balance/MMR/reputation live in PlayerActions (they update in place after an
+  // action). Here we show only the read-only lifetime stats to avoid duplication.
   const stats: { emoji: string; label: string; value: string; tone: string }[] = [
-    { emoji: '💰', label: 'Баланс', value: fmt(p.balance), tone: 'text-amber-200' },
-    { emoji: '🏆', label: 'MMR', value: mmr == null ? '—' : fmt(mmr), tone: 'text-primary' },
-    {
-      emoji: '❤️',
-      label: 'Репутация',
-      value: reputation == null ? '—' : fmt(reputation),
-      tone: 'text-rose-200',
-    },
     { emoji: '📈', label: 'Заработано', value: fmt(p.total_earned), tone: 'text-foreground' },
     { emoji: '📉', label: 'Потрачено', value: fmt(p.total_spent), tone: 'text-foreground' },
     { emoji: '💬', label: 'Сообщений', value: fmt(p.messages_count), tone: 'text-sky-200' },
   ]
+
 
   return (
     <div className="space-y-6">
@@ -193,8 +188,10 @@ export default async function PlayerPage({
             canMmr={canMmr}
             canReputation={canReputation}
             canAchievements={canAchievements}
+            initialStats={{ balance: p.balance, mmr, reputation }}
           />
         </section>
+
       )}
 
       {/* Inventory — rarity-colored cards */}
