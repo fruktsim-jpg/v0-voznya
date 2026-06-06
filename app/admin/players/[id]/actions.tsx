@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
 
 /**
- * Admin action forms for a player: economy (credit/debit) and inventory
- * (grant/revoke). Each submit hits its API route; on success the page is
- * refreshed so balances and tables reflect the change. Buttons are shown only
- * for capabilities the server already confirmed (canEconomy / canInventory),
- * but the API re-checks permissions regardless.
+ * Admin action panel for a player: economy, MMR, reputation, inventory and
+ * achievements. Built around quick-amount buttons so a moderator rarely has to
+ * type. Each submit hits its API route and refreshes the page on success. The
+ * server re-checks permissions regardless of which buttons are shown.
  */
 export function PlayerActions({
   userId,
@@ -26,59 +26,122 @@ export function PlayerActions({
   canAchievements: boolean
 }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 16,
-        flexWrap: 'wrap',
-        marginBottom: 28,
-      }}
-    >
-      {canEconomy && <EconomyForm userId={userId} />}
-      {canInventory && <InventoryForm userId={userId} />}
-      {canMmr && <MmrForm userId={userId} />}
-      {canReputation && <ReputationForm userId={userId} />}
-      {canAchievements && <AchievementsForm userId={userId} />}
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {canEconomy && (
+        <PointsCard
+          userId={userId}
+          emoji="💰"
+          title="Ешки"
+          endpoint="/api/admin/economy"
+          presets={[100, 500, 1000]}
+          unit="ешек"
+          accent="amber"
+          resultKey="balance"
+          resultLabel="Баланс"
+        />
+      )}
+      {canMmr && (
+        <PointsCard
+          userId={userId}
+          emoji="🏆"
+          title="MMR"
+          endpoint="/api/admin/mmr"
+          presets={[50, 100, 500]}
+          unit="MMR"
+          accent="violet"
+          resultKey="mmr"
+          resultLabel="MMR"
+        />
+      )}
+      {canReputation && (
+        <PointsCard
+          userId={userId}
+          emoji="❤️"
+          title="Репутация"
+          endpoint="/api/admin/reputation"
+          presets={[1, 5, 10]}
+          unit="репутации"
+          accent="rose"
+          resultKey="reputation"
+          resultLabel="Репутация"
+        />
+      )}
+      {canInventory && <InventoryCard userId={userId} />}
+      {canAchievements && <AchievementsCard userId={userId} />}
     </div>
   )
 }
 
+type Accent = 'amber' | 'violet' | 'rose' | 'sky'
 
-const boxStyle = {
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
-  padding: 16,
-  flex: '1 1 320px',
-} as const
-
-const inputStyle = {
-  padding: '8px 10px',
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  width: '100%',
-  boxSizing: 'border-box' as const,
+const ACCENT: Record<Accent, { border: string; text: string; chip: string }> = {
+  amber: {
+    border: 'border-amber-400/25',
+    text: 'text-amber-200',
+    chip: 'border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20',
+  },
+  violet: {
+    border: 'border-primary/30',
+    text: 'text-primary',
+    chip: 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20',
+  },
+  rose: {
+    border: 'border-rose-400/25',
+    text: 'text-rose-200',
+    chip: 'border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/20',
+  },
+  sky: {
+    border: 'border-sky-400/25',
+    text: 'text-sky-200',
+    chip: 'border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/20',
+  },
 }
-
-const rowStyle = { display: 'flex', gap: 8, marginBottom: 8 } as const
 
 function Feedback({ msg }: { msg: { ok: boolean; text: string } | null }) {
   if (!msg) return null
   return (
-    <p style={{ marginTop: 8, color: msg.ok ? '#16a34a' : '#dc2626', fontSize: 13 }}>
+    <p className={`mt-2 text-xs ${msg.ok ? 'text-emerald-300' : 'text-destructive-foreground'}`}>
       {msg.text}
     </p>
   )
 }
 
-function EconomyForm({ userId }: { userId: number }) {
+const cardClass = (border: string) =>
+  `glass rounded-2xl border ${border} bg-gradient-to-br to-transparent p-4`
+
+const inputClass =
+  'w-full rounded-xl border border-input bg-white/[0.04] px-3 py-2 text-sm text-foreground outline-none ring-primary/40 transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2'
+
+/** Add/remove card for journal-backed point systems with preset quick buttons. */
+function PointsCard({
+  userId,
+  emoji,
+  title,
+  endpoint,
+  presets,
+  unit,
+  accent,
+  resultKey,
+  resultLabel,
+}: {
+  userId: number
+  emoji: string
+  title: string
+  endpoint: string
+  presets: number[]
+  unit: string
+  accent: Accent
+  resultKey: string
+  resultLabel: string
+}) {
   const router = useRouter()
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const a = ACCENT[accent]
 
-  async function submit(direction: 'add' | 'remove') {
-    const value = Number(amount)
+  async function send(value: number, direction: 'add' | 'remove') {
     if (!Number.isInteger(value) || value <= 0) {
       setMsg({ ok: false, text: 'Введите положительное целое число.' })
       return
@@ -86,19 +149,22 @@ function EconomyForm({ userId }: { userId: number }) {
     setBusy(true)
     setMsg(null)
     try {
-      const res = await fetch('/api/admin/economy', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, amount: value, direction, reason }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка')
+      const total = data[resultKey]
       setMsg({
         ok: true,
-        text: `Готово. Новый баланс: ${Number(data.balance).toLocaleString('ru-RU')}.`,
+        text:
+          total != null
+            ? `Готово. ${resultLabel}: ${Number(total).toLocaleString('ru-RU')}.`
+            : 'Готово.',
       })
       setAmount('')
-      setReason('')
       router.refresh()
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
@@ -108,56 +174,58 @@ function EconomyForm({ userId }: { userId: number }) {
   }
 
   return (
-    <div style={boxStyle}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Экономика</h3>
-      <div style={rowStyle}>
+    <div className={cardClass(a.border)}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-lg">{emoji}</span>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+
+      {/* Quick presets */}
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <button
+            key={p}
+            type="button"
+            disabled={busy}
+            onClick={() => send(p, 'add')}
+            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50 ${a.chip}`}
+          >
+            +{p.toLocaleString('ru-RU')}
+          </button>
+        ))}
+      </div>
+
+      {/* Custom amount */}
+      <div className="flex gap-2">
         <input
           type="number"
           min={1}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="Сумма (ешки)"
-          style={inputStyle}
+          placeholder={`Своя сумма (${unit})`}
+          className={inputClass}
         />
       </div>
-      <div style={rowStyle}>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Причина (необязательно)"
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Причина (необязательно)"
+        className={`mt-2 ${inputClass}`}
+      />
+      <div className="mt-2 flex gap-2">
         <button
           type="button"
           disabled={busy}
-          onClick={() => submit('add')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #16a34a',
-            background: '#16a34a',
-            color: '#fff',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          onClick={() => send(Number(amount), 'add')}
+          className="flex-1 rounded-xl border border-emerald-500/40 bg-emerald-500/15 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/25 disabled:opacity-50"
         >
           Начислить
         </button>
         <button
           type="button"
           disabled={busy}
-          onClick={() => submit('remove')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #dc2626',
-            background: '#fff',
-            color: '#dc2626',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          onClick={() => send(Number(amount), 'remove')}
+          className="flex-1 rounded-xl border border-destructive/40 bg-destructive/10 py-2 text-xs font-semibold text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
         >
           Снять
         </button>
@@ -167,13 +235,14 @@ function EconomyForm({ userId }: { userId: number }) {
   )
 }
 
-function InventoryForm({ userId }: { userId: number }) {
+function InventoryCard({ userId }: { userId: number }) {
   const router = useRouter()
   const [itemCode, setItemCode] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const a = ACCENT.sky
 
   async function submit(action: 'grant' | 'revoke') {
     const code = itemCode.trim()
@@ -207,14 +276,17 @@ function InventoryForm({ userId }: { userId: number }) {
   }
 
   return (
-    <div style={boxStyle}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Инвентарь</h3>
-      <div style={rowStyle}>
+    <div className={cardClass(a.border)}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-lg">🎒</span>
+        <h3 className="text-sm font-semibold text-foreground">Инвентарь</h3>
+      </div>
+      <div className="flex gap-2">
         <input
           value={itemCode}
           onChange={(e) => setItemCode(e.target.value)}
-          placeholder="Код предмета (item_code)"
-          style={inputStyle}
+          placeholder="Код предмета"
+          className={inputClass}
         />
         <input
           type="number"
@@ -222,31 +294,21 @@ function InventoryForm({ userId }: { userId: number }) {
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           placeholder="Кол-во"
-          style={{ ...inputStyle, width: 90 }}
+          className={`${inputClass} w-20`}
         />
       </div>
-      <div style={rowStyle}>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Причина (необязательно)"
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Причина (необязательно)"
+        className={`mt-2 ${inputClass}`}
+      />
+      <div className="mt-2 flex gap-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => submit('grant')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #2563eb',
-            background: '#2563eb',
-            color: '#fff',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="flex-1 rounded-xl border border-sky-500/40 bg-sky-500/15 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/25 disabled:opacity-50"
         >
           Выдать
         </button>
@@ -254,15 +316,7 @@ function InventoryForm({ userId }: { userId: number }) {
           type="button"
           disabled={busy}
           onClick={() => submit('revoke')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #dc2626',
-            background: '#fff',
-            color: '#dc2626',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="flex-1 rounded-xl border border-destructive/40 bg-destructive/10 py-2 text-xs font-semibold text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
         >
           Отозвать
         </button>
@@ -272,153 +326,7 @@ function InventoryForm({ userId }: { userId: number }) {
   )
 }
 
-/**
- * Shared add/remove form for journal-backed point systems (MMR, reputation).
- * Posts { userId, amount, direction, reason } to `endpoint` and reports the new
- * total via `formatResult`. The server re-checks permissions and enforces the
- * journal rules (e.g. reputation is written as ±1 rows, MMR may go negative).
- */
-function PointsForm({
-  userId,
-  title,
-  endpoint,
-  amountPlaceholder,
-  addLabel,
-  removeLabel,
-  formatResult,
-}: {
-  userId: number
-  title: string
-  endpoint: string
-  amountPlaceholder: string
-  addLabel: string
-  removeLabel: string
-  formatResult: (data: Record<string, unknown>) => string
-}) {
-  const router = useRouter()
-  const [amount, setAmount] = useState('')
-  const [reason, setReason] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-
-  async function submit(direction: 'add' | 'remove') {
-    const value = Number(amount)
-    if (!Number.isInteger(value) || value <= 0) {
-      setMsg({ ok: false, text: 'Введите положительное целое число.' })
-      return
-    }
-    setBusy(true)
-    setMsg(null)
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, amount: value, direction, reason }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка')
-      setMsg({ ok: true, text: formatResult(data) })
-      setAmount('')
-      setReason('')
-      router.refresh()
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div style={boxStyle}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{title}</h3>
-      <div style={rowStyle}>
-        <input
-          type="number"
-          min={1}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={amountPlaceholder}
-          style={inputStyle}
-        />
-      </div>
-      <div style={rowStyle}>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Причина (необязательно)"
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => submit('add')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #2563eb',
-            background: '#2563eb',
-            color: '#fff',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
-        >
-          {addLabel}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => submit('remove')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #dc2626',
-            background: '#fff',
-            color: '#dc2626',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
-        >
-          {removeLabel}
-        </button>
-      </div>
-      <Feedback msg={msg} />
-    </div>
-  )
-}
-
-function MmrForm({ userId }: { userId: number }) {
-  return (
-    <PointsForm
-      userId={userId}
-      title="MMR (рейтинг)"
-      endpoint="/api/admin/mmr"
-      amountPlaceholder="Очки MMR"
-      addLabel="Начислить"
-      removeLabel="Списать"
-      formatResult={(d) => `Готово. Новый MMR: ${Number(d.mmr).toLocaleString('ru-RU')}.`}
-    />
-  )
-}
-
-function ReputationForm({ userId }: { userId: number }) {
-  return (
-    <PointsForm
-      userId={userId}
-      title="Репутация"
-      endpoint="/api/admin/reputation"
-      amountPlaceholder="Очки (макс. 100)"
-      addLabel="Выдать"
-      removeLabel="Снять"
-      formatResult={(d) =>
-        `Готово. Репутация: ${Number(d.reputation).toLocaleString('ru-RU')}.`
-      }
-    />
-  )
-}
-
-function AchievementsForm({ userId }: { userId: number }) {
+function AchievementsCard({ userId }: { userId: number }) {
   const router = useRouter()
   const [code, setCode] = useState('')
   const [reason, setReason] = useState('')
@@ -428,7 +336,7 @@ function AchievementsForm({ userId }: { userId: number }) {
   async function submit(action: 'grant' | 'revoke') {
     const value = code.trim()
     if (!value) {
-      setMsg({ ok: false, text: 'Укажите код достижения.' })
+      setMsg({ ok: false, text: 'Выберите достижение.' })
       return
     }
     setBusy(true)
@@ -460,38 +368,43 @@ function AchievementsForm({ userId }: { userId: number }) {
   }
 
   return (
-    <div style={boxStyle}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Достижения</h3>
-      <div style={rowStyle}>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Код достижения (code)"
-          style={inputStyle}
-        />
+    <div className={cardClass('border-emerald-400/25')}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-lg">🏅</span>
+        <h3 className="text-sm font-semibold text-foreground">Достижения</h3>
       </div>
-      <div style={rowStyle}>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Причина (необязательно)"
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <select
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        className={inputClass}
+      >
+        <option value="">— выберите достижение —</option>
+        {ACHIEVEMENT_CATEGORIES.map((cat) => {
+          const items = ACHIEVEMENTS.filter((ac) => ac.category === cat.code)
+          if (items.length === 0) return null
+          return (
+            <optgroup key={cat.code} label={`${cat.emoji} ${cat.name}`}>
+              {items.map((ac) => (
+                <option key={ac.code} value={ac.code}>
+                  {ac.emoji} {ac.name}
+                </option>
+              ))}
+            </optgroup>
+          )
+        })}
+      </select>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Причина (необязательно)"
+        className={`mt-2 ${inputClass}`}
+      />
+      <div className="mt-2 flex gap-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => submit('grant')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #2563eb',
-            background: '#2563eb',
-            color: '#fff',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="flex-1 rounded-xl border border-emerald-500/40 bg-emerald-500/15 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/25 disabled:opacity-50"
         >
           Выдать
         </button>
@@ -499,15 +412,7 @@ function AchievementsForm({ userId }: { userId: number }) {
           type="button"
           disabled={busy}
           onClick={() => submit('revoke')}
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #dc2626',
-            background: '#fff',
-            color: '#dc2626',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="flex-1 rounded-xl border border-destructive/40 bg-destructive/10 py-2 text-xs font-semibold text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
         >
           Отозвать
         </button>
@@ -516,5 +421,3 @@ function AchievementsForm({ userId }: { userId: number }) {
     </div>
   )
 }
-
-

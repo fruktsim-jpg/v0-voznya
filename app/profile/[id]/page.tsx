@@ -4,6 +4,8 @@ import { getPlayerProfile } from '@/lib/queries'
 import { PlayerCard } from '@/components/profile/player-card'
 import { NotRegistered } from '@/components/auth/not-registered'
 import { getSession } from '@/lib/auth/get-session'
+import { getAdminSession } from '@/lib/auth/admin-session'
+
 
 
 interface ProfilePageProps {
@@ -59,7 +61,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const session = await getSession()
   const isOwner = session?.uid === userId
 
+  // Show the admin shortcut only when the viewer owns this profile AND has an
+  // admin role (any of owner/admin/moderator/support).
+  const adminSession = isOwner ? await getAdminSession() : null
+  const isAdmin = !!adminSession
+
   const profile = await getPlayerProfile(userId)
+
 
   if (!profile) {
     // A logged-in user looking at their own (non-existent) profile means they
@@ -71,7 +79,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     notFound()
   }
 
-  return <PlayerCard profile={profile} isOwner={isOwner} />
+  return <PlayerCard profile={profile} isOwner={isOwner} isAdmin={isAdmin} />
+
 }
 
 

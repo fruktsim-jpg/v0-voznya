@@ -21,7 +21,9 @@ import type { PlayerProfile } from '@/lib/queries'
 interface PlayerCardProps {
   profile: PlayerProfile
   isOwner?: boolean
+  isAdmin?: boolean
 }
+
 
 const TOTAL_ACHIEVEMENTS = ACHIEVEMENTS.length
 
@@ -31,7 +33,8 @@ function rarityFor(category: string): AchievementRarity {
   return 'normal'
 }
 
-export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
+export function PlayerCard({ profile, isOwner = false, isAdmin = false }: PlayerCardProps) {
+
   const title = titleForEarned(profile.totalEarned)
   const duelsTotal = profile.duelsWon + profile.duelsLost
   const winRate = duelsTotal > 0 ? Math.round((profile.duelsWon / duelsTotal) * 100) : 0
@@ -110,7 +113,16 @@ export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
                   Это ты
                 </span>
               )}
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-400/20"
+                >
+                  🛡 Админка
+                </Link>
+              )}
             </div>
+
 
             {profile.username && (
               <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>

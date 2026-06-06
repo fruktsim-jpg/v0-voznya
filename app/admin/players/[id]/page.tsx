@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { query } from '@/lib/db'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
+import { rarityStyle, typeEmoji } from '@/lib/inventory'
+import { roleLabel } from '@/lib/admin-format'
 import { PlayerActions } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -18,8 +20,15 @@ type Profile = {
   role: string | null
 }
 
-const cell = { padding: '6px 8px' } as const
-const th = { padding: '6px 8px', textAlign: 'left' as const, color: '#666' }
+type InventoryRow = {
+  item_code: string
+  quantity: number
+  equipped: boolean
+  source: string
+  name: string | null
+  rarity: string | null
+  type: string | null
+}
 
 export default async function PlayerPage({
   params,
@@ -32,62 +41,58 @@ export default async function PlayerPage({
   const { id } = await params
   const userId = Number(id)
   if (!Number.isInteger(userId) || userId <= 0) {
-    return <p style={{ color: '#dc2626' }}>Некорректный id.</p>
+    return <p className="text-destructive-foreground">Некорректный id.</p>
   }
 
-  const [profileRows, inventory, purchases, giftsOut, giftsIn] = await Promise.all([
-    query<Profile>(
-      `SELECT u.user_id, u.username, u.first_name, u.balance, u.total_earned,
-              u.total_spent, u.messages_count, u.created_at, r.role
-         FROM users u LEFT JOIN admin_roles r ON r.user_id = u.user_id
-        WHERE u.user_id = $1`,
-      [userId],
-    ),
-    query(
-      `SELECT i.item_code, i.quantity, i.equipped, i.source, c.name, c.rarity
-         FROM inventory i LEFT JOIN inventory_items c ON c.code = i.item_code
-        WHERE i.user_id = $1 ORDER BY i.acquired_at DESC`,
-      [userId],
-    ),
-    query(
-      `SELECT id, item_code, price, quantity, source, created_at
-         FROM purchase_history WHERE user_id = $1
-        ORDER BY created_at DESC LIMIT 50`,
-      [userId],
-    ),
-    query(
-      `SELECT id, kind, item_code, amount, recipient_user_id AS counterparty,
-              'sent' AS direction, created_at
-         FROM gift_transactions WHERE sender_user_id = $1
-        ORDER BY created_at DESC LIMIT 50`,
-      [userId],
-    ),
-    query(
-      `SELECT id, kind, item_code, amount, sender_user_id AS counterparty,
-              'received' AS direction, created_at
-         FROM gift_transactions WHERE recipient_user_id = $1
-        ORDER BY created_at DESC LIMIT 50`,
-      [userId],
-    ),
-  ])
+  // Player profile + a couple of journal totals (graceful on un-migrated DBs).
+  const profileRows = await query<Profile>(
+    `SELECT u.user_id, u.username, u.first_name, u.balance, u.total_earned,
+            u.total_spent, u.messages_count, u.created_at, r.role
+       FROM users u LEFT JOIN admin_roles r ON r.user_id = u.user_id
+      WHERE u.user_id = $1`,
+    [userId],
+  )
 
   if (profileRows.length === 0) {
     return (
-      <div>
-        <p>Игрок {userId} не найден.</p>
-        <Link href="/admin/players" style={{ color: '#2563eb' }}>
+      <div className="glass rounded-2xl border border-border p-6 text-center">
+        <p className="text-foreground">Игрок {userId} не найден.</p>
+        <Link href="/admin" className="mt-2 inline-block text-sm text-primary hover:underline">
           ← К поиску
         </Link>
       </div>
     )
   }
 
+  const safe = async <T,>(p: Promise<T[]>): Promise<T[]> => {
+    try {
+      return await p
+    } catch {
+      return []
+    }
+  }
+
+  const [mmrRows, repRows, inventory] = await Promise.all([
+    safe(query<{ mmr: string | null }>('SELECT mmr FROM users WHERE user_id = $1', [userId])),
+    safe(
+      query<{ rep: string | null }>(
+        'SELECT COALESCE(SUM(value), 0) AS rep FROM reputation_entries WHERE target_user_id = $1',
+        [userId],
+      ),
+    ),
+    safe(
+      query<InventoryRow>(
+        `SELECT i.item_code, i.quantity, i.equipped, i.source, c.name, c.rarity, c.type
+           FROM inventory i LEFT JOIN inventory_items c ON c.code = i.item_code
+          WHERE i.user_id = $1 ORDER BY i.acquired_at DESC`,
+        [userId],
+      ),
+    ),
+  ])
+
   const p = profileRows[0]
-  const gifts = [...giftsOut, ...giftsIn].sort(
-    (a, b) =>
-      new Date(b.created_at as string).getTime() -
-      new Date(a.created_at as string).getTime(),
-  )
+  const mmr = mmrRows[0]?.mmr != null ? Number(mmrRows[0].mmr) : null
+  const reputation = repRows[0]?.rep != null ? Number(repRows[0].rep) : null
 
   const canEconomy =
     hasPermission(session.role, PERM.ECONOMY_ADD) ||
@@ -96,8 +101,7 @@ export default async function PlayerPage({
     hasPermission(session.role, PERM.INVENTORY_GRANT) ||
     hasPermission(session.role, PERM.INVENTORY_REVOKE)
   const canMmr =
-    hasPermission(session.role, PERM.MMR_ADD) ||
-    hasPermission(session.role, PERM.MMR_REMOVE)
+    hasPermission(session.role, PERM.MMR_ADD) || hasPermission(session.role, PERM.MMR_REMOVE)
   const canReputation =
     hasPermission(session.role, PERM.REPUTATION_ADD) ||
     hasPermission(session.role, PERM.REPUTATION_REMOVE)
@@ -105,158 +109,134 @@ export default async function PlayerPage({
     hasPermission(session.role, PERM.ACHIEVEMENTS_GRANT) ||
     hasPermission(session.role, PERM.ACHIEVEMENTS_REVOKE)
 
+  const fmt = (n: number) => n.toLocaleString('ru-RU')
+
+  const stats: { emoji: string; label: string; value: string; tone: string }[] = [
+    { emoji: '💰', label: 'Баланс', value: fmt(p.balance), tone: 'text-amber-200' },
+    { emoji: '🏆', label: 'MMR', value: mmr == null ? '—' : fmt(mmr), tone: 'text-primary' },
+    {
+      emoji: '❤️',
+      label: 'Репутация',
+      value: reputation == null ? '—' : fmt(reputation),
+      tone: 'text-rose-200',
+    },
+    { emoji: '📈', label: 'Заработано', value: fmt(p.total_earned), tone: 'text-foreground' },
+    { emoji: '📉', label: 'Потрачено', value: fmt(p.total_spent), tone: 'text-foreground' },
+    { emoji: '💬', label: 'Сообщений', value: fmt(p.messages_count), tone: 'text-sky-200' },
+  ]
 
   return (
-    <div>
-      <Link href="/admin/players" style={{ color: '#2563eb', fontSize: 14 }}>
+    <div className="space-y-6">
+      <Link href="/admin" className="inline-block text-sm text-primary hover:underline">
         ← К поиску
       </Link>
 
-      <h1 style={{ fontSize: 22, fontWeight: 600, margin: '12px 0' }}>
-        {p.first_name ?? `id${p.user_id}`}{' '}
-        {p.username && <span style={{ color: '#666' }}>@{p.username}</span>}
-      </h1>
-
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
-        <Stat label="user_id" value={String(p.user_id)} />
-        <Stat label="Баланс" value={Number(p.balance).toLocaleString('ru-RU')} />
-        <Stat label="Роль" value={p.role ?? '—'} />
-        <Stat label="Заработано" value={Number(p.total_earned).toLocaleString('ru-RU')} />
-        <Stat label="Потрачено" value={Number(p.total_spent).toLocaleString('ru-RU')} />
-        <Stat label="Сообщений" value={Number(p.messages_count).toLocaleString('ru-RU')} />
+      {/* Header */}
+      <div className="glass relative overflow-hidden rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 text-2xl font-bold text-foreground">
+            {(p.first_name ?? p.username ?? '?').slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+                {p.first_name ?? `id${p.user_id}`}
+              </h1>
+              {p.role && (
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {roleLabel(p.role)}
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {p.username ? `@${p.username} · ` : ''}id {p.user_id} · в чате с{' '}
+              {new Date(p.created_at).toLocaleDateString('ru-RU')}
+            </div>
+            <Link
+              href={`/profile/${p.user_id}`}
+              className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+            >
+              Публичный профиль →
+            </Link>
+          </div>
+        </div>
       </div>
 
+      {/* Stat tiles */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+        {stats.map((s) => (
+          <div key={s.label} className="glass rounded-2xl border border-border p-3.5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{s.emoji}</span>
+              <div className="min-w-0">
+                <div className={`text-lg font-bold ${s.tone}`}>{s.value}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {s.label}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
       {(canEconomy || canInventory || canMmr || canReputation || canAchievements) && (
-        <PlayerActions
-          userId={p.user_id}
-          canEconomy={canEconomy}
-          canInventory={canInventory}
-          canMmr={canMmr}
-          canReputation={canReputation}
-          canAchievements={canAchievements}
-        />
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Действия
+          </h2>
+          <PlayerActions
+            userId={p.user_id}
+            canEconomy={canEconomy}
+            canInventory={canInventory}
+            canMmr={canMmr}
+            canReputation={canReputation}
+            canAchievements={canAchievements}
+          />
+        </section>
       )}
 
-
-      <Section title={`Инвентарь (${inventory.length})`}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Код</th>
-              <th style={th}>Название</th>
-              <th style={th}>Редкость</th>
-              <th style={th}>Кол-во</th>
-              <th style={th}>Экип.</th>
-              <th style={th}>Источник</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventory.map((i, idx) => (
-              <tr key={idx} style={{ borderTop: '1px solid #f0f0f0' }}>
-                <td style={cell}><code>{i.item_code as string}</code></td>
-                <td style={cell}>{(i.name as string) ?? '—'}</td>
-                <td style={cell}>{(i.rarity as string) ?? '—'}</td>
-                <td style={cell}>{i.quantity as number}</td>
-                <td style={cell}>{i.equipped ? '✓' : ''}</td>
-                <td style={cell}>{i.source as string}</td>
-              </tr>
-            ))}
-            {inventory.length === 0 && <Empty cols={6} />}
-          </tbody>
-        </table>
-      </Section>
-
-      <Section title={`Покупки (${purchases.length})`}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Время</th>
-              <th style={th}>Предмет</th>
-              <th style={th}>Цена</th>
-              <th style={th}>Кол-во</th>
-              <th style={th}>Источник</th>
-            </tr>
-          </thead>
-          <tbody>
-            {purchases.map((pu) => (
-              <tr key={pu.id as number} style={{ borderTop: '1px solid #f0f0f0' }}>
-                <td style={cell}>
-                  {new Date(pu.created_at as string).toLocaleString('ru-RU')}
-                </td>
-                <td style={cell}><code>{pu.item_code as string}</code></td>
-                <td style={cell}>{Number(pu.price).toLocaleString('ru-RU')}</td>
-                <td style={cell}>{pu.quantity as number}</td>
-                <td style={cell}>{pu.source as string}</td>
-              </tr>
-            ))}
-            {purchases.length === 0 && <Empty cols={5} />}
-          </tbody>
-        </table>
-      </Section>
-
-      <Section title={`Подарки (${gifts.length})`}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Время</th>
-              <th style={th}>Направление</th>
-              <th style={th}>Тип</th>
-              <th style={th}>Предмет / сумма</th>
-              <th style={th}>Контрагент</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gifts.map((g) => (
-              <tr key={`${g.direction}-${g.id}`} style={{ borderTop: '1px solid #f0f0f0' }}>
-                <td style={cell}>
-                  {new Date(g.created_at as string).toLocaleString('ru-RU')}
-                </td>
-                <td style={cell}>
-                  {g.direction === 'sent' ? 'отправлен' : 'получен'}
-                </td>
-                <td style={cell}>{g.kind as string}</td>
-                <td style={cell}>
-                  {g.kind === 'item'
-                    ? (g.item_code as string)
-                    : Number(g.amount).toLocaleString('ru-RU')}
-                </td>
-                <td style={cell}>{(g.counterparty as number) ?? 'система'}</td>
-              </tr>
-            ))}
-            {gifts.length === 0 && <Empty cols={5} />}
-          </tbody>
-        </table>
-      </Section>
+      {/* Inventory — rarity-colored cards */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Инвентарь ({inventory.length})
+        </h2>
+        {inventory.length === 0 ? (
+          <div className="glass rounded-2xl border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            Инвентарь пуст.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+            {inventory.map((i, idx) => {
+              const rs = rarityStyle(i.rarity ?? 'common')
+              return (
+                <div
+                  key={`${i.item_code}-${idx}`}
+                  className={`rounded-2xl border p-3 ${rs.className}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{typeEmoji(i.type ?? '')}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {i.name ?? i.item_code}
+                      </div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {rs.label}
+                        {i.quantity > 1 ? ` · ×${i.quantity}` : ''}
+                        {i.equipped ? ' · экип.' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 truncate text-[10px] text-muted-foreground">
+                    <code>{i.item_code}</code> · {i.source}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
     </div>
-  )
-}
-
-const tableStyle = { width: '100%', borderCollapse: 'collapse' as const, fontSize: 14 }
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div style={{ fontSize: 12, color: '#666' }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 600 }}>{value}</div>
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginBottom: 28 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function Empty({ cols }: { cols: number }) {
-  return (
-    <tr>
-      <td colSpan={cols} style={{ padding: 12, color: '#999' }}>
-        Пусто.
-      </td>
-    </tr>
   )
 }

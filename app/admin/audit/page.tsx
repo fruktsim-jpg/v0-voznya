@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { humanizeAudit, roleLabel } from '@/lib/admin-format'
 
 type Entry = {
   id: number
@@ -17,8 +18,9 @@ type Entry = {
 }
 
 /**
- * Audit viewer: filter audit_log by user, action and date range.
- * Calls GET /api/admin/audit (gated, logs.view / moderator+).
+ * Audit viewer: filter audit_log by user, action and date range. Calls
+ * GET /api/admin/audit (gated, logs.view / moderator+). Entries are humanized
+ * into emoji + RU sentences instead of raw action codes.
  */
 export default function AuditViewerPage() {
   const [user, setUser] = useState('')
@@ -38,7 +40,7 @@ export default function AuditViewerPage() {
       if (action.trim()) params.set('action', action.trim())
       if (from) params.set('from', from)
       if (to) params.set('to', to)
-      const res = await fetch(`/api/admin/audit?${params.toString()}`)
+      const res = await fetch(`/api/admin/audit?${params.toString()}`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка')
       setEntries(data.entries ?? [])
@@ -54,106 +56,92 @@ export default function AuditViewerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const inputStyle = {
-    padding: '8px 10px',
-    border: '1px solid #d1d5db',
-    borderRadius: 6,
-  } as const
+  const inputClass =
+    'rounded-xl border border-input bg-white/[0.04] px-3 py-2 text-sm text-foreground outline-none ring-primary/40 transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2'
 
   return (
     <div>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>Аудит</h1>
+      <h1 className="mb-4 text-xl font-bold text-foreground sm:text-2xl">Аудит</h1>
 
       <form
         onSubmit={(e) => {
           e.preventDefault()
           load()
         }}
-        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}
+        className="mb-5 flex flex-wrap gap-2"
       >
         <input
           value={user}
           onChange={(e) => setUser(e.target.value)}
           placeholder="user_id"
-          style={inputStyle}
+          className={`${inputClass} w-32`}
         />
         <input
           value={action}
           onChange={(e) => setAction(e.target.value)}
           placeholder="действие (напр. economy)"
-          style={inputStyle}
+          className={`${inputClass} flex-1`}
         />
         <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
         />
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
         />
         <button
           type="submit"
           disabled={loading}
-          style={{
-            padding: '8px 16px',
-            border: '1px solid #2563eb',
-            background: '#2563eb',
-            color: '#fff',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="rounded-xl border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25 disabled:opacity-50"
         >
-          {loading ? '...' : 'Фильтр'}
+          {loading ? '…' : 'Фильтр'}
         </button>
       </form>
 
-      {error && <p style={{ color: '#dc2626' }}>{error}</p>}
+      {error && (
+        <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive-foreground">
+          {error}
+        </div>
+      )}
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead>
-          <tr style={{ textAlign: 'left', color: '#666' }}>
-            <th style={{ padding: '6px 8px' }}>Время</th>
-            <th style={{ padding: '6px 8px' }}>Актор</th>
-            <th style={{ padding: '6px 8px' }}>Действие</th>
-            <th style={{ padding: '6px 8px' }}>Цель</th>
-            <th style={{ padding: '6px 8px' }}>Сумма</th>
-            <th style={{ padding: '6px 8px' }}>Причина</th>
-            <th style={{ padding: '6px 8px' }}>IP</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((e) => (
-            <tr key={e.id} style={{ borderTop: '1px solid #f0f0f0' }}>
-              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                {new Date(e.created_at).toLocaleString('ru-RU')}
-              </td>
-              <td style={{ padding: '6px 8px' }}>
-                {e.actor_user_id} ({e.actor_role ?? '—'})
-              </td>
-              <td style={{ padding: '6px 8px' }}>
-                <code>{e.action}</code>
-              </td>
-              <td style={{ padding: '6px 8px' }}>
-                {e.target_user_id ?? e.target_id ?? '—'}
-              </td>
-              <td style={{ padding: '6px 8px' }}>{e.amount ?? '—'}</td>
-              <td style={{ padding: '6px 8px', color: '#666' }}>{e.reason ?? '—'}</td>
-              <td style={{ padding: '6px 8px', color: '#999' }}>{e.ip ?? '—'}</td>
-            </tr>
-          ))}
-          {entries.length === 0 && !loading && (
-            <tr>
-              <td colSpan={7} style={{ padding: 12, color: '#999' }}>
-                Нет записей.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      {entries.length === 0 && !loading ? (
+        <div className="glass rounded-2xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          Нет записей.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {entries.map((e) => {
+            const h = humanizeAudit(e)
+            return (
+              <li
+                key={e.id}
+                className="glass flex items-start gap-3 rounded-2xl border border-border p-3"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-lg">
+                  {h.emoji}
+                </div>
+                <div className="min-w-0 flex-1 text-sm">
+                  <span className="font-semibold text-foreground">
+                    {e.target_user_id ? `id ${e.target_user_id}` : 'Система'}
+                  </span>{' '}
+                  <span className={h.tone}>{h.text}</span>
+                  {e.reason && <span className="text-muted-foreground"> · {e.reason}</span>}
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {roleLabel(e.actor_role)} id {e.actor_user_id} ·{' '}
+                    {new Date(e.created_at).toLocaleString('ru-RU')}
+                    {e.ip ? ` · ${e.ip}` : ''}
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

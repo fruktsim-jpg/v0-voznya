@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { getSession } from '@/lib/auth/get-session'
 import { canBootstrapOwner } from '@/lib/auth/admin-ids'
+import { roleLabel } from '@/lib/admin-format'
 import { BootstrapOwner } from './bootstrap-owner'
 
 export const dynamic = 'force-dynamic'
@@ -9,12 +10,12 @@ export const dynamic = 'force-dynamic'
 /**
  * Admin panel shell. Server-side gate: only users with an `admin_roles` row
  * (owner/admin/moderator/support) get in. Everyone else sees a denial notice.
- * No new auth — reuses the existing JWT session cookie.
+ * No new auth — reuses the existing JWT session cookie. Styled with the site's
+ * glass + violet design language.
  *
  * First-run bootstrap: if the visitor is logged in, has no admin role yet, but
  * is listed in ADMIN_IDS AND `admin_roles` is still empty, we offer a one-time
- * "become owner" button (see bootstrap-owner.tsx + /api/admin/bootstrap-owner).
- * This is the only way to get the very first owner without psql/docker.
+ * "become owner" button.
  */
 export default async function AdminLayout({
   children,
@@ -24,65 +25,79 @@ export default async function AdminLayout({
   const session = await getAdminSession()
 
   if (!session) {
-    // No admin role. Check whether this logged-in visitor may bootstrap the
-    // first owner (in ADMIN_IDS + admin_roles empty). Only then show the button.
     const base = await getSession()
     const mayBootstrap = base ? await canBootstrapOwner(base.uid) : false
 
     return (
-      <div style={{ maxWidth: 640, margin: '80px auto', padding: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Админ-панель</h1>
-        <p style={{ marginTop: 12, color: '#666' }}>
-          Доступ только для администраторов. Войдите через Telegram аккаунтом с
-          назначенной ролью (owner / admin / moderator / support).
-        </p>
-        {mayBootstrap && (
-          <div style={{ marginTop: 20 }}>
-            <p style={{ color: '#111', fontSize: 14 }}>
-              Ролей ещё нет, а ваш аккаунт в списке ADMIN_IDS. Можно назначить
-              себя первым владельцем — это разовое действие.
-            </p>
-            <BootstrapOwner />
+      <div className="mx-auto max-w-xl px-4 py-20">
+        <div className="glass rounded-3xl border border-border p-8 text-center">
+          <div className="mb-3 text-4xl">🛡</div>
+          <h1 className="text-2xl font-bold text-foreground">Админка</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
+            Доступ только для администраторов. Войди через Telegram аккаунтом с
+            назначенной ролью (владелец / админ / модератор / саппорт).
+          </p>
+          {mayBootstrap && (
+            <div className="mt-6 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 text-left">
+              <p className="text-sm text-foreground">
+                Ролей ещё нет, а твой аккаунт в списке ADMIN_IDS. Можно назначить
+                себя первым владельцем — это разовое действие.
+              </p>
+              <div className="mt-3">
+                <BootstrapOwner />
+              </div>
+            </div>
+          )}
+          <div className="mt-6">
+            <Link href="/" className="text-sm font-medium text-primary hover:underline">
+              ← На главную
+            </Link>
           </div>
-        )}
-        <p style={{ marginTop: 16 }}>
-          <Link href="/" style={{ color: '#2563eb' }}>
-            ← На главную
-          </Link>
-        </p>
+        </div>
       </div>
     )
   }
 
-  const nav = [
-    { href: '/admin', label: 'Дашборд' },
-    { href: '/admin/players', label: 'Игроки' },
-    { href: '/admin/audit', label: 'Аудит' },
+  // Live sections + foundation placeholders (shown disabled until they ship).
+  const nav: { href: string; label: string; emoji: string }[] = [
+    { href: '/admin', label: 'Дашборд', emoji: '📊' },
+    { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
+  ]
+  const soon: { label: string; emoji: string }[] = [
+    { label: 'Магазин', emoji: '🛒' },
+    { label: 'Подарки', emoji: '🎁' },
+    { label: 'Роли', emoji: '🔑' },
   ]
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #e5e7eb',
-          paddingBottom: 12,
-          marginBottom: 24,
-        }}
-      >
-        <nav style={{ display: 'flex', gap: 16 }}>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10">
+      {/* Top bar */}
+      <header className="mb-6 flex items-center justify-between gap-3">
+        <nav className="flex flex-wrap items-center gap-1.5">
           {nav.map((item) => (
-            <Link key={item.href} href={item.href} style={{ color: '#111' }}>
-              {item.label}
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-full border border-border bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/[0.08] sm:text-sm"
+            >
+              {item.emoji} {item.label}
             </Link>
           ))}
+          {soon.map((item) => (
+            <span
+              key={item.label}
+              title="Скоро"
+              className="cursor-default rounded-full border border-border/60 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-muted-foreground/60 sm:text-sm"
+            >
+              {item.emoji} {item.label}
+            </span>
+          ))}
         </nav>
-        <span style={{ fontSize: 13, color: '#666' }}>
-          {session.uid} · <b>{session.role}</b>
+        <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+          {roleLabel(session.role)}
         </span>
       </header>
+
       {children}
     </div>
   )

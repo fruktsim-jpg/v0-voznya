@@ -1,124 +1,121 @@
+import Link from 'next/link'
 import { getAdminSession } from '@/lib/auth/admin-session'
-import { query } from '@/lib/db'
-
+import { loadDashboardCounters, loadRecentAudit } from '@/lib/admin-stats'
+import { PlayerSearch } from '@/components/admin/player-search'
+import { humanizeAudit, roleLabel } from '@/lib/admin-format'
 
 export const dynamic = 'force-dynamic'
 
-type Counters = { players: number; items: number; purchases: number; gifts: number }
-type AuditRow = {
-  id: number
-  actor_user_id: number
-  actor_role: string | null
-  action: string
-  target_user_id: number | null
-  amount: number | null
-  reason: string | null
-  created_at: string
+const fmt = (n: number | null) => (n == null ? '—' : n.toLocaleString('ru-RU'))
+
+type StatCard = {
+  emoji: string
+  label: string
+  value: number | null
+  tone: string // border + glow tint
 }
 
 /**
- * Dashboard: top-level counters + recent audit feed. Renders server-side using
- * the same queries as /api/admin/dashboard (gate is enforced by the layout).
+ * Admin dashboard. Search-first, with a grid of glass stat cards and a
+ * humanized recent-activity feed. Counters degrade gracefully (show —) when a
+ * foundation table is missing on the target DB, so the page never 500s.
  */
 export default async function AdminDashboardPage() {
-  // Layout already gated this; still resolve session for safety.
   const session = await getAdminSession()
   if (!session) return null
 
-
-  const [players, items, purchases, gifts, recent] = await Promise.all([
-    query<{ count: string }>('SELECT COUNT(*)::text AS count FROM users'),
-    query<{ count: string }>(
-      'SELECT COALESCE(SUM(quantity), 0)::text AS count FROM inventory',
-    ),
-    query<{ count: string }>('SELECT COUNT(*)::text AS count FROM purchase_history'),
-    query<{ count: string }>('SELECT COUNT(*)::text AS count FROM gift_transactions'),
-    query<AuditRow>(
-      `SELECT id, actor_user_id, actor_role, action, target_user_id,
-              amount, reason, created_at
-         FROM audit_log ORDER BY created_at DESC LIMIT 20`,
-    ),
+  const [counters, recent] = await Promise.all([
+    loadDashboardCounters(),
+    loadRecentAudit(15),
   ])
 
-  const counters: Counters = {
-    players: Number(players[0]?.count ?? 0),
-    items: Number(items[0]?.count ?? 0),
-    purchases: Number(purchases[0]?.count ?? 0),
-    gifts: Number(gifts[0]?.count ?? 0),
-  }
-
-  const cards = [
-    { label: 'Игроки', value: counters.players },
-    { label: 'Предметы (в инвентарях)', value: counters.items },
-    { label: 'Покупки', value: counters.purchases },
-    { label: 'Подарки', value: counters.gifts },
+  const cards: StatCard[] = [
+    { emoji: '👥', label: 'Игроков', value: counters.players, tone: 'border-primary/30 from-primary/[0.08]' },
+    { emoji: '💰', label: 'Всего ешек', value: counters.ezhki, tone: 'border-amber-400/25 from-amber-400/[0.08]' },
+    { emoji: '🏆', label: 'Всего MMR', value: counters.mmr, tone: 'border-primary/30 from-primary/[0.08]' },
+    { emoji: '❤️', label: 'Всего репутации', value: counters.reputation, tone: 'border-rose-400/25 from-rose-400/[0.08]' },
+    { emoji: '🎒', label: 'Предметов в каталоге', value: counters.catalogItems, tone: 'border-sky-400/25 from-sky-400/[0.08]' },
+    { emoji: '🏅', label: 'Выдано достижений', value: counters.achievementsGranted, tone: 'border-emerald-400/25 from-emerald-400/[0.08]' },
+    { emoji: '📦', label: 'Предметов в инвентарях', value: counters.itemsInInventories, tone: 'border-sky-400/25 from-sky-400/[0.08]' },
+    { emoji: '📜', label: 'Записей аудита', value: counters.auditRecords, tone: 'border-border from-white/[0.04]' },
   ]
 
   return (
-    <div>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>Дашборд</h1>
+    <div className="space-y-8">
+      {/* Search — the main element */}
+      <section>
+        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Админка</h1>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Найди игрока, чтобы управлять ешками, MMR, репутацией, инвентарём и достижениями.
+        </p>
+        <PlayerSearch />
+      </section>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: 12,
-          marginBottom: 28,
-        }}
-      >
-        {cards.map((c) => (
-          <div
-            key={c.label}
-            style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}
-          >
-            <div style={{ fontSize: 13, color: '#666' }}>{c.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700 }}>
-              {c.value.toLocaleString('ru-RU')}
+      {/* Counters */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Сводка
+        </h2>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          {cards.map((c) => (
+            <div
+              key={c.label}
+              className={`glass rounded-2xl border bg-gradient-to-br to-transparent p-4 ${c.tone}`}
+            >
+              <div className="text-xl sm:text-2xl">{c.emoji}</div>
+              <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">{fmt(c.value)}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">{c.label}</div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>
-        Последние действия
-      </h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-        <thead>
-          <tr style={{ textAlign: 'left', color: '#666' }}>
-            <th style={{ padding: '6px 8px' }}>Время</th>
-            <th style={{ padding: '6px 8px' }}>Актор</th>
-            <th style={{ padding: '6px 8px' }}>Действие</th>
-            <th style={{ padding: '6px 8px' }}>Цель</th>
-            <th style={{ padding: '6px 8px' }}>Сумма</th>
-            <th style={{ padding: '6px 8px' }}>Причина</th>
-          </tr>
-        </thead>
-        <tbody>
-          {recent.map((r) => (
-            <tr key={r.id} style={{ borderTop: '1px solid #f0f0f0' }}>
-              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                {new Date(r.created_at).toLocaleString('ru-RU')}
-              </td>
-              <td style={{ padding: '6px 8px' }}>
-                {r.actor_user_id} ({r.actor_role ?? '—'})
-              </td>
-              <td style={{ padding: '6px 8px' }}>
-                <code>{r.action}</code>
-              </td>
-              <td style={{ padding: '6px 8px' }}>{r.target_user_id ?? '—'}</td>
-              <td style={{ padding: '6px 8px' }}>{r.amount ?? '—'}</td>
-              <td style={{ padding: '6px 8px', color: '#666' }}>{r.reason ?? '—'}</td>
-            </tr>
           ))}
-          {recent.length === 0 && (
-            <tr>
-              <td colSpan={6} style={{ padding: 12, color: '#999' }}>
-                Пока нет записей.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+        </div>
+      </section>
+
+      {/* Recent activity */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Последние действия
+          </h2>
+          <Link href="/admin/audit" className="text-xs font-medium text-primary hover:underline">
+            Весь аудит →
+          </Link>
+        </div>
+
+        {recent.length === 0 ? (
+          <div className="glass rounded-2xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            Пока нет записей.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {recent.map((r) => {
+              const h = humanizeAudit(r)
+              return (
+                <li
+                  key={r.id}
+                  className="glass flex items-center gap-3 rounded-2xl border border-border p-3"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-lg">
+                    {h.emoji}
+                  </div>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <span className="font-semibold text-foreground">
+                      {r.target_name ?? (r.target_user_id ? `id ${r.target_user_id}` : 'Система')}
+                    </span>{' '}
+                    <span className={h.tone}>{h.text}</span>
+                    {r.reason && (
+                      <span className="text-muted-foreground"> · {r.reason}</span>
+                    )}
+                    <div className="text-[11px] text-muted-foreground">
+                      {roleLabel(r.actor_role)} {r.actor_name ?? `id ${r.actor_user_id}`} ·{' '}
+                      {new Date(r.created_at).toLocaleString('ru-RU')}
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }
