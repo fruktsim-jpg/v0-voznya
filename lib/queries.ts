@@ -1,5 +1,15 @@
 import { query } from './db'
 import { ACHIEVEMENTS } from './voznya-bot'
+import { MMR_RANKS, mmrRank, type MmrRank } from './mmr'
+
+// Re-export display-only MMR rank helpers so existing server-side imports
+// (`from '@/lib/queries'`) keep working. The actual definitions live in
+// `./mmr`, which is client-safe (no `pg`/`./db` dependency). Client components
+// must import them from `@/lib/mmr` directly to avoid pulling the database
+// layer into the browser bundle.
+export { MMR_RANKS, mmrRank }
+export type { MmrRank }
+
 
 function displayName(first_name: string | null, username: string | null): string {
   if (first_name && first_name.trim()) return first_name.trim()
@@ -279,37 +289,10 @@ async function tableExists(table: string): Promise<boolean> {
 }
 
 /**
- * MMR ranks — TypeScript mirror of `app/settings/mmr.py` (RANKS). Keep the two
- * in sync. Thresholds are display-only (no migration needed to change them).
- * The rank is NEVER hardcoded in components — they read it from the profile,
- * which derives it here via `mmrRank()`.
- */
-export type MmrRank = { minMmr: number; emoji: string; name: string }
-
-export const MMR_RANKS: readonly MmrRank[] = [
-  { minMmr: 0, emoji: '🥉', name: 'Залётный' },
-  { minMmr: 1000, emoji: '🥈', name: 'Бродяга Утрехта' },
-  { minMmr: 2500, emoji: '🥇', name: 'Свой в Зволле' },
-  { minMmr: 5000, emoji: '💎', name: 'Котейший' },
-  { minMmr: 10000, emoji: '👑', name: 'Архидрун' },
-  { minMmr: 25000, emoji: '🔥', name: 'Боженька Возни' },
-]
-
-
-export function mmrRank(mmr: number): MmrRank {
-  let current = MMR_RANKS[0]
-  for (const rank of MMR_RANKS) {
-    if (mmr >= rank.minMmr) current = rank
-    else break
-  }
-  return current
-}
-
-
-/**
  * Message statistics. Relies on bot tables added in migration 0004
  * (users.messages_count and message_daily). If those don't exist yet, the
  * query throws and the API returns 503 — the UI then hides the messages block.
+
  *
  * When the Combot historical table is present (migration 0012 + import), every
  * message count is the UNIFIED total: current Возня count + Combot history,

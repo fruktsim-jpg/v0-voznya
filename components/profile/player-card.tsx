@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
-import { MMR_RANKS } from '@/lib/queries'
+import { MMR_RANKS } from '@/lib/mmr'
+
 import { formatCurrency, formatDays, formatAchievements, formatMessages } from '@/lib/pluralize'
 
 import Link from 'next/link'
