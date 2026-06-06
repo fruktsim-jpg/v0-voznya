@@ -33,12 +33,13 @@ export default async function GiftsAnalyticsPage() {
 
   const cards: Stat[] = [
     { emoji: '🎀', label: 'Активных позиций', value: fmt(g.activeCount), tone: 'border-primary/30 from-primary/[0.08]' },
-    { emoji: '⭐', label: 'Себестоимость, Stars', value: fmt(g.estStarCostBasis), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: 'Σ за единицу (актив.)' },
-    { emoji: '📦', label: 'Выдано подарков', value: fmt(g.giftsSold), tone: 'border-sky-400/25 from-sky-400/[0.08]' },
-    { emoji: '💸', label: 'Потрачено игроками, ешки', value: g.eshkiSpentByPlayers == null ? '—' : fmt(g.eshkiSpentByPlayers), tone: 'border-rose-400/25 from-rose-400/[0.08]' },
-    { emoji: '⭐', label: 'Истрачено Stars (факт)', value: fmt(g.starsSpentRealized), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: 'Σ star_cost × продано' },
-    { emoji: '🏦', label: 'Баланс фонда Gifts', value: g.fundBalance == null ? '—' : fmt(g.fundBalance), tone: 'border-border from-white/[0.04]', hint: 'учёт пока не ведётся' },
+    { emoji: '💰', label: 'Выручка, ешки', value: fmt(g.revenueEshki), tone: 'border-emerald-400/25 from-emerald-400/[0.08]', hint: `покупок: ${fmt(g.purchasesCount)}` },
+    { emoji: '⭐', label: 'Истрачено Stars (факт)', value: fmt(g.starsSpentRealized), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: 'по выданным подаркам' },
+    { emoji: '📈', label: 'Маржа, ешки', value: fmt(g.marginEshki), tone: g.marginEshki >= 0 ? 'border-emerald-400/25 from-emerald-400/[0.08]' : 'border-rose-400/25 from-rose-400/[0.08]', hint: 'выручка − себест.×10' },
+    { emoji: '📦', label: 'Доставки', value: `${fmt(g.completed)}/${fmt(g.pending)}/${fmt(g.cancelled)}`, tone: 'border-sky-400/25 from-sky-400/[0.08]', hint: 'выдано / ждут / отменено' },
+    { emoji: '🏦', label: 'Баланс фонда Gifts', value: g.fundBalance == null ? '—' : fmt(g.fundBalance), tone: 'border-border from-white/[0.04]', hint: 'нужен stars_ledger (донат)' },
   ]
+
 
   return (
     <div className="space-y-8">

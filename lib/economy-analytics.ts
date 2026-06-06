@@ -419,32 +419,61 @@ export type GiftsOverview = {
   catalog: GiftCatalogRow[]
   activeCount: number
   estStarCostBasis: number // Σ star_cost over active items (per-unit budget)
-  giftsSold: number // Σ sold_count (0 until purchase flow ships)
-  eshkiSpentByPlayers: number | null // ledger source=gift_buy; null until flow ships
-  starsSpentRealized: number // Σ star_cost * sold_count
-  fundBalance: number | null // not tracked yet → null
+  giftsSold: number // Σ sold_count (realized deliveries)
+  // --- real economics from purchase_history + gift_transactions ----------
+  revenueEshki: number // Σ purchase_history.price (source='gift'), net of refunds
+  purchasesCount: number // gift purchases (net of refunds)
+  starsSpentRealized: number // Σ star_cost over completed deliveries (real Stars cost)
+  marginEshki: number // revenue − Σ(star_cost*10) over completed (наценка)
+  // delivery funnel
+  pending: number
+  completed: number
+  cancelled: number
+  fundBalance: number | null // Stars fund needs stars_ledger (donations) → null
 }
 
 /**
- * Gifts economics. Catalog + cost basis are real now. Sales/spend are zero
- * until the purchase flow ships (no gift_buy transactions, sold_count stays 0).
- * Fund balance has no ledger yet → null (honest placeholder).
+ * Gifts economics — real numbers from the ledgers the bot writes:
+ *   - revenue/purchases: purchase_history (source='gift'), refunds flagged in meta;
+ *   - delivery funnel + realized Stars cost: gift_transactions (kind='tg_gift').
+ * Fund balance still needs stars_ledger (donations side) → null placeholder.
  */
 export async function loadGiftsOverview(): Promise<GiftsOverview> {
-  const catalog = await safeRows<{
-    code: string
-    name: string
-    star_cost: number
-    price_eshki: string
-    stock: number | null
-    sold_count: number
-    is_active: boolean
-  }>(
-    `SELECT code, name, star_cost, price_eshki::text AS price_eshki,
-            stock, sold_count, is_active
-       FROM gift_catalog
-      ORDER BY is_active DESC, sort_order, name`,
-  )
+  const [catalog, purchaseAgg, deliveryAgg] = await Promise.all([
+    safeRows<{
+      code: string
+      name: string
+      star_cost: number
+      price_eshki: string
+      stock: number | null
+      sold_count: number
+      is_active: boolean
+    }>(
+      `SELECT code, name, star_cost, price_eshki::text AS price_eshki,
+              stock, sold_count, is_active
+         FROM gift_catalog
+        ORDER BY is_active DESC, sort_order, name`,
+    ),
+    safeRows<{ revenue: string | null; purchases: string | null }>(
+      `SELECT COALESCE(SUM(price), 0)::text AS revenue,
+              COUNT(*)::text AS purchases
+         FROM purchase_history
+        WHERE source = 'gift'
+          AND COALESCE(meta->>'refunded', 'false') <> 'true'`,
+    ),
+    safeRows<{
+      status: string
+      cnt: string
+      stars: string | null
+    }>(
+      `SELECT status,
+              COUNT(*)::text AS cnt,
+              COALESCE(SUM((meta->>'star_cost')::bigint), 0)::text AS stars
+         FROM gift_transactions
+        WHERE kind = 'tg_gift'
+        GROUP BY status`,
+    ),
+  ])
 
   const rows: GiftCatalogRow[] = catalog.map((g) => ({
     code: g.code,
@@ -461,23 +490,35 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
     .filter((r) => r.isActive)
     .reduce((s, r) => s + r.starCost, 0)
   const giftsSold = rows.reduce((s, r) => s + r.soldCount, 0)
-  const starsSpentRealized = rows.reduce(
-    (s, r) => s + r.starCost * r.soldCount,
-    0,
-  )
 
-  const eshkiSpentByPlayers = await safeScalar(
-    `SELECT COALESCE(SUM(-amount), 0)::text AS v FROM transactions
-      WHERE reason = 'purchase' AND meta->>'source' = 'gift_buy'`,
+  const revenueEshki = NUM(purchaseAgg[0]?.revenue)
+  const purchasesCount = NUM(purchaseAgg[0]?.purchases)
+
+  const byStatus = new Map(
+    deliveryAgg.map((r) => [r.status, { cnt: NUM(r.cnt), stars: NUM(r.stars) }]),
   )
+  const completed = byStatus.get('completed')?.cnt ?? 0
+  const pending = byStatus.get('pending')?.cnt ?? 0
+  const cancelled = byStatus.get('cancelled')?.cnt ?? 0
+  // Realized Stars cost = star_cost over completed deliveries (gift truly sent).
+  const starsSpentRealized = byStatus.get('completed')?.stars ?? 0
+  // Margin in eshki: revenue − cost-basis (star_cost*10) of completed deliveries.
+  const marginEshki = revenueEshki - starsSpentRealized * 10
 
   return {
     catalog: rows,
     activeCount,
     estStarCostBasis,
     giftsSold,
-    eshkiSpentByPlayers,
+    revenueEshki,
+    purchasesCount,
     starsSpentRealized,
+    marginEshki,
+    pending,
+    completed,
+    cancelled,
     fundBalance: null,
   }
 }
+
+
