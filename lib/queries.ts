@@ -1,6 +1,13 @@
+// Server-only guard: this module talks to Postgres via `./db`. Importing it
+// into a client component must fail the build, not silently bundle `pg`.
+// (The MMR rank helpers re-exported below live in client-safe `./mmr`; client
+// code must import them from `@/lib/mmr` directly.)
+import 'server-only'
+
 import { query } from './db'
 import { ACHIEVEMENTS } from './voznya-bot'
 import { MMR_RANKS, mmrRank, type MmrRank } from './mmr'
+
 
 // Re-export display-only MMR rank helpers so existing server-side imports
 // (`from '@/lib/queries'`) keep working. The actual definitions live in
@@ -289,6 +296,30 @@ async function tableExists(table: string): Promise<boolean> {
 }
 
 /**
+ * Process-cached check for whether a column exists on a table. Used to read the
+ * denormalized `users.mmr` projection (added by migration 0015) when present,
+ * and fall back to aggregating `mmr_entries` on deployments that haven't
+ * applied 0015 yet. Schema is stable at runtime, so caching is safe.
+ */
+const columnPresence = new Map<string, boolean>()
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`
+  const cached = columnPresence.get(key)
+  if (cached !== undefined) return cached
+  const rows = await query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+        WHERE table_name = $1 AND column_name = $2
+     ) AS exists`,
+    [table, column],
+  )
+  const present = Boolean(rows[0]?.exists)
+  columnPresence.set(key, present)
+  return present
+}
+
+
+/**
  * Message statistics. Relies on bot tables added in migration 0004
  * (users.messages_count and message_daily). If those don't exist yet, the
  * query throws and the API returns 503 — the UI then hides the messages block.
@@ -550,19 +581,36 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
   const marriage = marriageRows[0]
 
   // --- MMR (игровой рейтинг) + место по MMR -------------------------------
-  // Источник правды — журнал mmr_entries (текущий MMR = SUM(amount)). Таблица
-  // появляется миграцией 0014; до неё блок просто скрыт (null).
+  // Текущий MMR денормализован в users.mmr (миграция 0015) — читаем его и
+  // считаем место в лидерборде по тому же полю (дёшево, без агрегата журнала).
+  // Журнал mmr_entries остаётся источником правды/аудитом. На деплоях без 0015
+  // (колонки ещё нет, но таблица журнала есть) откатываемся на SUM(amount).
   let mmr: number | null = null
   let mmrRankValue: MmrRank | null = null
   let rankByMmr: number | null = null
-  if (await tableExists('mmr_entries')) {
+  if (await columnExists('users', 'mmr')) {
+    const mmrRows = await query<{ mmr: string | null }>(
+      `SELECT mmr FROM users WHERE user_id = $1`,
+      [userId],
+    )
+    mmr = Number(mmrRows[0]?.mmr ?? 0)
+    mmrRankValue = mmrRank(mmr)
+
+    const posRows = await query<{ pos: string }>(
+      `SELECT pos FROM (
+         SELECT user_id, ROW_NUMBER() OVER (ORDER BY mmr DESC, user_id ASC) AS pos
+           FROM users WHERE mmr > 0
+       ) ranked WHERE user_id = $1`,
+      [userId],
+    )
+    rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
+  } else if (await tableExists('mmr_entries')) {
     const mmrRows = await query<{ mmr: string | null }>(
       `SELECT COALESCE(SUM(amount), 0) AS mmr FROM mmr_entries WHERE player_id = $1`,
       [userId],
     )
     mmr = Number(mmrRows[0]?.mmr ?? 0)
     mmrRankValue = mmrRank(mmr)
-    // Место в лидерборде по MMR (только среди игроков с записями рейтинга).
     const posRows = await query<{ pos: string }>(
       `SELECT pos FROM (
          SELECT player_id, ROW_NUMBER() OVER (ORDER BY SUM(amount) DESC, player_id ASC) AS pos
@@ -572,6 +620,7 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     )
     rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
   }
+
 
   // --- Репутация (социальный рейтинг) + место по репутации ----------------
   // Источник правды — журнал reputation_entries (репутация = SUM(value) по

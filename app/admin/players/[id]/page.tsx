@@ -95,6 +95,16 @@ export default async function PlayerPage({
   const canInventory =
     hasPermission(session.role, PERM.INVENTORY_GRANT) ||
     hasPermission(session.role, PERM.INVENTORY_REVOKE)
+  const canMmr =
+    hasPermission(session.role, PERM.MMR_ADD) ||
+    hasPermission(session.role, PERM.MMR_REMOVE)
+  const canReputation =
+    hasPermission(session.role, PERM.REPUTATION_ADD) ||
+    hasPermission(session.role, PERM.REPUTATION_REMOVE)
+  const canAchievements =
+    hasPermission(session.role, PERM.ACHIEVEMENTS_GRANT) ||
+    hasPermission(session.role, PERM.ACHIEVEMENTS_REVOKE)
+
 
   return (
     <div>
@@ -116,13 +126,17 @@ export default async function PlayerPage({
         <Stat label="Сообщений" value={Number(p.messages_count).toLocaleString('ru-RU')} />
       </div>
 
-      {(canEconomy || canInventory) && (
+      {(canEconomy || canInventory || canMmr || canReputation || canAchievements) && (
         <PlayerActions
           userId={p.user_id}
           canEconomy={canEconomy}
           canInventory={canInventory}
+          canMmr={canMmr}
+          canReputation={canReputation}
+          canAchievements={canAchievements}
         />
       )}
+
 
       <Section title={`Инвентарь (${inventory.length})`}>
         <table style={tableStyle}>
