@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
-import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements } from '@/lib/pluralize'
+import { formatCurrency, formatDays, formatWins, formatTreasures, formatDuels, formatFarms, formatAchievements, formatMessages } from '@/lib/pluralize'
+
 import Link from 'next/link'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TelegramButton } from '@/components/voznya/telegram-button'
@@ -247,7 +248,30 @@ export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
 
       {/* Additional Info - Improved mobile layout */}
       <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4">
+        {/* Messages — unified counter (current + Combot history) */}
+        {profile.messages > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="glass rounded-lg border border-border p-2.5 sm:rounded-xl sm:p-4"
+          >
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="text-lg sm:text-2xl">💬</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-foreground sm:text-xl truncate">
+                  {profile.messages.toLocaleString('ru-RU')}
+                </div>
+                <div className="text-[9px] text-muted-foreground sm:text-xs">
+                  {formatMessages(profile.messages, false)}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Marriage */}
+
         {profile.marriage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -397,7 +421,8 @@ export function PlayerCard({ profile, isOwner = false }: PlayerCardProps) {
         transition={{ delay: 0.7 }}
         className="mt-4 text-center text-xs text-muted-foreground sm:mt-6 sm:text-sm"
       >
-        Участник с {new Date(profile.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
+        Участник с {new Date(profile.joinedAt ?? profile.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
+
       </motion.div>
 
       {/* Player Navigation (Prev/Next) */}

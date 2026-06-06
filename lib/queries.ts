@@ -246,13 +246,39 @@ export type MessageStats = {
 }
 
 /**
+ * Detects whether the optional Combot historical table exists yet (migration
+ * 0012 + import). Cached per process — schema doesn't change at runtime.
+ */
+let combotTablePresent: boolean | null = null
+async function hasCombotUserStats(): Promise<boolean> {
+  if (combotTablePresent !== null) return combotTablePresent
+  const rows = await query<{ reg: string | null }>(
+    `SELECT to_regclass('combot_user_stats') AS reg`,
+  )
+  combotTablePresent = Boolean(rows[0]?.reg)
+  return combotTablePresent
+}
+
+/**
  * Message statistics. Relies on bot tables added in migration 0004
  * (users.messages_count and message_daily). If those don't exist yet, the
  * query throws and the API returns 503 — the UI then hides the messages block.
+ *
+ * When the Combot historical table is present (migration 0012 + import), every
+ * message count is the UNIFIED total: current Возня count + Combot history,
+ * joined directly by user_id (Combot user_id == users.user_id). No account
+ * links, no mapping tables. Players without a Combot row keep their current
+ * count unchanged.
  */
 export async function getMessageStats(topLimit = 10, activityDays = 14): Promise<MessageStats> {
+  const withCombot = await hasCombotUserStats()
+
   const totalRows = await query<{ total: string | null }>(
-    `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
+    withCombot
+      ? `SELECT COALESCE(SUM(messages_count), 0)
+                + COALESCE((SELECT SUM(messages) FROM combot_user_stats), 0) AS total
+           FROM users`
+      : `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
   )
   const topRows = await query<{
     user_id: string
@@ -260,13 +286,22 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
     username: string | null
     messages_count: string
   }>(
-    `SELECT user_id, first_name, username, messages_count
-       FROM users
-      WHERE messages_count > 0
-      ORDER BY messages_count DESC, user_id ASC
-      LIMIT $1`,
+    withCombot
+      ? `SELECT u.user_id, u.first_name, u.username,
+                (u.messages_count + COALESCE(c.messages, 0)) AS messages_count
+           FROM users u
+           LEFT JOIN combot_user_stats c ON c.user_id = u.user_id
+          WHERE (u.messages_count + COALESCE(c.messages, 0)) > 0
+          ORDER BY (u.messages_count + COALESCE(c.messages, 0)) DESC, u.user_id ASC
+          LIMIT $1`
+      : `SELECT user_id, first_name, username, messages_count
+           FROM users
+          WHERE messages_count > 0
+          ORDER BY messages_count DESC, user_id ASC
+          LIMIT $1`,
     [topLimit],
   )
+
   const activityRows = await query<{ day: string; count: string }>(
     `SELECT day::text AS day, SUM(count) AS count
        FROM message_daily
@@ -313,7 +348,13 @@ export type PlayerProfile = {
   farmSuccessCount: number
   casinoGamesCount: number
   createdAt: string
+  // Unified message counter: current Возня count + Combot history (joined by
+  // user_id). Equals the current count when no Combot row exists.
+  messages: number
+  // Date the player joined the chat, from Combot history. null if unknown.
+  joinedAt: string | null
   achievementsUnlocked: number
+
   achievements: UserAchievement[]
   rankInTop: number | null
   marriage: {
@@ -340,6 +381,7 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     pidor_count: string
     farm_success_count: string
     casino_games_count: string
+    messages_count: string
     created_at: string
   }>(
     `SELECT 
@@ -349,9 +391,11 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
        duels_won, duels_lost,
        treasures_found, pidor_count,
        farm_success_count, casino_games_count,
+       messages_count,
        created_at
      FROM users
      WHERE user_id = $1`,
+
     [userId],
   )
 
@@ -359,7 +403,24 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
 
   const user = rows[0]
 
+  // Unified message counter + join date from Combot history (joined by
+  // user_id). Guarded: if the table doesn't exist yet, historical = 0 and the
+  // profile shows just the current Возня count.
+  let historicalMessages = 0
+  let joinedAt: string | null = null
+  if (await hasCombotUserStats()) {
+    const combotRows = await query<{ messages: string | null; joined_at: string | null }>(
+      `SELECT messages, joined_at FROM combot_user_stats WHERE user_id = $1`,
+      [userId],
+    )
+    if (combotRows[0]) {
+      historicalMessages = Number(combotRows[0].messages ?? 0)
+      joinedAt = combotRows[0].joined_at ? String(combotRows[0].joined_at) : null
+    }
+  }
+
   // Get user's unlocked achievements with details
+
   const achRows = await query<{ 
     code: string
     unlocked_at: string
@@ -445,7 +506,10 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     farmSuccessCount: Number(user.farm_success_count),
     casinoGamesCount: Number(user.casino_games_count),
     createdAt: String(user.created_at),
+    messages: Number(user.messages_count ?? 0) + historicalMessages,
+    joinedAt,
     achievementsUnlocked: achievements.length,
+
     achievements,
     rankInTop: rankRows[0] ? Number(rankRows[0].rank) : null,
     marriage: marriage
