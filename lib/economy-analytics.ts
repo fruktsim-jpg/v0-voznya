@@ -1,0 +1,451 @@
+import { query } from '@/lib/db'
+import { safeScalar } from '@/lib/admin-stats'
+
+/**
+ * Economic Control Center — read-only analytics over the data the bot already
+ * writes. NOTHING here mutates state. Every loader degrades gracefully (returns
+ * null / [] / zeros) when a table or column is missing on the target DB, so the
+ * pages never 500 on an un-migrated deployment.
+ *
+ * Source of truth (bot-owned tables):
+ *   - transactions(amount signed, reason, meta JSONB, created_at) — the ledger.
+ *   - case_openings(case_item_code, reward_kind, amount, ...) — case ledger.
+ *   - gift_catalog(star_cost, price_eshki, sold_count, ...) — gifts catalog.
+ *   - users(balance) — current eshki balances.
+ *
+ * Honest gaps (see VOZNYA audit): item rewards have no eshki value, so case EV
+ * covers only the currency portion; gift sales/fund are zero until the purchase
+ * flow ships; case_openings.transaction_id is not yet populated.
+ */
+
+const NUM = (v: string | null | undefined): number => (v == null ? 0 : Number(v))
+
+/** Run a query that returns rows; [] if the table/columns are missing. */
+async function safeRows<T>(sql: string, params?: unknown[]): Promise<T[]> {
+  try {
+    return await query<T>(sql, params)
+  } catch {
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 1. Economy Dashboard
+// ---------------------------------------------------------------------------
+
+export type EconomyOverview = {
+  totalEshki: number | null
+  players: number | null
+  activePlayers7d: number | null
+  avgBalance: number | null
+  mintedToday: number | null
+  burnedToday: number | null
+  netToday: number | null
+}
+
+export async function loadEconomyOverview(): Promise<EconomyOverview> {
+  const [
+    totalEshki,
+    players,
+    activePlayers7d,
+    avgBalance,
+    mintedToday,
+    burnedToday,
+  ] = await Promise.all([
+    safeScalar('SELECT COALESCE(SUM(balance), 0)::text AS v FROM users'),
+    safeScalar('SELECT COUNT(*)::text AS v FROM users'),
+    safeScalar(
+      `SELECT COUNT(DISTINCT user_id)::text AS v FROM transactions
+        WHERE created_at >= now() - interval '7 days'`,
+    ),
+    safeScalar('SELECT COALESCE(ROUND(AVG(balance)), 0)::text AS v FROM users'),
+    safeScalar(
+      `SELECT COALESCE(SUM(amount), 0)::text AS v FROM transactions
+        WHERE amount > 0 AND created_at >= date_trunc('day', now())`,
+    ),
+    safeScalar(
+      `SELECT COALESCE(SUM(-amount), 0)::text AS v FROM transactions
+        WHERE amount < 0 AND created_at >= date_trunc('day', now())`,
+    ),
+  ])
+
+  const netToday =
+    mintedToday == null || burnedToday == null
+      ? null
+      : mintedToday - burnedToday
+
+  return {
+    totalEshki,
+    players,
+    activePlayers7d,
+    avgBalance,
+    mintedToday,
+    burnedToday,
+    netToday,
+  }
+}
+
+export type DailyFlow = {
+  day: string
+  minted: number
+  burned: number
+  net: number
+}
+
+/** Per-day minted / burned / net over the last `days` days. */
+export async function loadDailyFlow(days = 14): Promise<DailyFlow[]> {
+  const rows = await safeRows<{
+    day: string
+    minted: string | null
+    burned: string | null
+  }>(
+    `SELECT date_trunc('day', created_at)::date::text AS day,
+            COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0)::text  AS minted,
+            COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0)::text AS burned
+       FROM transactions
+      WHERE created_at >= date_trunc('day', now()) - ($1::int - 1) * interval '1 day'
+      GROUP BY 1
+      ORDER BY 1 DESC`,
+    [days],
+  )
+  return rows.map((r) => {
+    const minted = NUM(r.minted)
+    const burned = NUM(r.burned)
+    return { day: r.day, minted, burned, net: minted - burned }
+  })
+}
+
+export type SourceFlow = {
+  reason: string
+  minted: number
+  burned: number
+  net: number
+  count: number
+}
+
+/** Minted/burned grouped by transaction reason (source) over `days` days. */
+export async function loadFlowBySource(days = 30): Promise<SourceFlow[]> {
+  const rows = await safeRows<{
+    reason: string
+    minted: string | null
+    burned: string | null
+    count: string | null
+  }>(
+    `SELECT reason,
+            COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0)::text  AS minted,
+            COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0)::text AS burned,
+            COUNT(*)::text AS count
+       FROM transactions
+      WHERE created_at >= now() - ($1::int) * interval '1 day'
+      GROUP BY reason
+      ORDER BY (COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0)
+              + COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0)) DESC`,
+    [days],
+  )
+  return rows.map((r) => {
+    const minted = NUM(r.minted)
+    const burned = NUM(r.burned)
+    return {
+      reason: r.reason,
+      minted,
+      burned,
+      net: minted - burned,
+      count: NUM(r.count),
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// 2. Cases Analytics
+// ---------------------------------------------------------------------------
+
+export type CaseStat = {
+  caseCode: string
+  name: string | null
+  openings: number
+  eshkiGranted: number // currency rewards paid out
+  eshkiBurned: number // open-cost debited (reason=purchase, source=case_open)
+  net: number // burned - granted (positive = house edge in eshki)
+  avgGrantedPerOpen: number | null // currency-only EV; null if no openings
+}
+
+/**
+ * Per-case economy. Openings + granted come from case_openings; burned comes
+ * from the ledger (transactions reason='purchase', meta.source='case_open',
+ * meta.case=<item_code>). The two are merged in JS by case code.
+ *
+ * Caveat: item rewards carry no eshki value, so avgGrantedPerOpen is the
+ * currency-only EV, not the full reward EV.
+ */
+export async function loadCaseStats(): Promise<CaseStat[]> {
+  const [openings, burns, names] = await Promise.all([
+    safeRows<{
+      case_code: string
+      openings: string
+      granted: string | null
+    }>(
+      `SELECT case_item_code AS case_code,
+              COUNT(*)::text AS openings,
+              COALESCE(SUM(amount) FILTER (WHERE reward_kind = 'currency'), 0)::text AS granted
+         FROM case_openings
+        GROUP BY case_item_code`,
+    ),
+    safeRows<{ case_code: string; burned: string | null }>(
+      `SELECT meta->>'case' AS case_code,
+              COALESCE(SUM(-amount), 0)::text AS burned
+         FROM transactions
+        WHERE reason = 'purchase'
+          AND meta->>'source' = 'case_open'
+          AND meta->>'case' IS NOT NULL
+        GROUP BY meta->>'case'`,
+    ),
+    safeRows<{ item_code: string; name: string | null }>(
+      `SELECT item_code, name FROM case_definitions`,
+    ),
+  ])
+
+  const nameByCode = new Map(names.map((n) => [n.item_code, n.name]))
+  const burnByCode = new Map(burns.map((b) => [b.case_code, NUM(b.burned)]))
+
+  const codes = new Set<string>([
+    ...openings.map((o) => o.case_code),
+    ...burns.map((b) => b.case_code),
+  ])
+
+  const stats: CaseStat[] = []
+  for (const code of codes) {
+    const o = openings.find((x) => x.case_code === code)
+    const openCount = o ? NUM(o.openings) : 0
+    const granted = o ? NUM(o.granted) : 0
+    const burned = burnByCode.get(code) ?? 0
+    stats.push({
+      caseCode: code,
+      name: nameByCode.get(code) ?? null,
+      openings: openCount,
+      eshkiGranted: granted,
+      eshkiBurned: burned,
+      net: burned - granted,
+      avgGrantedPerOpen: openCount > 0 ? Math.round(granted / openCount) : null,
+    })
+  }
+  stats.sort((a, b) => b.openings - a.openings)
+  return stats
+}
+
+export type RewardDistRow = {
+  caseCode: string
+  rewardKind: string
+  rewardItemCode: string | null
+  hits: number
+  share: number // 0..1 within the case
+}
+
+/** Reward distribution (actual hit counts) per case from the openings ledger. */
+export async function loadRewardDistribution(): Promise<RewardDistRow[]> {
+  const rows = await safeRows<{
+    case_code: string
+    reward_kind: string
+    reward_item_code: string | null
+    hits: string
+  }>(
+    `SELECT case_item_code AS case_code, reward_kind, reward_item_code,
+            COUNT(*)::text AS hits
+       FROM case_openings
+      GROUP BY case_item_code, reward_kind, reward_item_code
+      ORDER BY case_item_code, COUNT(*) DESC`,
+  )
+
+  const totals = new Map<string, number>()
+  for (const r of rows) {
+    totals.set(r.case_code, (totals.get(r.case_code) ?? 0) + NUM(r.hits))
+  }
+
+  return rows.map((r) => {
+    const hits = NUM(r.hits)
+    const total = totals.get(r.case_code) ?? 0
+    return {
+      caseCode: r.case_code,
+      rewardKind: r.reward_kind,
+      rewardItemCode: r.reward_item_code,
+      hits,
+      share: total > 0 ? hits / total : 0,
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// 3. Casino Analytics
+// ---------------------------------------------------------------------------
+
+export type CasinoOverview = {
+  bets: number | null
+  totalWagered: number | null
+  totalPayout: number | null
+  rtp: number | null // payout / wagered (0..1+)
+  houseProfit: number | null // wagered - payout
+}
+
+/**
+ * Casino has no dedicated table — one transaction per spin with
+ * reason='casino' and meta {bet, multiplier, payout, outcome}. We reconstruct
+ * everything from meta. amount = net (payout - bet), so house profit = -SUM(amount).
+ */
+export async function loadCasinoOverview(): Promise<CasinoOverview> {
+  const rows = await safeRows<{
+    bets: string
+    wagered: string | null
+    payout: string | null
+    profit: string | null
+  }>(
+    `SELECT COUNT(*)::text AS bets,
+            COALESCE(SUM((meta->>'bet')::bigint), 0)::text    AS wagered,
+            COALESCE(SUM((meta->>'payout')::bigint), 0)::text AS payout,
+            COALESCE(SUM(-amount), 0)::text AS profit
+       FROM transactions
+      WHERE reason = 'casino'
+        AND meta ? 'bet' AND meta ? 'payout'`,
+  )
+  if (rows.length === 0) {
+    return { bets: null, totalWagered: null, totalPayout: null, rtp: null, houseProfit: null }
+  }
+  const r = rows[0]
+  const wagered = NUM(r.wagered)
+  const payout = NUM(r.payout)
+  return {
+    bets: NUM(r.bets),
+    totalWagered: wagered,
+    totalPayout: payout,
+    rtp: wagered > 0 ? payout / wagered : null,
+    houseProfit: NUM(r.profit),
+  }
+}
+
+export type CasinoExtreme = {
+  userId: number
+  userName: string | null
+  net: number
+  bet: number
+  payout: number
+  outcome: string | null
+  createdAt: string
+}
+
+/** Top casino swings by net amount. dir='win' → biggest wins, 'loss' → biggest losses. */
+export async function loadCasinoExtremes(
+  dir: 'win' | 'loss',
+  limit = 5,
+): Promise<CasinoExtreme[]> {
+  const order = dir === 'win' ? 'DESC' : 'ASC'
+  const rows = await safeRows<{
+    user_id: number
+    user_name: string | null
+    net: string
+    bet: string | null
+    payout: string | null
+    outcome: string | null
+    created_at: string
+  }>(
+    `SELECT t.user_id, u.first_name AS user_name,
+            t.amount::text AS net,
+            (t.meta->>'bet')    AS bet,
+            (t.meta->>'payout') AS payout,
+            (t.meta->>'outcome') AS outcome,
+            t.created_at
+       FROM transactions t
+       LEFT JOIN users u ON u.user_id = t.user_id
+      WHERE t.reason = 'casino' AND t.meta ? 'bet'
+      ORDER BY t.amount ${order}
+      LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r) => ({
+    userId: r.user_id,
+    userName: r.user_name,
+    net: NUM(r.net),
+    bet: NUM(r.bet),
+    payout: NUM(r.payout),
+    outcome: r.outcome,
+    createdAt: r.created_at,
+  }))
+}
+
+// ---------------------------------------------------------------------------
+// 4. Gifts Analytics
+// ---------------------------------------------------------------------------
+
+export type GiftCatalogRow = {
+  code: string
+  name: string
+  starCost: number
+  priceEshki: number
+  stock: number | null
+  soldCount: number
+  isActive: boolean
+}
+
+export type GiftsOverview = {
+  catalog: GiftCatalogRow[]
+  activeCount: number
+  estStarCostBasis: number // Σ star_cost over active items (per-unit budget)
+  giftsSold: number // Σ sold_count (0 until purchase flow ships)
+  eshkiSpentByPlayers: number | null // ledger source=gift_buy; null until flow ships
+  starsSpentRealized: number // Σ star_cost * sold_count
+  fundBalance: number | null // not tracked yet → null
+}
+
+/**
+ * Gifts economics. Catalog + cost basis are real now. Sales/spend are zero
+ * until the purchase flow ships (no gift_buy transactions, sold_count stays 0).
+ * Fund balance has no ledger yet → null (honest placeholder).
+ */
+export async function loadGiftsOverview(): Promise<GiftsOverview> {
+  const catalog = await safeRows<{
+    code: string
+    name: string
+    star_cost: number
+    price_eshki: string
+    stock: number | null
+    sold_count: number
+    is_active: boolean
+  }>(
+    `SELECT code, name, star_cost, price_eshki::text AS price_eshki,
+            stock, sold_count, is_active
+       FROM gift_catalog
+      ORDER BY is_active DESC, sort_order, name`,
+  )
+
+  const rows: GiftCatalogRow[] = catalog.map((g) => ({
+    code: g.code,
+    name: g.name,
+    starCost: Number(g.star_cost),
+    priceEshki: NUM(g.price_eshki),
+    stock: g.stock,
+    soldCount: Number(g.sold_count),
+    isActive: g.is_active,
+  }))
+
+  const activeCount = rows.filter((r) => r.isActive).length
+  const estStarCostBasis = rows
+    .filter((r) => r.isActive)
+    .reduce((s, r) => s + r.starCost, 0)
+  const giftsSold = rows.reduce((s, r) => s + r.soldCount, 0)
+  const starsSpentRealized = rows.reduce(
+    (s, r) => s + r.starCost * r.soldCount,
+    0,
+  )
+
+  const eshkiSpentByPlayers = await safeScalar(
+    `SELECT COALESCE(SUM(-amount), 0)::text AS v FROM transactions
+      WHERE reason = 'purchase' AND meta->>'source' = 'gift_buy'`,
+  )
+
+  return {
+    catalog: rows,
+    activeCount,
+    estStarCostBasis,
+    giftsSold,
+    eshkiSpentByPlayers,
+    starsSpentRealized,
+    fundBalance: null,
+  }
+}
