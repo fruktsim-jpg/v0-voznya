@@ -287,13 +287,14 @@ async function tableExists(table: string): Promise<boolean> {
 export type MmrRank = { minMmr: number; emoji: string; name: string }
 
 export const MMR_RANKS: readonly MmrRank[] = [
-  { minMmr: 0, emoji: '🥉', name: 'Новичок' },
-  { minMmr: 1000, emoji: '🥈', name: 'Бродяга' },
-  { minMmr: 2500, emoji: '🥇', name: 'Авторитет' },
-  { minMmr: 5000, emoji: '💎', name: 'Легенда' },
-  { minMmr: 10000, emoji: '👑', name: 'Элита' },
+  { minMmr: 0, emoji: '🥉', name: 'Залётный' },
+  { minMmr: 1000, emoji: '🥈', name: 'Бродяга Утрехта' },
+  { minMmr: 2500, emoji: '🥇', name: 'Свой в Зволле' },
+  { minMmr: 5000, emoji: '💎', name: 'Котейший' },
+  { minMmr: 10000, emoji: '👑', name: 'Архидрун' },
   { minMmr: 25000, emoji: '🔥', name: 'Боженька Возни' },
 ]
+
 
 export function mmrRank(mmr: number): MmrRank {
   let current = MMR_RANKS[0]

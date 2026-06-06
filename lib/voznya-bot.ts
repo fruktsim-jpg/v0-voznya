@@ -17,7 +17,8 @@ export const BOT_SYSTEMS: BotSystem[] = [
   { emoji: '🌾', title: 'Ферма', description: 'Доход раз в 4 часа и серии активности' },
   { emoji: '🎰', title: 'Казино', description: 'Ставки на удачу с джекпотом ×10' },
   { emoji: '⚔️', title: 'Дуэли', description: 'Бои на ешки один на один' },
-  { emoji: '🏆', title: 'Ачивки', description: '30 достижений с наградами' },
+  { emoji: '🏆', title: 'Ачивки', description: '34 достижения с наградами' },
+
   { emoji: '🎖', title: 'Титулы', description: '11 рангов по заработку' },
   { emoji: '📦', title: 'Клады', description: 'Клады Возни появляются в чате' },
   { emoji: '💍', title: 'Браки', description: 'Свадьбы, семьи и рейтинг семей' },
@@ -50,48 +51,56 @@ export const ACHIEVEMENT_CATEGORIES = [
 /** Achievement catalog — mirrors app/settings/achievements.py v1.3. */
 export const ACHIEVEMENTS: Achievement[] = [
   // --- 💰 Экономика ---
-  { code: 'first_ezhka', emoji: '🌱', name: 'Первая ешка', description: 'Заработать первую ешку', category: 'economy', reward: 10, hidden: false },
-  { code: 'thousandaire', emoji: '💰', name: 'Тысячник', description: 'Заработать 1 000 ешек', category: 'economy', reward: 100, hidden: false },
-  { code: 'magnate', emoji: '💰', name: 'Магнат', description: 'Заработать 10 000 ешек', category: 'economy', reward: 400, hidden: false },
+  { code: 'first_ezhka', emoji: '🌱', name: 'Первая ешка', description: 'Заработал первую ешку', category: 'economy', reward: 10, hidden: false },
+  { code: 'thousandaire', emoji: '💰', name: 'Первый чемодан', description: 'Поднял 1 000 ешек за всё время', category: 'economy', reward: 100, hidden: false },
+  { code: 'magnate', emoji: '💰', name: 'Магнат аптеки', description: 'Поднял 10 000 ешек за всё время', category: 'economy', reward: 400, hidden: false },
 
   // --- 🎰 Казино ---
-  { code: 'ludoman', emoji: '🎰', name: 'Лудоман', description: 'Сыграть 10 раз в казино', category: 'casino', reward: 50, hidden: false },
-  { code: 'casino_grandpa', emoji: '🎰', name: 'Казиношный дед', description: 'Сыграть 100 раз в казино', category: 'casino', reward: 150, hidden: false },
+  { code: 'ludoman', emoji: '🎰', name: 'Лудоман', description: 'Крутанул казино 10 раз', category: 'casino', reward: 50, hidden: false },
+  { code: 'casino_grandpa', emoji: '🎰', name: 'Казиношный дед', description: 'Крутанул казино 100 раз', category: 'casino', reward: 150, hidden: false },
 
   // --- ⚔️ Дуэли ---
-  { code: 'duelist', emoji: '⚔️', name: 'Дуэлянт', description: 'Выиграть 1 дуэль', category: 'duel', reward: 50, hidden: false },
-  { code: 'gladiator', emoji: '⚔️', name: 'Гладиатор', description: 'Выиграть 25 дуэлей', category: 'duel', reward: 200, hidden: false },
+  { code: 'duelist', emoji: '⚔️', name: 'Дуэлянт', description: 'Забрал первую дуэль', category: 'duel', reward: 50, hidden: false },
+  { code: 'gladiator', emoji: '⚔️', name: 'Возняшный боец', description: 'Выиграл 25 дуэлей', category: 'duel', reward: 200, hidden: false },
 
   // --- 📦 Клады ---
-  { code: 'treasure_hunter', emoji: '📦', name: 'Кладоискатель', description: 'Найти 1 клад', category: 'treasure', reward: 50, hidden: false },
-  { code: 'treasure_master', emoji: '📦', name: 'Охотник за кладом', description: 'Найти 10 кладов', category: 'treasure', reward: 200, hidden: false },
+  { code: 'treasure_hunter', emoji: '📦', name: 'Кладоискатель', description: 'Поднял первый клад', category: 'treasure', reward: 50, hidden: false },
+  { code: 'treasure_master', emoji: '📦', name: 'Охотник за чемоданами', description: 'Поднял 10 кладов', category: 'treasure', reward: 200, hidden: false },
 
   // --- 💍 Браки ---
-  { code: 'true_love', emoji: '💍', name: 'Любовь существует', description: 'Заключить первый брак', category: 'marriage', reward: 50, hidden: false },
+  { code: 'true_love', emoji: '💍', name: 'Любовь существует', description: 'Сыграл первую свадьбу', category: 'marriage', reward: 50, hidden: false },
+  { code: 'serial_groom', emoji: '💍', name: 'Серийный жених', description: 'Сыграл 5 свадеб', category: 'marriage', reward: 200, hidden: false },
 
   // --- 🏳️ Номинации ---
-  { code: 'nominee', emoji: '🏳️', name: 'Звезда дня', description: 'Стать «Пидором дня» 1 раз', category: 'nomination', reward: 25, hidden: false },
-  { code: 'nominee_regular', emoji: '🏳️', name: 'Завсегдатай номинаций', description: 'Стать «Пидором дня» 10 раз', category: 'nomination', reward: 150, hidden: false },
+  { code: 'nominee', emoji: '🏳️', name: 'Звезда дня', description: 'Стал «Пидором дня» 1 раз', category: 'nomination', reward: 25, hidden: false },
+  { code: 'nominee_regular', emoji: '🏳️', name: 'Завсегдатай номинаций', description: 'Стал «Пидором дня» 10 раз', category: 'nomination', reward: 150, hidden: false },
 
   // --- 👑 Легенды Возни ---
-  { code: 'apteka_magnate', emoji: '💊', name: 'Аптечный магнат', description: '500 успешных ферм', category: 'legend', reward: 400, hidden: false },
+  { code: 'apteka_magnate', emoji: '💊', name: 'Аптечный магнат', description: '500 удачных ферм', category: 'legend', reward: 400, hidden: false },
   { code: 'already_red', emoji: '🔥', name: 'Уже красный', description: 'Серия фермы 30 дней', category: 'legend', reward: 300, hidden: false },
+  { code: 'unburnable', emoji: '🌾', name: 'Несгораемый', description: 'Серия фермы 60 дней', category: 'legend', reward: 600, hidden: false },
   { code: 'voznya_started', emoji: '⚔️', name: 'Возня началась', description: '100 побед в дуэлях', category: 'legend', reward: 500, hidden: false },
-  { code: 'cursed_suitcase', emoji: '📦', name: 'Ёбаный чемодан', description: 'Найти 50 кладов', category: 'legend', reward: 500, hidden: false },
+  { code: 'war_machine', emoji: '⚔️', name: 'Машина возни', description: '250 побед в дуэлях', category: 'legend', reward: 900, hidden: false },
+  { code: 'cursed_suitcase', emoji: '📦', name: 'Ёбаный чемодан', description: 'Поднял 50 кладов', category: 'legend', reward: 500, hidden: false },
+  { code: 'radik_vault', emoji: '📦', name: 'Кладовая Радика', description: 'Поднял 100 кладов', category: 'legend', reward: 900, hidden: false },
   { code: 'nomination_king', emoji: '🏳️', name: 'Король номинаций', description: '50 раз «Пидор дня»', category: 'legend', reward: 500, hidden: false },
-  { code: 'authority', emoji: '☢️', name: 'Авторитет', description: 'Заработать 25 000 ешек', category: 'legend', reward: 750, hidden: false },
-  { code: 'catushka', emoji: '🎰', name: 'Пошла катушка', description: 'Сорвать джекпот в казино', category: 'legend', reward: 250, hidden: false },
-  { code: 'last_dep', emoji: '🍺', name: 'Последний деп', description: 'Поставить всё в казино и проиграть', category: 'legend', reward: 50, hidden: false },
-  { code: 'love_grave', emoji: '💍', name: 'Любовь до гроба', description: 'Прожить в браке 30 дней', category: 'legend', reward: 250, hidden: false },
+  { code: 'authority', emoji: '☢️', name: 'Аптечный авторитет', description: 'Поднял 25 000 ешек за всё время', category: 'legend', reward: 750, hidden: false },
+  { code: 'suitcase_man', emoji: '🧳', name: 'Чемоданщик', description: 'Поднял 50 000 ешек за всё время', category: 'legend', reward: 1200, hidden: false },
+  { code: 'overdose', emoji: '💉', name: 'Аптечный передоз', description: 'Поднял 100 000 ешек за всё время', category: 'legend', reward: 2000, hidden: false },
+  { code: 'absolute_ludik', emoji: '🎰', name: 'Абсолютный лудик', description: 'Крутанул казино 500 раз', category: 'legend', reward: 700, hidden: false },
+  { code: 'catushka', emoji: '🎰', name: 'Пошла катушка', description: 'Сорвал джекпот в казино', category: 'legend', reward: 250, hidden: false },
+  { code: 'last_dep', emoji: '🍺', name: 'Последний деп', description: 'Поставил всё в казино и слил', category: 'legend', reward: 50, hidden: false },
+  { code: 'love_grave', emoji: '💍', name: 'Любовь до гроба', description: 'Прожил в браке 30 дней', category: 'legend', reward: 250, hidden: false },
   { code: 'mellstroy', emoji: '👑', name: 'Меллстрой Возни', description: 'Открыть все основные достижения', category: 'legend', reward: 1500, hidden: false },
 
   // --- 🤫 Секретные (скрыты до открытия) ---
-  { code: 'ludik_secret', emoji: '🎰', name: 'Лудик', description: 'Проиграть крупную сумму в казино', category: 'secret', reward: 0, hidden: true },
+  { code: 'ludik_secret', emoji: '🎰', name: 'Лудик', description: 'Слил крупную сумму в казино', category: 'secret', reward: 0, hidden: true },
   { code: 'no_luck', emoji: '💀', name: 'Не фартануло', description: 'Серия из 5 проигрышей в казино', category: 'secret', reward: 0, hidden: true },
   { code: 'bag', emoji: '⚔️', name: 'Мешок', description: 'Серия из 5 поражений в дуэлях', category: 'secret', reward: 0, hidden: true },
-  { code: 'kladmen', emoji: '📦', name: 'Кладмен', description: 'Забрать клад почти мгновенно', category: 'secret', reward: 100, hidden: true },
-  { code: 'ghost', emoji: '👻', name: 'Призрак Возни', description: 'Вернуться после долгого отсутствия', category: 'secret', reward: 50, hidden: true },
+  { code: 'kladmen', emoji: '📦', name: 'Кладмен', description: 'Забрал клад почти мгновенно', category: 'secret', reward: 100, hidden: true },
+  { code: 'ghost', emoji: '👻', name: 'Призрак Возни', description: 'Вернулся после долгого отсутствия', category: 'secret', reward: 50, hidden: true },
 ]
+
 
 export type Title = {
   minEarned: number
