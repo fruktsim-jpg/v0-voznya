@@ -1,4 +1,10 @@
+// Build-time guard: importing this module (and anything that transitively
+// pulls in `pg`) from a Client Component must fail loudly here, not deep inside
+// the bundler with cryptic dns/fs/net errors. `server-only` throws if this code
+// ever lands in a client bundle. Ships with Next — no extra dependency.
+import 'server-only'
 import { Pool, type PoolClient, type QueryResultRow } from 'pg'
+
 
 
 /**
