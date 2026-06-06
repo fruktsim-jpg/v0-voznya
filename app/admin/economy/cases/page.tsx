@@ -13,6 +13,8 @@ import {
   fmtSigned,
   fmtPct,
 } from '../economy-ui'
+import { OpeningsHistory } from './openings-history'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -172,6 +174,15 @@ export default async function CasesAnalyticsPage() {
           </div>
         )}
       </section>
+
+      <section>
+        <SectionTitle>История открытий</SectionTitle>
+        <OpeningsHistory
+          cases={stats.map((c) => ({ code: c.caseCode, name: c.name ?? c.caseCode }))}
+        />
+      </section>
     </div>
   )
 }
+
+
