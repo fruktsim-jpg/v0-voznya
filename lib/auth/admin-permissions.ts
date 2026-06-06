@@ -44,6 +44,9 @@ export const PERM = {
   ACHIEVEMENTS_VIEW: 'achievements.view',
   ACHIEVEMENTS_GRANT: 'achievements.grant',
   ACHIEVEMENTS_REVOKE: 'achievements.revoke',
+  CASES_VIEW: 'cases.view',
+  CASES_MANAGE: 'cases.manage',
+  CASES_GRANT: 'cases.grant',
 } as const
 
 
@@ -61,6 +64,7 @@ const SUPPORT: ReadonlySet<string> = new Set([
   PERM.MMR_VIEW,
   PERM.REPUTATION_VIEW,
   PERM.ACHIEVEMENTS_VIEW,
+  PERM.CASES_VIEW,
 ])
 
 
@@ -86,6 +90,8 @@ const ADMIN: ReadonlySet<string> = new Set([
   PERM.REPUTATION_REMOVE,
   PERM.ACHIEVEMENTS_GRANT,
   PERM.ACHIEVEMENTS_REVOKE,
+  PERM.CASES_MANAGE,
+  PERM.CASES_GRANT,
 ])
 
 

@@ -61,11 +61,12 @@ export default async function AdminLayout({
   // Live sections + foundation placeholders (shown disabled until they ship).
   const nav: { href: string; label: string; emoji: string }[] = [
     { href: '/admin', label: 'Дашборд', emoji: '📊' },
+    { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
     { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
   ]
   const soon: { label: string; emoji: string }[] = [
     { label: 'Магазин', emoji: '🛒' },
-    { label: 'Подарки', emoji: '🎁' },
+    { label: 'Подарки', emoji: '🎀' },
     { label: 'Роли', emoji: '🔑' },
   ]
 
