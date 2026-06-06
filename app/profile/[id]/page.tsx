@@ -5,6 +5,8 @@ import { PlayerCard } from '@/components/profile/player-card'
 import { NotRegistered } from '@/components/auth/not-registered'
 import { getSession } from '@/lib/auth/get-session'
 import { getAdminSession } from '@/lib/auth/admin-session'
+import { ACHIEVEMENTS } from '@/lib/voznya-bot'
+
 
 
 
@@ -27,7 +29,8 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   }
 
   const title = `${profile.firstName} | ВОЗНЯ`
-  const description = `Профиль игрока ${profile.firstName}. Баланс: ${profile.balance} ешек, заработано: ${profile.totalEarned} ешек. ${profile.rankInTop ? `#${profile.rankInTop} в топе богачей.` : ''} ${profile.achievementsUnlocked} достижений из 30.`
+  const description = `Профиль игрока ${profile.firstName}. Баланс: ${profile.balance} ешек, заработано: ${profile.totalEarned} ешек. ${profile.rankInTop ? `#${profile.rankInTop} в топе богачей.` : ''} ${profile.achievementsUnlocked} достижений из ${ACHIEVEMENTS.length}.`
+
 
   return {
     title,

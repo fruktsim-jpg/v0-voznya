@@ -29,7 +29,8 @@ export function AchievementsCatalog() {
           <span className="text-gradient">Ачивки</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          30 достижений с наградами в ешках. Цифра на карточке — сколько участников уже открыли.
+          {ACHIEVEMENTS.length} достижений с наградами в ешках. Цифра на карточке — сколько участников уже открыли.
+
         </p>
 
         {error && !data ? (

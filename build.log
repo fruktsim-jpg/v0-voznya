@@ -1,0 +1,56 @@
+▲ Next.js 16.2.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1444ms
+  Skipping validation of types
+  Finished TypeScript config validation in 6ms ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/5) ...
+  Generating static pages using 15 workers (1/5) 
+  Generating static pages using 15 workers (2/5) 
+  Generating static pages using 15 workers (3/5) 
+✓ Generating static pages using 15 workers (5/5) in 160ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/audit
+├ ƒ /admin/players
+├ ƒ /admin/players/[id]
+├ ƒ /api/achievements
+├ ƒ /api/admin/achievements
+├ ƒ /api/admin/audit
+├ ƒ /api/admin/bootstrap-owner
+├ ƒ /api/admin/dashboard
+├ ƒ /api/admin/economy
+├ ƒ /api/admin/inventory
+├ ƒ /api/admin/mmr
+├ ƒ /api/admin/players
+├ ƒ /api/admin/players/[id]
+├ ƒ /api/admin/reputation
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/auth/telegram
+├ ƒ /api/auth/telegram/oidc/callback
+├ ƒ /api/auth/telegram/oidc/start
+├ ƒ /api/commands
+├ ƒ /api/daily
+├ ƒ /api/economy
+├ ƒ /api/families
+├ ƒ /api/me/summary
+├ ƒ /api/messages
+├ ƒ /api/profile/[id]
+├ ƒ /api/stats
+├ ƒ /api/top-rich
+├ ƒ /api/top-weekly
+├ ƒ /link
+├ ○ /live
+├ ƒ /profile/[id]
+└ ƒ /profile/me
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
