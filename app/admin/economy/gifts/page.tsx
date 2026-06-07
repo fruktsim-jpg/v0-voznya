@@ -37,8 +37,9 @@ export default async function GiftsAnalyticsPage() {
     { emoji: '⭐', label: 'Истрачено Stars (факт)', value: fmt(g.starsSpentRealized), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: 'по выданным подаркам' },
     { emoji: '📈', label: 'Маржа, ешки', value: fmt(g.marginEshki), tone: g.marginEshki >= 0 ? 'border-emerald-400/25 from-emerald-400/[0.08]' : 'border-rose-400/25 from-rose-400/[0.08]', hint: 'выручка − себест.×10' },
     { emoji: '📦', label: 'Доставки', value: `${fmt(g.completed)}/${fmt(g.pending)}/${fmt(g.cancelled)}`, tone: 'border-sky-400/25 from-sky-400/[0.08]', hint: 'выдано / ждут / отменено' },
-    { emoji: '🏦', label: 'Баланс фонда Gifts', value: g.fundBalance == null ? '—' : fmt(g.fundBalance), tone: 'border-border from-white/[0.04]', hint: 'нужен stars_ledger (донат)' },
+    { emoji: '🏦', label: 'Баланс фонда Stars', value: g.fundBalance == null ? '—' : fmt(g.fundBalance), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: `пополнено ${fmt(g.starsIn)} / истрачено ${fmt(g.starsOut)} ⭐` },
   ]
+
 
 
   return (

@@ -429,17 +429,22 @@ export type GiftsOverview = {
   pending: number
   completed: number
   cancelled: number
-  fundBalance: number | null // Stars fund needs stars_ledger (donations) → null
+  // --- Stars fund (from stars_ledger) ------------------------------------
+  starsIn: number // Σ Stars topped up / donated to the bot
+  starsOut: number // Σ Stars spent (gift_send etc.)
+  fundBalance: number | null // starsIn − starsOut (our books); null if no ledger
 }
 
 /**
  * Gifts economics — real numbers from the ledgers the bot writes:
  *   - revenue/purchases: purchase_history (source='gift'), refunds flagged in meta;
- *   - delivery funnel + realized Stars cost: gift_transactions (kind='tg_gift').
- * Fund balance still needs stars_ledger (donations side) → null placeholder.
+ *   - delivery funnel + realized Stars cost: gift_transactions (kind='tg_gift');
+ *   - Stars fund balance: stars_ledger (in − out) — our books, reconcilable with
+ *     getMyStarBalance. Null only if stars_ledger is not migrated yet.
  */
 export async function loadGiftsOverview(): Promise<GiftsOverview> {
-  const [catalog, purchaseAgg, deliveryAgg] = await Promise.all([
+  const [catalog, purchaseAgg, deliveryAgg, starsAgg] = await Promise.all([
+
     safeRows<{
       code: string
       name: string
@@ -473,7 +478,13 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
         WHERE kind = 'tg_gift'
         GROUP BY status`,
     ),
+    safeRows<{ direction: string; stars: string | null }>(
+      `SELECT direction, COALESCE(SUM(amount_stars), 0)::text AS stars
+         FROM stars_ledger
+        GROUP BY direction`,
+    ),
   ])
+
 
   const rows: GiftCatalogRow[] = catalog.map((g) => ({
     code: g.code,
@@ -505,6 +516,14 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
   // Margin in eshki: revenue − cost-basis (star_cost*10) of completed deliveries.
   const marginEshki = revenueEshki - starsSpentRealized * 10
 
+  // Stars fund from our books (stars_ledger). If the table is missing, starsAgg
+  // is [] → starsIn/out = 0 and we expose fundBalance=null (no ledger yet).
+  const hasLedger = starsAgg.length > 0
+  const dirMap = new Map(starsAgg.map((r) => [r.direction, NUM(r.stars)]))
+  const starsIn = dirMap.get('in') ?? 0
+  const starsOut = dirMap.get('out') ?? 0
+  const fundBalance = hasLedger ? starsIn - starsOut : null
+
   return {
     catalog: rows,
     activeCount,
@@ -517,8 +536,11 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
     pending,
     completed,
     cancelled,
-    fundBalance: null,
+    starsIn,
+    starsOut,
+    fundBalance,
   }
 }
+
 
 
