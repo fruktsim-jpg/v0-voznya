@@ -1,53 +1,68 @@
 import Link from 'next/link'
-import { getActiveCasesWithRewards, type ShowcaseCase } from '@/lib/cases'
-import { rarityStyle } from '@/lib/inventory'
+import { getActiveCasesWithRewards } from '@/lib/cases'
+import { buildCaseView } from '@/lib/cases-ux'
+import { getCommunityFeed } from '@/lib/feed'
+import { CaseCard } from '@/components/v2/case-card'
+import { ActivityCard } from '@/components/v2/activity-card'
+import { Section } from '@/components/v2/section'
+import { UserBadge } from '@/components/v2/user-badge'
+import { Card } from '@/components/v2/card'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'Кейсы — Возня',
-  description: 'Активные кейсы Возни: содержимое, редкости и честные шансы.',
+  description: 'Кейсы Возни: что внутри, насколько редко и ценно, кто что выбил.',
 }
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
-function chanceLabel(pct: number): string {
-  if (pct >= 10) return `${pct.toFixed(0)}%`
-  if (pct >= 1) return `${pct.toFixed(1)}%`
-  return `${pct.toFixed(2)}%`
-}
-
-function costLabel(c: ShowcaseCase): string {
-  if (c.openCostKind === 'currency' && c.openCostAmount > 0) {
-    return `${fmt(c.openCostAmount)} ешек`
-  }
-  if (c.consumesKey) return 'нужен кейс'
-  return 'бесплатно'
-}
-
 /**
- * Public, read-only Cases showcase. Lists active cases with their drop-lists
- * and honest odds (weight / Σweight). The site never opens cases — opening
- * happens only in the bot (and, later, the Mini App through the same Python
- * flow). This page is pure display, styled with the site's glass + rarity
- * language and degrading to a friendly empty state before migration 0016.
+ * Cases (V3, поверхность №5) — витрина кейсов с акцентом на ЦЕННОСТИ наград и
+ * социальном доказательстве, не на открытии. Кейсы — часть экономики/статуса,
+ * не отдельная игра. Реальные данные: getActiveCasesWithRewards + лента
+ * (case_openings). Открытие — в боте (/кейсы). Read-only.
  */
 export default async function CasesPage() {
-  const cases = await getActiveCasesWithRewards()
+  const [rawCases, feed] = await Promise.all([
+    getActiveCasesWithRewards(),
+    getCommunityFeed(60),
+  ])
+  const cases = rawCases.map(buildCaseView)
+
+  // Социальное доказательство из реальной ленты.
+  const caseEvents = feed.filter(
+    (e) => e.code === 'CASE_OPEN' || e.code === 'CASE_JACKPOT' || e.code === 'CASE_GIFT_DROP',
+  )
+  const bestDrops = [...caseEvents]
+    .filter((e) => e.rarity === 'epic' || e.rarity === 'legendary' || e.rarity === 'mythic')
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+    .slice(0, 5)
+  const recentDrops = caseEvents.slice(0, 8)
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
-        <header className="mb-8 text-center">
-          <div className="mb-2 text-4xl">🎁</div>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Кейсы Возни</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Содержимое и честные шансы. Открыть можно в боте командой
-            <code className="mx-1 rounded bg-white/[0.06] px-1.5 py-0.5">/кейсы</code>.
-            Каждое открытие фиксируется в проверяемом логе.
+      {/* Hero */}
+      <section className="relative px-6 pb-2 pt-20 text-center sm:pt-24">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/20 blur-[120px]"
+        />
+        <div className="relative mx-auto max-w-2xl">
+          <div className="mb-2 text-5xl">📦</div>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Кейсы <span className="text-gradient">Возни</span>
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+            Что внутри, насколько это редко и ценно. Честные шансы из дроп-листа.
+            Открыть можно в боте командой{' '}
+            <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/кейсы</code> — каждое
+            открытие фиксируется в проверяемом логе.
           </p>
-        </header>
+        </div>
+      </section>
 
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {cases.length === 0 ? (
           <div className="glass mx-auto max-w-md rounded-3xl border border-border p-8 text-center">
             <div className="mb-2 text-3xl">📦</div>
@@ -62,75 +77,58 @@ export default async function CasesPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {cases.map((c) => (
-              <article
-                key={c.itemCode}
-                className="glass rounded-3xl border border-border p-5"
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <h2 className="truncate text-lg font-bold text-foreground">🎁 {c.name}</h2>
-                  <span className="shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-200">
-                    {costLabel(c)}
-                  </span>
+          <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+            {/* Витрина кейсов */}
+            <div className="lg:col-span-2">
+              <Section title="Активные кейсы" subtitle="Содержимое и ценность" className="!px-0">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {cases.map((c) => (
+                    <CaseCard key={c.itemCode} caseView={c} />
+                  ))}
                 </div>
-                {c.description && (
-                  <p className="mb-3 text-sm text-muted-foreground">{c.description}</p>
-                )}
+              </Section>
+            </div>
 
-                {c.rewards.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Содержимое скоро появится.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {c.rewards.map((r, idx) => {
-                      const isItem = r.rewardKind === 'item'
-                      const rs = isItem ? rarityStyle(r.rewardItemRarity ?? 'common') : null
-                      const label = isItem
-                        ? r.rewardItemName ?? r.rewardItemCode ?? 'предмет'
-                        : `${fmt(r.amount ?? 0)} ешек`
-                      const qty =
-                        r.minQty === r.maxQty
-                          ? r.minQty > 1
-                            ? ` ×${r.minQty}`
-                            : ''
-                          : ` ×${r.minQty}–${r.maxQty}`
-                      return (
-                        <li
-                          key={idx}
-                          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
-                            rs ? rs.className : 'border-amber-500/30 bg-amber-900/10'
-                          }`}
-                        >
-                          <span className="min-w-0 flex-1 truncate text-foreground">
-                            {r.isJackpot && '💎 '}
-                            {isItem ? '' : '💰 '}
-                            {label}
-                            <span className="text-muted-foreground">{qty}</span>
-                            {r.limited && (
-                              <span className="ml-2 text-[11px] text-amber-300">лимит</span>
-                            )}
+            {/* Социальное доказательство */}
+            <aside className="mt-6 space-y-6 lg:mt-0">
+              {bestDrops.length > 0 && (
+                <Section title="💎 Лучшие открытия" subtitle="Самое ценное за последнее время" className="!px-0">
+                  <Card className="space-y-2">
+                    {bestDrops.map((e) => (
+                      <div key={e.id} className="flex items-center gap-3">
+                        <span className="text-xl" aria-hidden="true">{e.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <UserBadge name={e.actor.name} userId={e.actor.id} size="sm" />
+                        </div>
+                        {e.value != null && (
+                          <span className="shrink-0 text-sm font-semibold text-amber-300">
+                            {fmt(e.value)}
                           </span>
-                          {rs && (
-                            <span className="shrink-0 text-[11px] text-muted-foreground">
-                              {rs.label}
-                            </span>
-                          )}
-                          <span className="shrink-0 font-mono text-xs text-primary">
-                            {chanceLabel(r.chance)}
-                          </span>
-                        </li>
-                      )
-                    })}
+                        )}
+                      </div>
+                    ))}
+                  </Card>
+                </Section>
+              )}
+
+              {recentDrops.length > 0 && (
+                <Section title="📦 Недавно открыли" subtitle="Кейсы реально открывают" className="!px-0">
+                  <ul className="space-y-2">
+                    {recentDrops.map((e) => (
+                      <li key={e.id}>
+                        <ActivityCard event={e} />
+                      </li>
+                    ))}
                   </ul>
-                )}
-              </article>
-            ))}
+                </Section>
+              )}
+            </aside>
           </div>
         )}
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          Шансы рассчитаны из весов дроп-листа. Возможны лимитированные награды
-          (джекпоты) с ограниченным числом выпадений.
+          Шансы рассчитаны из весов дроп-листа. Лимитированные награды (джекпоты)
+          имеют ограниченное число выпадений. Ценность награды зависит от её редкости.
         </p>
       </div>
     </main>
