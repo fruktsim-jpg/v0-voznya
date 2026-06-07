@@ -17,8 +17,92 @@ import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
 import { InventoryShowcase } from '@/components/profile/inventory-showcase'
 import { ActivityCard } from '@/components/v2/activity-card'
+import { CollectibleTile } from '@/components/v2/collectible'
+import type { Rarity } from '@/lib/rarity'
 import type { PlayerProfile } from '@/lib/queries'
 import type { CommunityEvent } from '@/lib/events'
+
+/** Псевдо-редкость достижения по награде (для витрины «Чем крут»). */
+function achievementShowcaseRarity(reward: number): Rarity {
+  if (reward >= 5000) return 'legendary'
+  if (reward >= 2000) return 'epic'
+  if (reward >= 500) return 'rare'
+  if (reward >= 100) return 'uncommon'
+  return 'common'
+}
+
+const RARITY_PRESTIGE: Record<string, number> = {
+  mythic: 6,
+  legendary: 5,
+  epic: 4,
+  rare: 3,
+  uncommon: 2,
+  common: 1,
+}
+
+/**
+ * Элитный статус по месту в общем топе (по ешкам, profile.rankInTop).
+ * Сдержанно, без Vegas: золото/серебро/бронза для #1–#3, мягкий акцент для топ-10.
+ * `null` — обычный игрок (никакого спец-оформления).
+ */
+type EliteTier = {
+  key: 'gold' | 'silver' | 'bronze' | 'top10'
+  label: string
+  medal: string
+  /** Класс рамки карточки личности. */
+  ring: string
+  /** Цвет свечения (inline, мягкое). */
+  glow: string
+  /** Градиент аватара. */
+  avatar: string
+  /** Цвет текста-акцента ленты. */
+  accent: string
+}
+
+function eliteTierFor(rank: number | null): EliteTier | null {
+  if (!rank || rank > 10) return null
+  if (rank === 1)
+    return {
+      key: 'gold',
+      label: 'Легенда сообщества',
+      medal: '👑',
+      ring: 'border-amber-300/60',
+      glow: '0 0 60px -12px rgba(251,191,36,0.45)',
+      avatar: 'from-amber-300/30 to-amber-500/20',
+      accent: 'text-amber-200',
+    }
+  if (rank === 2)
+    return {
+      key: 'silver',
+      label: 'Серебро Возни',
+      medal: '🥈',
+      ring: 'border-slate-200/50',
+      glow: '0 0 50px -14px rgba(226,232,240,0.35)',
+      avatar: 'from-slate-200/25 to-slate-400/15',
+      accent: 'text-slate-100',
+    }
+  if (rank === 3)
+    return {
+      key: 'bronze',
+      label: 'Бронза Возни',
+      medal: '🥉',
+      ring: 'border-orange-400/50',
+      glow: '0 0 50px -14px rgba(251,146,60,0.32)',
+      avatar: 'from-orange-400/25 to-amber-700/15',
+      accent: 'text-orange-200',
+    }
+  return {
+    key: 'top10',
+    label: 'Топ-10 сообщества',
+    medal: '⭐',
+    ring: 'border-primary/45',
+    glow: '0 0 44px -16px rgba(139,92,246,0.3)',
+    avatar: 'from-primary/25 to-accent/20',
+    accent: 'text-primary',
+  }
+}
+
+
 
 interface PlayerCardProps {
   profile: PlayerProfile
@@ -49,6 +133,10 @@ export function PlayerCard({
   const title = titleForEarned(profile.totalEarned)
   const duelsTotal = profile.duelsWon + profile.duelsLost
   const winRate = duelsTotal > 0 ? Math.round((profile.duelsWon / duelsTotal) * 100) : 0
+
+  // Элитный статус по месту в общем топе (#1–#3 медали, топ-10 — мягкий акцент).
+  const elite = eliteTierFor(profile.rankInTop)
+
 
   // --- MMR: progress to next rank (display-only, derived from MMR_RANKS) ----
   const nextMmrRank =
@@ -86,7 +174,50 @@ export function PlayerCard({
     return { ...category, isSecretCat, achievements: items }
   }).filter((cat) => cat.achievements.length > 0)
 
+  // ----------------------------------------------------------------------
+  // SHOWCASE («Чем крут») — компактная витрина: только ЛУЧШЕЕ. Максимум 3
+  // плитки. Идея перенесена из ProfileV2, но НЕ дублирует статус-блоки выше
+  // (MMR/титул/место/репутация/брак остаются главными). Берём: редчайшее
+  // достижение (по награде) + самый редкий предмет инвентаря + уникальный титул.
+  // Скрывается целиком, если хвастаться нечем.
+  // ----------------------------------------------------------------------
+  const showcase: { icon: string; title: string; subtitle: string; rarity: Rarity }[] = []
+
+  const topAchievement = [...profile.achievements].sort((a, b) => b.reward - a.reward)[0]
+  if (topAchievement) {
+    showcase.push({
+      icon: topAchievement.emoji,
+      title: topAchievement.name,
+      subtitle: 'Достижение',
+      rarity: achievementShowcaseRarity(topAchievement.reward),
+    })
+  }
+
+  const rarestItem = (profile.inventory?.list ?? [])
+    .filter((i) => (RARITY_PRESTIGE[i.rarity] ?? 1) >= 3) // rare и выше
+    .sort((a, b) => (RARITY_PRESTIGE[b.rarity] ?? 1) - (RARITY_PRESTIGE[a.rarity] ?? 1))[0]
+  if (rarestItem) {
+    showcase.push({
+      icon: '🎖️',
+      title: rarestItem.name,
+      subtitle: 'Коллекция',
+      rarity: (rarestItem.rarity as Rarity) ?? 'rare',
+    })
+  }
+
+  if (profile.cosmetics.title) {
+    showcase.push({
+      icon: profile.cosmetics.title.emoji ?? '🏷️',
+      title: profile.cosmetics.title.name,
+      subtitle: 'Уникальный титул',
+      rarity: 'legendary',
+    })
+  }
+
+  const showcaseItems = showcase.slice(0, 3)
+
   return (
+
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
       <ProfileBreadcrumb playerName={profile.firstName} />
       <BackButton />
@@ -97,20 +228,44 @@ export function PlayerCard({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass relative overflow-hidden rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8"
+        className={`glass relative overflow-hidden rounded-2xl border p-5 sm:rounded-3xl sm:p-8 ${
+          elite ? elite.ring : 'border-border'
+        }`}
+        style={elite ? { boxShadow: elite.glow } : undefined}
       >
         {/* Ambient glow tied to MMR rank */}
         {profile.mmrRank && (
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
         )}
 
+        {/* Лента элитного статуса (#1–#3 / топ-10) — сразу даёт «это легенда». */}
+        {elite && (
+          <div className="mb-4 flex items-center justify-center gap-2 sm:justify-start">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${elite.ring} ${elite.accent}`}
+            >
+              <span className="text-sm">{elite.medal}</span>
+              {elite.label}
+              <span className="opacity-70">· #{profile.rankInTop}</span>
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
-          {/* Avatar — title emoji, with top-3 badge */}
-          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl">
+          {/* Avatar — title emoji; элитная рамка/медаль для топ-игроков */}
+          <div
+            className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl ${
+              elite ? elite.avatar : 'from-primary/20 to-accent/20'
+            } ${elite ? 'ring-2 ring-inset ' + elite.ring : ''}`}
+          >
             {title.emoji}
-            {profile.rankInTop && profile.rankInTop <= 3 && (
-              <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                {profile.rankInTop}
+            {profile.rankInTop && profile.rankInTop <= 10 && (
+              <div
+                className={`absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shadow-md ${
+                  elite ? elite.accent : 'text-primary-foreground'
+                } bg-background/90 border ${elite ? elite.ring : 'border-primary'}`}
+              >
+                {profile.rankInTop === 1 ? '👑' : profile.rankInTop}
               </div>
             )}
           </div>
@@ -119,6 +274,7 @@ export function PlayerCard({
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{profile.firstName}</h1>
+
               {isOwner && (
                 <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
                   Это ты
@@ -288,6 +444,36 @@ export function PlayerCard({
       </motion.div>
 
       {/* ============================================================== */}
+      {/* ВИТРИНА «Чем крут» — только лучшее (≤3). Перенос идеи Showcase  */}
+      {/* из ProfileV2. Ниже статус-блоков, чтобы НЕ ослаблять MMR/титул/ */}
+      {/* место/репутацию/брак. Скрыта, если хвастаться нечем.            */}
+      {/* ============================================================== */}
+      {showcaseItems.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="mt-3 sm:mt-6"
+        >
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+            <span className="text-lg sm:text-xl">✨</span> Чем крут
+          </h2>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+            {showcaseItems.map((s, i) => (
+              <CollectibleTile
+                key={`${s.title}-${i}`}
+                icon={s.icon}
+                title={s.title}
+                subtitle={s.subtitle}
+                rarity={s.rarity}
+                size="sm"
+              />
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ============================================================== */}
       {/* УРОВЕНЬ 3 — Игровая статистика (дуэли/ферма/клады/казино/...)  */}
       {/* ============================================================== */}
       <motion.div
@@ -300,6 +486,7 @@ export function PlayerCard({
           <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
             <span className="text-lg sm:text-xl">🎮</span> Возня
           </h2>
+
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
             {/* Дуэли */}
             <StatTile emoji="⚔️" value={`${profile.duelsWon} / ${profile.duelsLost}`} label={`Дуэли · ${winRate}%`} />
@@ -341,7 +528,7 @@ export function PlayerCard({
         />
       )}
 
-      {/* Брак — отдельная карточка (связь с другим игроком) */}
+      {/* Брак — часть личности игрока (одна из уникальных систем Возни). */}
       {profile.marriage && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -349,23 +536,28 @@ export function PlayerCard({
           transition={{ delay: 0.2 }}
           className="mt-3 sm:mt-6"
         >
-          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-2xl">
+          <div className="glass relative overflow-hidden rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-400/[0.08] to-transparent p-4 sm:rounded-3xl sm:p-6">
+            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-rose-400/15 blur-3xl" />
+            <div className="relative flex items-center gap-3 sm:gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/15 text-2xl shadow-lg shadow-rose-500/10 sm:h-14 sm:w-14 sm:text-3xl">
                 💍
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">В браке с</div>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-300/80">
+                  <span>❤️</span> Связан узами с
+                </div>
                 <PlayerLink
                   userId={profile.marriage.partnerId}
                   name={profile.marriage.partnerName}
-                  className="block truncate text-base font-semibold text-foreground"
+                  className="block truncate text-lg font-bold text-rose-100 sm:text-xl"
                 />
-                <div className="text-xs text-muted-foreground">{formatDays(profile.marriage.days)}</div>
+                <div className="text-xs text-muted-foreground">
+                  Вместе уже {formatDays(profile.marriage.days)}
+                </div>
               </div>
               <Link
                 href="/live#families"
-                className="shrink-0 text-xs font-medium text-primary hover:underline"
+                className="shrink-0 text-xs font-medium text-rose-200 transition hover:text-rose-100 hover:underline"
               >
                 Семьи →
               </Link>
@@ -373,6 +565,7 @@ export function PlayerCard({
           </div>
         </motion.div>
       )}
+
 
       {/* ============================================================== */}
       {/* Достижения — с разделением редкости                            */}
