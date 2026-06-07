@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -13,6 +13,7 @@ type Summary =
       name: string | null
       balance: number | null
       rank: number | null
+      photoUrl?: string | null
       isAdmin?: boolean
     }
 
@@ -37,35 +38,35 @@ type MenuEntry =
 /**
  * Builds the dropdown entries from the user summary. Every link points to a
  * route that already exists (no invented pages):
- *   - профиль и его якоря (#inventory / #achievements живут в PlayerCard);
- *   - кейсы / подарки — существующие страницы сайта;
- *   - админка — только при наличии роли.
- * Якоря профиля показываем лишь зарегистрированным игрокам (у незарегистрированных
- * карточки и этих секций нет).
+ *   - Ð¿Ñ€Ð¾Ñ„Ð¸Ð»ÑŒ Ð¸ ÐµÐ³Ð¾ ÑÐºÐ¾Ñ€Ñ (#inventory / #achievements Ð¶Ð¸Ð²ÑƒÑ‚ Ð² PlayerCard);
+ *   - ÐºÐµÐ¹ÑÑ‹ / Ð¿Ð¾Ð´Ð°Ñ€ÐºÐ¸ â€” ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‰Ð¸Ðµ ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ñ‹ ÑÐ°Ð¹Ñ‚Ð°;
+ *   - Ð°Ð´Ð¼Ð¸Ð½ÐºÐ° â€” Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¿Ñ€Ð¸ Ð½Ð°Ð»Ð¸Ñ‡Ð¸Ð¸ Ñ€Ð¾Ð»Ð¸.
+ * Ð¯ÐºÐ¾Ñ€Ñ Ð¿Ñ€Ð¾Ñ„Ð¸Ð»Ñ Ð¿Ð¾ÐºÐ°Ð·Ñ‹Ð²Ð°ÐµÐ¼ Ð»Ð¸ÑˆÑŒ Ð·Ð°Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¼ Ð¸Ð³Ñ€Ð¾ÐºÐ°Ð¼ (Ñƒ Ð½ÐµÐ·Ð°Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ñ…
+ * ÐºÐ°Ñ€Ñ‚Ð¾Ñ‡ÐºÐ¸ Ð¸ ÑÑ‚Ð¸Ñ… ÑÐµÐºÑ†Ð¸Ð¹ Ð½ÐµÑ‚).
  */
 function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
   const profile = `/profile/${data.userId}`
   const items: MenuEntry[] = [
-    { kind: 'link', id: 'profile', label: '👤 Профиль', href: profile },
+    { kind: 'link', id: 'profile', label: 'ðŸ‘¤ ÐŸÑ€Ð¾Ñ„Ð¸Ð»ÑŒ', href: profile },
   ]
 
   if (data.registered) {
     items.push(
-      { kind: 'link', id: 'inventory', label: '🎒 Инвентарь', href: `${profile}#inventory` },
-      { kind: 'link', id: 'achievements', label: '🏆 Достижения', href: `${profile}#achievements` },
+      { kind: 'link', id: 'inventory', label: 'ðŸŽ’ Ð˜Ð½Ð²ÐµÐ½Ñ‚Ð°Ñ€ÑŒ', href: `${profile}#inventory` },
+      { kind: 'link', id: 'achievements', label: 'ðŸ† Ð”Ð¾ÑÑ‚Ð¸Ð¶ÐµÐ½Ð¸Ñ', href: `${profile}#achievements` },
     )
   }
 
   items.push(
     { kind: 'divider', id: 'd-shop' },
-    { kind: 'link', id: 'cases', label: '📦 Кейсы', href: '/cases' },
-    { kind: 'link', id: 'gifts', label: '🎁 Подарки', href: '/gifts' },
+    { kind: 'link', id: 'cases', label: 'ðŸ“¦ ÐšÐµÐ¹ÑÑ‹', href: '/cases' },
+    { kind: 'link', id: 'gifts', label: 'ðŸŽ ÐŸÐ¾Ð´Ð°Ñ€ÐºÐ¸', href: '/gifts' },
   )
 
   if (data.isAdmin) {
     items.push(
       { kind: 'divider', id: 'd-admin' },
-      { kind: 'link', id: 'admin', label: '🛡 Админка', href: '/admin' },
+      { kind: 'link', id: 'admin', label: 'ðŸ›¡ ÐÐ´Ð¼Ð¸Ð½ÐºÐ°', href: '/admin' },
     )
   }
 
@@ -74,11 +75,11 @@ function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
 
 
 /**
- * Header auth control — keeps the site feeling like part of Возня.
+ * Header auth control â€” keeps the site feeling like part of Ð’Ð¾Ð·Ð½Ñ.
  *
- * - Logged out: branded "Войти через Telegram" button.
+ * - Logged out: branded "Ð’Ð¾Ð¹Ñ‚Ð¸ Ñ‡ÐµÑ€ÐµÐ· Telegram" button.
  * - Logged in: compact trigger (avatar + name) opening a small dropdown with
- *   the player's name, "Мой профиль" and "Выйти". Balance/rank appear as one
+ *   the player's name, "ÐœÐ¾Ð¹ Ð¿Ñ€Ð¾Ñ„Ð¸Ð»ÑŒ" and "Ð’Ñ‹Ð¹Ñ‚Ð¸". Balance/rank appear as one
  *   subtle line in the dropdown header for registered players only.
  *
  * Reads /api/me/summary on the client so the layout stays a server component.
@@ -93,7 +94,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
 
   useEffect(() => {
     let alive = true
-    fetch('/api/me/summary')
+    fetch('/api/me/summary', { cache: 'no-store' })
       .then((r) => (r.ok ? (r.json() as Promise<Summary>) : Promise.reject()))
       .then((d) => {
         if (alive) setData(d)
@@ -106,7 +107,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
     }
   }, [])
 
-  // Initial state — render a spacer to avoid layout flash.
+  // Initial state â€” render a spacer to avoid layout flash.
   if (data === null) {
     return <div className="h-9 w-9" aria-hidden />
   }
@@ -116,8 +117,8 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
   }
 
 
-  const displayName = data.name?.trim() || 'Игрок'
-  const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || '👤'
+  const displayName = data.name?.trim() || 'Ð˜Ð³Ñ€Ð¾Ðº'
+  const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || 'ðŸ‘¤'
 
   return (
     <div className="relative">
@@ -128,17 +129,26 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
         aria-expanded={open}
         className="inline-flex h-9 items-center gap-2 rounded-full border border-primary/50 bg-primary/20 pl-1 pr-2.5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-primary/30"
       >
-        {/* Stronger avatar: solid gradient + white initial so the account is
-            clearly the main control on the right, not a faint dot. */}
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-inner">
-          {initial}
-        </span>
+        {/* Avatar: real Telegram photo when we have it, else gradient initial. */}
+        {data.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={data.photoUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="h-8 w-8 rounded-full object-cover shadow-inner ring-1 ring-white/15"
+          />
+        ) : (
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-inner">
+            {initial}
+          </span>
+        )}
         <span className="max-w-[6rem] truncate sm:max-w-[9rem]">{displayName}</span>
-        {/* Balance chip — самое ценное число под рукой. Только для
-            зарегистрированных и только на sm+, чтобы не переполнять мобайл. */}
+        {/* Balance chip â€” ÑÐ°Ð¼Ð¾Ðµ Ñ†ÐµÐ½Ð½Ð¾Ðµ Ñ‡Ð¸ÑÐ»Ð¾ Ð¿Ð¾Ð´ Ñ€ÑƒÐºÐ¾Ð¹. Ð¢Ð¾Ð»ÑŒÐºÐ¾ Ð´Ð»Ñ
+            Ð·Ð°Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ñ… Ð¸ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð½Ð° sm+, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð½Ðµ Ð¿ÐµÑ€ÐµÐ¿Ð¾Ð»Ð½ÑÑ‚ÑŒ Ð¼Ð¾Ð±Ð°Ð¹Ð». */}
         {data.registered && data.balance !== null && (
           <span className="hidden items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200 sm:inline-flex">
-            {formatEsh(data.balance)} 🥚
+            {formatEsh(data.balance)} ðŸ¥š
           </span>
         )}
       </button>
@@ -162,18 +172,18 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
               <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
               {data.registered && (data.balance !== null || data.rank !== null) && (
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {data.balance !== null && <>{formatEsh(data.balance)} 🥚</>}
-                  {data.balance !== null && data.rank !== null && <> · </>}
-                  {data.rank !== null && <>#{data.rank} в топе</>}
+                  {data.balance !== null && <>{formatEsh(data.balance)} ðŸ¥š</>}
+                  {data.balance !== null && data.rank !== null && <> Â· </>}
+                  {data.rank !== null && <>#{data.rank} Ð² Ñ‚Ð¾Ð¿Ðµ</>}
                 </p>
               )}
             </div>
 
-            {/* Профиль и его разделы. Для зарегистрированных игроков добавляем
-                быстрые якоря в карточку профиля (инвентарь/достижения), которые
-                реально существуют в PlayerCard. Магазинные разделы (кейсы,
-                подарки) ведут на существующие страницы сайта. «Настройки»
-                намеренно нет — для них нет страницы. */}
+            {/* ÐŸÑ€Ð¾Ñ„Ð¸Ð»ÑŒ Ð¸ ÐµÐ³Ð¾ Ñ€Ð°Ð·Ð´ÐµÐ»Ñ‹. Ð”Ð»Ñ Ð·Ð°Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ñ… Ð¸Ð³Ñ€Ð¾ÐºÐ¾Ð² Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼
+                Ð±Ñ‹ÑÑ‚Ñ€Ñ‹Ðµ ÑÐºÐ¾Ñ€Ñ Ð² ÐºÐ°Ñ€Ñ‚Ð¾Ñ‡ÐºÑƒ Ð¿Ñ€Ð¾Ñ„Ð¸Ð»Ñ (Ð¸Ð½Ð²ÐµÐ½Ñ‚Ð°Ñ€ÑŒ/Ð´Ð¾ÑÑ‚Ð¸Ð¶ÐµÐ½Ð¸Ñ), ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ
+                Ñ€ÐµÐ°Ð»ÑŒÐ½Ð¾ ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‚ Ð² PlayerCard. ÐœÐ°Ð³Ð°Ð·Ð¸Ð½Ð½Ñ‹Ðµ Ñ€Ð°Ð·Ð´ÐµÐ»Ñ‹ (ÐºÐµÐ¹ÑÑ‹,
+                Ð¿Ð¾Ð´Ð°Ñ€ÐºÐ¸) Ð²ÐµÐ´ÑƒÑ‚ Ð½Ð° ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‰Ð¸Ðµ ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ñ‹ ÑÐ°Ð¹Ñ‚Ð°. Â«ÐÐ°ÑÑ‚Ñ€Ð¾Ð¹ÐºÐ¸Â»
+                Ð½Ð°Ð¼ÐµÑ€ÐµÐ½Ð½Ð¾ Ð½ÐµÑ‚ â€” Ð´Ð»Ñ Ð½Ð¸Ñ… Ð½ÐµÑ‚ ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ñ‹. */}
             {MENU_ITEMS(data).map((item) =>
               item.kind === 'divider' ? (
                 <div key={item.id} className="my-1 border-t border-border/60" />
@@ -198,7 +208,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
                 role="menuitem"
                 className="block w-full px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
               >
-                🚪 Выйти
+                ðŸšª Ð’Ñ‹Ð¹Ñ‚Ð¸
               </button>
             </form>
           </div>
