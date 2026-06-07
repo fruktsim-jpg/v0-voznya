@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { Hero } from '@/components/voznya/hero'
 import { LiveStats } from '@/components/voznya/live-stats'
 import { CommunityActivity } from '@/components/v2/community-activity'
-import { CommunityPulse } from '@/components/v2/community-pulse'
 import { TopMembers } from '@/components/v2/top-members'
+
 import { getCommunityFeed } from '@/lib/feed'
 
 
@@ -22,12 +22,12 @@ export default async function Page() {
   const feed = await getCommunityFeed(8)
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Сообщество: масштаб */}
+      {/* Сообщество: масштаб — единый блок (LiveStats), без дубля CommunityPulse */}
       <Hero />
       <LiveStats />
-      <CommunityPulse />
 
-      {/* Жизнь проекта: реальная лента */}
+      {/* Жизнь проекта: реальная лента (живой тизер, не ссылка) */}
+
       <CommunityActivity
         events={feed}
         limit={5}

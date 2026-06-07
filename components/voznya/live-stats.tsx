@@ -30,18 +30,25 @@ export function LiveStats() {
     }
   }, [])
 
+  // Единый блок масштаба сообщества (P0): 6 сильных метрик вместо дубля
+  // LiveStats+CommunityPulse. Состав отобран по ценности: участники + общение +
+  // экономика + достижения + уникальные для Возни семьи и клады. Слабые/непонятные
+  // новичку метрики (фермеры, дуэли) уехали на /live, где есть контекст.
   const cards: CardData[] = stats
     ? [
-        { emoji: '👥', label: 'Пользователей бота', value: stats.users },
+        { emoji: '👥', label: 'Участников', value: stats.users },
+        {
+          emoji: '💬',
+          label: 'Сообщений',
+          value: messages !== null ? messages : stats.duels,
+        },
         { emoji: '💰', label: 'Ешек в обороте', value: stats.eshInCirculation },
-        ...(messages !== null
-          ? [{ emoji: '💬', label: 'Сообщений всего', value: messages }]
-          : [{ emoji: '📦', label: 'Кладов найдено', value: stats.treasuresFound }]),
-        { emoji: '🏆', label: 'Получено ачивок', value: stats.achievements },
-        { emoji: '⚔️', label: 'Проведено дуэлей', value: stats.duels },
-        { emoji: '🌾', label: 'Фермеров', value: stats.farmers },
+        { emoji: '🏆', label: 'Достижений', value: stats.achievements },
+        { emoji: '💍', label: 'Семей', value: stats.marriages },
+        { emoji: '🪙', label: 'Кладов найдено', value: stats.treasuresFound },
       ]
     : []
+
 
   return (
     <section className="relative px-6 py-12 sm:py-20">

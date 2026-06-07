@@ -15,44 +15,51 @@ import { CommandsExplorer } from '@/components/live/commands-explorer'
 import { SiteFooter } from '@/components/voznya/site-footer'
 import { ScrollToAnchor } from '@/components/live/scroll-to-anchor'
 import { LiveNav } from '@/components/live/live-nav'
+import { PageHero } from '@/components/v2/page-hero'
+import { CommunityActivity } from '@/components/v2/community-activity'
+import { getCommunityFeed } from '@/lib/feed'
 
 export const metadata: Metadata = {
   title: 'Живая статистика ВОЗНИ',
   description: 'Экономика, достижения и активность сообщества ВОЗНЯ в реальном времени.',
 }
 
-export default function LivePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function LivePage() {
+  // Компактная лента событий — доказательство, что статистика живая.
+  // Намеренно короткая (6 событий): статистика ниже остаётся главным контентом.
+  const feed = await getCommunityFeed(6)
+
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Suspense fallback={null}>
         <ScrollToAnchor />
       </Suspense>
 
-      <section className="relative overflow-hidden px-6 pb-6 pt-24 text-center sm:pt-32">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/20 blur-[120px]"
-        />
-        <div className="relative mx-auto max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-            </span>
-            Обновляется в реальном времени
-          </span>
-          <h1 className="mt-5 text-4xl font-bold tracking-tight text-balance sm:text-6xl">
-            🔥 Живая статистика <span className="text-gradient">ВОЗНИ</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground text-pretty sm:text-lg">
-            Экономика, достижения и активность сообщества в реальном времени.
-          </p>
-        </div>
-      </section>
+      {/* Единый герой раздела (как Cases/Gifts/Casino) */}
+      <PageHero
+        badge="Обновляется в реальном времени"
+        icon="🔥"
+        title="Живая статистика"
+        accent="ВОЗНИ"
+        description="Экономика, достижения и активность сообщества в реальном времени."
+      />
 
       <LiveNav />
 
+      {/* Статистика — ядро страницы */}
       <LiveCommunityStats />
+
+      {/* Доказательство «цифры живые»: компактный блок последних событий.
+          НЕ доминирует — короткий тизер между статами и рейтингами. */}
+      <CommunityActivity
+        events={feed}
+        limit={6}
+        title="Прямо сейчас в Возне"
+        subtitle="Последние события сообщества — статистика выше дышит в реальном времени"
+      />
+
       <TopRich />
       <WeeklyTop />
       <MessagesPanel />
@@ -67,3 +74,5 @@ export default function LivePage() {
     </main>
   )
 }
+
+

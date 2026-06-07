@@ -4,11 +4,13 @@ import { chanceLabel, qtyLabel, type CaseView, type RewardView } from '@/lib/cas
 
 /**
  * CaseCard (V3, поверхность №5) — витрина кейса с акцентом на ЦЕННОСТИ наград,
- * не на открытии. Дорогой, но не «казино-баннер»: тёмная капсула с подсветкой
- * высшего тира, превью лучших наград, шанс редкого выпадения, стоимость.
- * Server component. Разметка готова под будущую анимацию открытия (контейнер
- * `data-case-stage` зарезервирован, сейчас статичен).
+ * не на открытии. Визуальный язык выровнен под `CollectibleTile` (единый мир
+ * коллекционных объектов Возни): `glass`-поверхность, лёгкий hover-подъём,
+ * капсула с радиальным свечением цвета редкости, бейдж редкости тира. Кейс
+ * сохраняет уникальный контент — список лучших наград. Server component.
+ * Контейнер `data-case-stage` зарезервирован под будущую анимацию открытия.
  */
+
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
@@ -47,23 +49,35 @@ export function CaseCard({ caseView }: { caseView: CaseView }) {
   const top = rarityToken(c.topRarity)
   const preview = c.best.slice(0, 4)
 
+  const accent = c.topRarity !== 'common'
+
   return (
     <article
-      className="relative flex flex-col overflow-hidden rounded-3xl border bg-white/[0.02] p-5"
+      className="glass group relative flex flex-col overflow-hidden rounded-3xl border border-border p-5 transition hover:-translate-y-0.5"
       style={{
-        borderColor: c.topRarity === 'common' ? 'rgba(255,255,255,0.1)' : `${top.color}80`,
-        boxShadow: c.topRarity === 'common' ? undefined : top.glow || undefined,
+        borderColor: accent ? top.color : undefined,
+        boxShadow: accent ? top.glow || undefined : undefined,
       }}
     >
+      {/* Свечение-фон цвета редкости (как в CollectibleTile) */}
+      {accent && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-8 left-1/2 h-28 w-28 -translate-x-1/2 rounded-full opacity-40 blur-3xl transition group-hover:opacity-60"
+          style={{ backgroundColor: top.color }}
+        />
+      )}
+
       {/* Капсула кейса (под будущую анимацию открытия) */}
       <div
         data-case-stage={c.itemCode}
         className="relative mb-4 flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-white/10"
         style={{
-          background: `radial-gradient(circle at 50% 120%, ${top.color}33, transparent 60%)`,
+          background: `radial-gradient(circle at 50% 35%, ${top.color}33, transparent 70%)`,
         }}
       >
         <span className="text-6xl drop-shadow-lg" aria-hidden="true">📦</span>
+
         {c.hasJackpot && (
           <span className="absolute right-2 top-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
             💎 джекпот
