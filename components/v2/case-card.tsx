@@ -1,4 +1,4 @@
-import { rarityToken } from '@/lib/rarity'
+import { rarityToken, type Rarity } from '@/lib/rarity'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { chanceLabel, qtyLabel, type CaseView, type RewardView } from '@/lib/cases-ux'
 
@@ -44,6 +44,51 @@ function RewardRow({ r }: { r: RewardView }) {
   )
 }
 
+/**
+ * Кейс-стейдж: горизонтальная полоса плашек редкостей содержимого с маской по
+ * краям и центральной риской-указателем. Чистая декорация (никакого RNG/исхода)
+ * и одновременно визуальный каркас будущей рулетки — она ляжет в этот же блок.
+ */
+function RarityStrip({ strip }: { strip: Rarity[] }) {
+  // Дублируем полосу, чтобы она выглядела «длинной лентой лута» даже на 3–4
+  // наградах. Порядок (от редкого к частому) повторяется — это превью, не RNG.
+  const cells = strip.length > 0 ? [...strip, ...strip, ...strip] : []
+  if (cells.length === 0) return null
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 overflow-hidden">
+      <div
+        className="flex h-full items-stretch gap-1 px-1"
+        style={{
+          maskImage:
+            'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
+          WebkitMaskImage:
+            'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
+        }}
+      >
+        {cells.map((r, i) => {
+          const t = rarityToken(r)
+          return (
+            <span
+              key={i}
+              className="h-full flex-1 rounded-sm"
+              style={{
+                minWidth: 14,
+                backgroundColor: `${t.color}26`,
+                borderTop: `2px solid ${t.color}`,
+              }}
+            />
+          )
+        })}
+      </div>
+      {/* Центральная риска-указатель — куда «остановится» будущая рулетка. */}
+      <span
+        aria-hidden="true"
+        className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/70"
+      />
+    </div>
+  )
+}
+
 export function CaseCard({ caseView }: { caseView: CaseView }) {
   const c = caseView
   const top = rarityToken(c.topRarity)
@@ -76,13 +121,18 @@ export function CaseCard({ caseView }: { caseView: CaseView }) {
           background: `radial-gradient(circle at 50% 35%, ${top.color}33, transparent 70%)`,
         }}
       >
-        <span className="text-6xl drop-shadow-lg" aria-hidden="true">📦</span>
+        <span className="text-6xl drop-shadow-lg transition group-hover:scale-110" aria-hidden="true">
+          📦
+        </span>
 
         {c.hasJackpot && (
-          <span className="absolute right-2 top-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+          <span className="absolute right-2 top-2 z-10 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
             💎 джекпот
           </span>
         )}
+
+        {/* Лента редкостей содержимого — каркас будущей рулетки. */}
+        <RarityStrip strip={c.rarityStrip} />
       </div>
 
       {/* Заголовок + стоимость */}
@@ -99,11 +149,26 @@ export function CaseCard({ caseView }: { caseView: CaseView }) {
 
       {/* Шанс редкого выпадения — мера ценности */}
       {c.rareChance > 0 && (
-        <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
           <span>Шанс редкой награды</span>
           <span className="font-semibold" style={{ color: top.color }}>
             {chanceLabel(c.rareChance)}
           </span>
+        </div>
+      )}
+
+      {/* Шанс джекпота / топ-дропа — «ради чего крутить» */}
+      {c.hasJackpot && c.topReward && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-2.5 py-1.5 text-xs">
+          <span className="flex min-w-0 items-center gap-1.5 text-amber-200">
+            <span aria-hidden="true">💎</span>
+            <span className="truncate">{c.topReward.label}</span>
+          </span>
+          {c.jackpotChance > 0 && (
+            <span className="shrink-0 font-mono font-semibold text-amber-300">
+              {chanceLabel(c.jackpotChance)}
+            </span>
+          )}
         </div>
       )}
 

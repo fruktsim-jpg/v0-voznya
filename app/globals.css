@@ -112,3 +112,24 @@
     -webkit-text-fill-color: transparent;
   }
 }
+
+/* Живая лента открытий кейсов (DropTicker). Прокрутка вверх на -50%: список
+   отрисован дважды, поэтому цикл бесшовный. Уважает prefers-reduced-motion. */
+@keyframes drop-ticker {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-drop-ticker {
+  animation: drop-ticker linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drop-ticker {
+    animation: none;
+  }
+}

@@ -73,6 +73,16 @@ export type CaseView = ShowcaseCase & {
   rareChance: number
   /** Есть ли джекпот/лимитка. */
   hasJackpot: boolean
+  /** Самая ценная награда кейса (для строки «ради чего крутить»). */
+  topReward: RewardView | null
+  /** Суммарный шанс джекпот/лимит-наград (%), 0 если их нет. */
+  jackpotChance: number
+  /**
+   * Полоса редкостей содержимого для «кейс-стейджа»: каждая награда — одна
+   * плашка цвета своей редкости, в стабильном порядке от редкого к частому.
+   * Чисто визуальный каркас будущей рулетки (никакого RNG/исхода).
+   */
+  rarityStrip: Rarity[]
 }
 
 /** Обогащает кейс производными для витрины (ценность важнее открытия). */
@@ -92,9 +102,25 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
   const rareChance = rewardsView
     .filter((r) => RARITY_ORDER.indexOf(r.rarity) >= RARITY_ORDER.indexOf('rare'))
     .reduce((s, r) => s + r.chance, 0)
-  const hasJackpot = rewardsView.some((r) => r.isJackpot || r.limited)
+  const jackpotRewards = rewardsView.filter((r) => r.isJackpot || r.limited)
+  const hasJackpot = jackpotRewards.length > 0
+  const jackpotChance = jackpotRewards.reduce((s, r) => s + r.chance, 0)
+  const topReward = best[0] ?? null
 
-  return { ...c, rewardsView, best, topRarity, rareChance, hasJackpot }
+  // Каркас будущей рулетки: плашка на каждую награду, от редкого к частому.
+  const rarityStrip = best.map((r) => r.rarity)
+
+  return {
+    ...c,
+    rewardsView,
+    best,
+    topRarity,
+    rareChance,
+    hasJackpot,
+    topReward,
+    jackpotChance,
+    rarityStrip,
+  }
 }
 
 /** Подпись шанса в процентах с разумной точностью. */

@@ -3,7 +3,7 @@ import { getActiveCasesWithRewards } from '@/lib/cases'
 import { buildCaseView } from '@/lib/cases-ux'
 import { getCommunityFeed } from '@/lib/feed'
 import { CaseCard } from '@/components/v2/case-card'
-import { ActivityCard } from '@/components/v2/activity-card'
+import { DropTicker } from '@/components/v2/drop-ticker'
 import { Section } from '@/components/v2/section'
 import { UserBadge } from '@/components/v2/user-badge'
 import { Card } from '@/components/v2/card'
@@ -111,13 +111,7 @@ export default async function CasesPage() {
 
               {recentDrops.length > 0 && (
                 <Section title="📦 Недавно открыли" subtitle="Кейсы реально открывают" className="!px-0">
-                  <ul className="space-y-2">
-                    {recentDrops.map((e) => (
-                      <li key={e.id}>
-                        <ActivityCard event={e} />
-                      </li>
-                    ))}
-                  </ul>
+                  <DropTicker events={recentDrops} />
                 </Section>
               )}
             </aside>
