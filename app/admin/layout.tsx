@@ -72,9 +72,10 @@ export default async function AdminLayout({
   ]
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10">
+    <div className="mx-auto max-w-4xl px-4 pt-header pb-10">
       {/* Top bar */}
-      <header className="mb-6 flex items-center justify-between gap-3">
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
         <nav className="flex flex-wrap items-center gap-1.5">
           {nav.map((item) => (
             <Link
@@ -95,9 +96,10 @@ export default async function AdminLayout({
             </span>
           ))}
         </nav>
-        <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+        <span className="shrink-0 self-start rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary sm:self-auto">
           {roleLabel(session.role)}
         </span>
+
       </header>
 
       {children}

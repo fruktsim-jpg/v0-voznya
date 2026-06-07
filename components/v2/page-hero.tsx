@@ -24,7 +24,8 @@ export function PageHero({
   description?: ReactNode
 }) {
   return (
-    <section className="relative overflow-hidden px-6 pb-6 pt-24 text-center sm:pt-32">
+    <section className="pt-hero-safe relative overflow-hidden px-6 pb-6 text-center">
+
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/20 blur-[120px]"

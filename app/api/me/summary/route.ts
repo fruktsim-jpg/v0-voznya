@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
+import { getAdminSession } from '@/lib/auth/admin-session'
 import { getUserSummary } from '@/lib/queries'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,6 +22,9 @@ export async function GET() {
   }
 
   try {
+    // Admin role drives the "Админка" entry in the header menu. Read-only.
+    // Degrades to false on any error (e.g. missing admin_roles table).
+    const adminSession = await getAdminSession().catch(() => null)
     const summary = await getUserSummary(session.uid)
     return NextResponse.json(
       {
@@ -29,6 +34,7 @@ export async function GET() {
         name: summary.name ?? session.firstName ?? session.username ?? null,
         balance: summary.balance,
         rank: summary.rank,
+        isAdmin: !!adminSession,
       },
       { status: 200 },
     )
@@ -42,8 +48,10 @@ export async function GET() {
         name: session.firstName ?? session.username ?? null,
         balance: null,
         rank: null,
+        isAdmin: false,
       },
       { status: 200 },
     )
   }
+
 }

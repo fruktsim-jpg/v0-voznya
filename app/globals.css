@@ -73,6 +73,38 @@
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
+
+  /* --- iOS safe-area helpers (need viewportFit:'cover' in layout) --- */
+
+  /* Top inset only — for the fixed header bar. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Horizontal insets (landscape / notch) without ever going below 1rem. */
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Pushes a page's first block below the fixed header (status-bar inset +
+     56px header + breathing room). Use on screens whose first block would
+     otherwise tuck under the header (profile, admin). PageHero pages use
+     .pt-hero-safe instead. */
+  .pt-header {
+    padding-top: calc(env(safe-area-inset-top) + 4.5rem);
+  }
+
+  /* PageHero top padding that also clears the status-bar inset. */
+  .pt-hero-safe {
+    padding-top: calc(env(safe-area-inset-top) + 6rem);
+  }
+  @media (min-width: 640px) {
+    .pt-hero-safe {
+      padding-top: calc(env(safe-area-inset-top) + 8rem);
+    }
+  }
+
   .text-gradient {
     background: linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 50%, #a855f7 100%);
     -webkit-background-clip: text;

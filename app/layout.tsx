@@ -35,7 +35,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#09090b',
+  // iOS Safari: required so env(safe-area-inset-*) resolves to real values
+  // (notch / Dynamic Island / home-indicator). Without it every inset is 0
+  // and the fixed header collides with the status bar.
+  viewportFit: 'cover',
 }
+
 
 /**
  * Public Telegram bot id used by the branded login button. It's the integer

@@ -13,7 +13,9 @@ type Summary =
       name: string | null
       balance: number | null
       rank: number | null
+      isAdmin?: boolean
     }
+
 
 interface UserMenuProps {
   /** Public Telegram bot id, forwarded to the login button (classic fallback). */
@@ -26,6 +28,50 @@ interface UserMenuProps {
 function formatEsh(n: number): string {
   return n.toLocaleString('ru-RU')
 }
+
+type AuthedSummary = Extract<Summary, { authenticated: true }>
+type MenuEntry =
+  | { kind: 'link'; id: string; label: string; href: string }
+  | { kind: 'divider'; id: string }
+
+/**
+ * Builds the dropdown entries from the user summary. Every link points to a
+ * route that already exists (no invented pages):
+ *   - профиль и его якоря (#inventory / #achievements живут в PlayerCard);
+ *   - кейсы / подарки — существующие страницы сайта;
+ *   - админка — только при наличии роли.
+ * Якоря профиля показываем лишь зарегистрированным игрокам (у незарегистрированных
+ * карточки и этих секций нет).
+ */
+function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
+  const profile = `/profile/${data.userId}`
+  const items: MenuEntry[] = [
+    { kind: 'link', id: 'profile', label: '👤 Профиль', href: profile },
+  ]
+
+  if (data.registered) {
+    items.push(
+      { kind: 'link', id: 'inventory', label: '🎒 Инвентарь', href: `${profile}#inventory` },
+      { kind: 'link', id: 'achievements', label: '🏆 Достижения', href: `${profile}#achievements` },
+    )
+  }
+
+  items.push(
+    { kind: 'divider', id: 'd-shop' },
+    { kind: 'link', id: 'cases', label: '📦 Кейсы', href: '/cases' },
+    { kind: 'link', id: 'gifts', label: '🎁 Подарки', href: '/gifts' },
+  )
+
+  if (data.isAdmin) {
+    items.push(
+      { kind: 'divider', id: 'd-admin' },
+      { kind: 'link', id: 'admin', label: '🛡 Админка', href: '/admin' },
+    )
+  }
+
+  return items
+}
+
 
 /**
  * Header auth control — keeps the site feeling like part of Возня.
@@ -100,7 +146,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
           />
           <div
             role="menu"
-            className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-md"
+            className="absolute right-0 z-50 mt-2 max-h-[calc(100svh-5rem)] w-60 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-md"
           >
             <div className="border-b border-border px-3 py-2.5">
               <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
@@ -113,14 +159,28 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
               )}
             </div>
 
-            <Link
-              href={`/profile/${data.userId}`}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="block px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
-            >
-              👤 Мой профиль
-            </Link>
+            {/* Профиль и его разделы. Для зарегистрированных игроков добавляем
+                быстрые якоря в карточку профиля (инвентарь/достижения), которые
+                реально существуют в PlayerCard. Магазинные разделы (кейсы,
+                подарки) ведут на существующие страницы сайта. «Настройки»
+                намеренно нет — для них нет страницы. */}
+            {MENU_ITEMS(data).map((item) =>
+              item.kind === 'divider' ? (
+                <div key={item.id} className="my-1 border-t border-border/60" />
+              ) : (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
+
+            <div className="my-1 border-t border-border/60" />
 
             <form action="/api/auth/logout" method="post">
               <button
@@ -132,6 +192,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
               </button>
             </form>
           </div>
+
         </>
       )}
     </div>

@@ -25,11 +25,12 @@ export function SiteHeader({ botId, oidcEnabled }: SiteHeaderProps = {}) {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 pt-safe transition-colors duration-300 ${
         scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent'
       }`}
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-safe sm:px-6">
+
         <Link href="/" className="text-lg font-bold tracking-tight text-gradient">
           ВОЗНЯ
         </Link>

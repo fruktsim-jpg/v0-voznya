@@ -10,8 +10,8 @@ import Link from 'next/link'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TelegramButton } from '@/components/voznya/telegram-button'
 import { ProfileBreadcrumb } from '@/components/profile/profile-breadcrumb'
-import { BackButton } from '@/components/profile/back-button'
 import { PlayerNavigation } from '@/components/profile/player-navigation'
+
 import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
@@ -218,9 +218,9 @@ export function PlayerCard({
 
   return (
 
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-4xl px-4 pt-header pb-10 sm:px-6">
       <ProfileBreadcrumb playerName={profile.firstName} />
-      <BackButton />
+
 
       {/* ============================================================== */}
       {/* УРОВЕНЬ 1 — Личность: ник, титул, MMR-ранг, место              */}
@@ -520,13 +520,16 @@ export function PlayerCard({
       {/* Инвентарь — read-only витрина предметов (если есть)            */}
       {/* ============================================================== */}
       {profile.inventory && profile.inventory.list.length > 0 && (
-        <InventoryShowcase
-          items={profile.inventory.list}
-          totalItems={profile.inventory.items}
-          uniqueItems={profile.inventory.uniqueItems}
-          delay={0.2}
-        />
+        <div id="inventory" className="scroll-mt-24">
+          <InventoryShowcase
+            items={profile.inventory.list}
+            totalItems={profile.inventory.items}
+            uniqueItems={profile.inventory.uniqueItems}
+            delay={0.2}
+          />
+        </div>
       )}
+
 
       {/* Брак — часть личности игрока (одна из уникальных систем Возни). */}
       {profile.marriage && (
@@ -572,13 +575,15 @@ export function PlayerCard({
       {/* ============================================================== */}
       {profile.achievementsUnlocked > 0 && (
         <motion.div
+          id="achievements"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.24 }}
-          className="mt-4 sm:mt-6"
+          className="mt-4 scroll-mt-24 sm:mt-6"
         >
           <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
             <div className="mb-4 flex items-center gap-3 sm:mb-6">
+
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
                 🏆
               </div>

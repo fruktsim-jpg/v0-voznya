@@ -49,6 +49,9 @@ const I = {
   ),
 }
 
+// Профиль намеренно НЕ дублируется здесь: вход в профиль и его разделы живёт
+// в меню пользователя (верхний правый угол). Так нижний бар не повторяет то,
+// что уже доступно сверху, и держит 5 пунктов вместо 6 — просторнее на мобиле.
 const ITEMS: Item[] = [
   { href: '/', label: 'Главная', icon: I.home, match: (p) => p === '/' },
   { href: '/live', label: 'Live', icon: I.live, match: (p) => p.startsWith('/live') },
@@ -56,8 +59,8 @@ const ITEMS: Item[] = [
   { href: '/cases', label: 'Кейсы', icon: I.cases, match: (p) => p.startsWith('/cases') },
   { href: '/gifts', label: 'Подарки', icon: I.gifts, match: (p) => p.startsWith('/gifts') },
   { href: '/casino', label: 'Казино', icon: I.casino, match: (p) => p.startsWith('/casino') },
-  { href: '/profile/me', label: 'Профиль', icon: I.profile, match: (p) => p.startsWith('/profile') },
 ]
+
 
 function NavIcon({ children, active }: { children: ReactNode; active: boolean }) {
   return (
