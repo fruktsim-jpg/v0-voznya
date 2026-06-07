@@ -53,14 +53,24 @@ export default async function CasesAnalyticsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">
-          🎁 Аналитика кейсов
-        </h1>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+            🎁 Аналитика кейсов
+          </h1>
+          {/* P0-3: переход к редактору кейсов и дроп-листов. */}
+          <a
+            href="/admin/cases"
+            className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+          >
+            ✏️ Редактор кейсов
+          </a>
+        </div>
         <p className="mb-4 text-sm text-muted-foreground">
           Фактическая экономика кейсов из журнала открытий. Только чтение.
         </p>
         <EconomyTabs active="/admin/economy/cases" />
       </div>
+
 
       <section>
         <SectionTitle>Кейсы ({fmt(totalOpenings)} открытий всего)</SectionTitle>

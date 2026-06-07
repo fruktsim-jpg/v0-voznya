@@ -61,6 +61,8 @@ export function GiftsManager({
   const [form, setForm] = useState({ ...EMPTY })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  // P0-2: явный режим редактирования (код подарка, который правим).
+  const [editingCode, setEditingCode] = useState<string | null>(null)
 
   async function reload() {
     const res = await fetch('/api/admin/gifts')
@@ -82,8 +84,17 @@ export function GiftsManager({
       isActive: g.is_active,
       sortOrder: String(g.sort_order),
     })
+    setEditingCode(g.code)
+    setMsg(null)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function clearForm() {
+    setForm({ ...EMPTY })
+    setEditingCode(null)
     setMsg(null)
   }
+
 
   async function submit() {
     if (!form.code.trim() || !form.name.trim()) {
@@ -135,10 +146,22 @@ export function GiftsManager({
     <div className="space-y-4">
       {canManage && (
         <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.06] to-transparent p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-lg">🎀</span>
-            <h3 className="text-sm font-semibold text-foreground">Создать / обновить подарок</h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{editingCode ? '✏️' : '🎀'}</span>
+              <h3 className="text-sm font-semibold text-foreground">
+                {editingCode ? `Редактирование: ${form.name || editingCode}` : 'Создать подарок'}
+              </h3>
+            </div>
+            {/* P0-3: переход к аналитике продаж подарков. */}
+            <a
+              href="/admin/economy/gifts"
+              className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+            >
+              📊 Аналитика продаж
+            </a>
           </div>
+
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[11px] text-muted-foreground">Код</label>
@@ -241,18 +264,16 @@ export function GiftsManager({
             >
               Сохранить
             </button>
-            {form.code && (
+            {(form.code || editingCode) && (
               <button
                 type="button"
-                onClick={() => {
-                  setForm({ ...EMPTY })
-                  setMsg(null)
-                }}
+                onClick={clearForm}
                 className="rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-white/5"
               >
-                Сброс
+                {editingCode ? '✕ Отменить' : 'Сброс'}
               </button>
             )}
+
           </div>
           <Feedback msg={msg} />
         </div>

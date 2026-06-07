@@ -191,6 +191,8 @@ export function CasesManager({
   const [selected, setSelected] = useState<string | null>(
     initialCases[0]?.item_code ?? null,
   )
+  // P0-1: какой кейс сейчас редактируется в форме (null = режим создания).
+  const [editing, setEditing] = useState<AdminCase | null>(null)
 
   async function reloadCases() {
     const res = await fetch('/api/admin/cases')
@@ -204,7 +206,14 @@ export function CasesManager({
 
   return (
     <div className="space-y-4">
-      {canManage && <CaseForm onSaved={reloadCases} cases={cases} setSelected={setSelected} />}
+      {canManage && (
+        <CaseForm
+          onSaved={reloadCases}
+          setSelected={setSelected}
+          editCase={editing}
+          onClearEdit={() => setEditing(null)}
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         {/* Case list */}
@@ -215,28 +224,57 @@ export function CasesManager({
             </div>
           ) : (
             cases.map((c) => (
-              <button
+              <div
                 key={c.item_code}
-                type="button"
-                onClick={() => setSelected(c.item_code)}
-                className={`glass w-full rounded-2xl border p-3 text-left transition ${
+                className={`glass w-full rounded-2xl border p-3 transition ${
                   c.item_code === selected
                     ? 'border-primary/50 bg-primary/[0.06]'
                     : 'border-border hover:border-primary/30'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-semibold text-foreground">🎁 {c.name}</span>
-                  {!c.is_active && (
-                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                      выкл
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">
-                  <code>{c.item_code}</code> · дропов: {c.reward_count}
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSelected(c.item_code)}
+                  className="block w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-semibold text-foreground">🎁 {c.name}</span>
+                    {!c.is_active && (
+                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                        выкл
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    <code>{c.item_code}</code> · дропов: {c.reward_count}
+                  </div>
+                </button>
+                {canManage && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {/* P0-1: явное редактирование — грузит данные кейса в форму. */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(c)
+                        setSelected(c.item_code)
+                        if (typeof window !== 'undefined') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }
+                      }}
+                      className="rounded-lg border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+                    >
+                      ✏️ Редактировать
+                    </button>
+                    {/* P0-3: переход к аналитике этого кейса. */}
+                    <a
+                      href="/admin/economy/cases"
+                      className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+                    >
+                      📊 Аналитика
+                    </a>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>
@@ -256,13 +294,18 @@ export function CasesManager({
   )
 }
 
+
 function CaseForm({
   onSaved,
   setSelected,
+  editCase,
+  onClearEdit,
 }: {
   onSaved: () => void
-  cases: AdminCase[]
   setSelected: (code: string) => void
+  /** P0-1: если задан — форма работает в режиме редактирования этого кейса. */
+  editCase: AdminCase | null
+  onClearEdit: () => void
 }) {
   const [itemCode, setItemCode] = useState('')
   const [name, setName] = useState('')
@@ -273,6 +316,34 @@ function CaseForm({
   const [isActive, setIsActive] = useState(true)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const isEdit = editCase !== null
+
+  // P0-1: при выборе «Редактировать» подгружаем данные кейса в форму.
+  useEffect(() => {
+    if (!editCase) return
+    setItemCode(editCase.item_code)
+    setName(editCase.name)
+    setDescription(editCase.description ?? '')
+    setCostKind(editCase.open_cost_kind === 'currency' ? 'currency' : 'free')
+    setCostAmount(String(editCase.open_cost_amount ?? 0))
+    setConsumesKey(editCase.consumes_key)
+    setIsActive(editCase.is_active)
+    setMsg(null)
+  }, [editCase])
+
+  function resetForm() {
+    setItemCode('')
+    setName('')
+    setDescription('')
+    setCostKind('free')
+    setCostAmount('0')
+    setConsumesKey(true)
+    setIsActive(true)
+    setMsg(null)
+    onClearEdit()
+  }
+
 
   async function submit() {
     if (!itemCode.trim() || !name.trim()) {
@@ -309,23 +380,37 @@ function CaseForm({
 
   return (
     <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.06] to-transparent p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-lg">🎁</span>
-        <h3 className="text-sm font-semibold text-foreground">Создать / обновить кейс</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{isEdit ? '✏️' : '🎁'}</span>
+          <h3 className="text-sm font-semibold text-foreground">
+            {isEdit ? `Редактирование: ${editCase?.name}` : 'Создать кейс'}
+          </h3>
+        </div>
+        {isEdit && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="rounded-lg border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+          >
+            ✕ Отменить
+          </button>
+        )}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-[11px] text-muted-foreground">
-            Предмет-кейс (type=case)
+            Предмет-кейс (type=case){isEdit ? ' · нельзя менять' : ''}
           </label>
           <ItemPicker
             value={itemCode}
             onChange={setItemCode}
-            disabled={busy}
+            disabled={busy || isEdit}
             onlyType="case"
             placeholder="Поиск кейса в каталоге…"
           />
         </div>
+
         <div>
           <label className="mb-1 block text-[11px] text-muted-foreground">Название</label>
           <input

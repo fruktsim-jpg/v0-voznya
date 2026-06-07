@@ -45,14 +45,24 @@ export default async function GiftsAnalyticsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">
-          🎀 Аналитика подарков
-        </h1>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+            🎀 Аналитика подарков
+          </h1>
+          {/* P0-3: переход к редактору каталога подарков. */}
+          <a
+            href="/admin/gifts"
+            className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+          >
+            ✏️ Редактор подарков
+          </a>
+        </div>
         <p className="mb-4 text-sm text-muted-foreground">
           Экономика каталога Telegram Gifts. Только чтение.
         </p>
         <EconomyTabs active="/admin/economy/gifts" />
       </div>
+
 
       <section>
         <SectionTitle>Сводка</SectionTitle>
