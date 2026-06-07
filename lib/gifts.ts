@@ -5,6 +5,8 @@
 import 'server-only'
 
 import { query } from './db'
+import { giftRarity, giftIcon } from './gifts-ux'
+import type { Rarity } from './rarity'
 
 export type ShowcaseGift = {
   code: string
@@ -13,7 +15,13 @@ export type ShowcaseGift = {
   priceEshki: number
   // Remaining units (null = unlimited). Sold-out items are filtered out.
   remaining: number | null
+  // Производные для коллекционной витрины (без новых данных).
+  rarity: Rarity
+  limited: boolean
+  soldCount: number
+  icon: string
 }
+
 
 /**
  * Active gift catalog for the public showcase: in-stock, active positions,
@@ -48,13 +56,21 @@ export async function getShowcaseGifts(): Promise<ShowcaseGift[]> {
     const remaining =
       r.stock == null ? null : r.stock - r.reserved - r.sold_count
     if (remaining != null && remaining <= 0) continue // sold out
+    const priceEshki = Number(r.price_eshki)
+    const limited = r.stock != null
     out.push({
       code: r.code,
       name: r.name,
       description: r.description,
-      priceEshki: Number(r.price_eshki),
+      priceEshki,
       remaining,
+      limited,
+      soldCount: r.sold_count,
+      rarity: giftRarity(priceEshki, { limited }),
+      icon: giftIcon(r.code),
     })
   }
   return out
 }
+
+
