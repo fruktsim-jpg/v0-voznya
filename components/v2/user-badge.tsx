@@ -47,7 +47,8 @@ export function UserBadge({
 
   if (userId != null) {
     return (
-      <Link href={`/profile/${userId}`} className="transition hover:opacity-80">
+      <Link href={`/u/${userId}`} className="transition hover:opacity-80">
+
         {inner}
       </Link>
     )

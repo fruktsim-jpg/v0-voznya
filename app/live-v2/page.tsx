@@ -2,20 +2,32 @@ import type { Metadata } from 'next'
 import { Section } from '@/components/v2/section'
 import { EventFeed } from '@/components/v2/event-feed'
 import { EmptyState } from '@/components/v2/empty-state'
-import { MOCK_FEED } from '@/lib/events'
+import { Card } from '@/components/v2/card'
+import { UserBadge } from '@/components/v2/user-badge'
+import { getCommunityFeed } from '@/lib/feed'
+import { getCommunityStats, getTopRich } from '@/lib/queries'
 
 export const metadata: Metadata = {
   title: 'Live · ВОЗНЯ',
   description: 'Центр активности сообщества ВОЗНЯ: события, рейтинги и статистика.',
 }
 
+export const dynamic = 'force-dynamic'
+
+const fmt = (n: number) => n.toLocaleString('ru-RU')
+
 /**
- * Live Center V2 — FOUNDATION (VOZNYA_UI_UX_V2 §5). Phase 1: каркас + лента
- * событий (mock) + слоты под рейтинги/статистику (заполняются на след. этапах
- * реальными лоадерами из lib/queries.ts). Новый роут, существующий /live не
- * тронут. Никаких новых данных/БД/API.
+ * Live Center V2 (VOZNYA_UI_UX_V2 §5) — РЕАЛЬНЫЕ данные из существующих лоадеров:
+ * лента событий (lib/feed), топ по богатству и статистика сообщества
+ * (lib/queries). Read-only, без новых API/таблиц. Существующий /live не тронут.
  */
-export default function LiveV2Page() {
+export default async function LiveV2Page() {
+  const [feed, top, stats] = await Promise.all([
+    getCommunityFeed(40),
+    getTopRich(10),
+    getCommunityStats(),
+  ])
+
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       {/* Hero «в эфире» */}
@@ -41,30 +53,57 @@ export default function LiveV2Page() {
         </div>
       </section>
 
-      {/* Desktop: лента + слот рейтингов в 2 колонки; mobile: стек */}
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6">
-        {/* Лента (главное) */}
+        {/* Лента событий (главное) */}
         <div className="lg:col-span-2">
           <Section title="Лента событий" subtitle="Кейсы, подарки, выигрыши и достижения" className="!px-0 !py-0">
-            <EventFeed events={MOCK_FEED} />
+            <EventFeed events={feed} />
           </Section>
         </div>
 
-        {/* Слоты под рейтинги/статистику (заполнятся реальными данными позже) */}
-        <aside className="mt-6 space-y-4 lg:mt-0">
-          <Section title="Рейтинги" className="!px-0 !py-0">
-            <EmptyState
-              icon="🏅"
-              title="Рейтинги переедут сюда"
-              description="Топ по богатству, недельный топ, MMR и семьи — на следующем этапе."
-            />
+        {/* Рейтинги + статистика */}
+        <aside className="mt-6 space-y-6 lg:mt-0">
+          <Section title="Топ по богатству" className="!px-0 !py-0">
+            {top.length === 0 ? (
+              <EmptyState icon="🏅" title="Пока нет данных" />
+            ) : (
+              <Card className="space-y-2">
+                {top.map((u) => (
+                  <div key={u.userId} className="flex items-center gap-3">
+                    <span className="w-6 shrink-0 text-center text-sm font-bold text-muted-foreground">
+                      {u.rank}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <UserBadge name={u.name} userId={u.userId} size="sm" />
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-foreground">
+                      {fmt(u.balance)}
+                    </span>
+                  </div>
+                ))}
+              </Card>
+            )}
           </Section>
-          <Section title="Пульс экономики" className="!px-0 !py-0">
-            <EmptyState
-              icon="📊"
-              title="Статистика сообщества"
-              description="Казна, активность и движение ешек — на следующем этапе."
-            />
+
+          <Section title="Пульс сообщества" className="!px-0 !py-0">
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="flex flex-col gap-0.5">
+                <span className="text-xl font-bold text-foreground">{fmt(stats.users)}</span>
+                <span className="text-xs text-muted-foreground">игроков</span>
+              </Card>
+              <Card className="flex flex-col gap-0.5">
+                <span className="text-xl font-bold text-foreground">{fmt(stats.eshInCirculation)}</span>
+                <span className="text-xs text-muted-foreground">ешек в обороте</span>
+              </Card>
+              <Card className="flex flex-col gap-0.5">
+                <span className="text-xl font-bold text-foreground">{fmt(stats.achievements)}</span>
+                <span className="text-xs text-muted-foreground">достижений</span>
+              </Card>
+              <Card className="flex flex-col gap-0.5">
+                <span className="text-xl font-bold text-foreground">{fmt(stats.marriages)}</span>
+                <span className="text-xs text-muted-foreground">семей</span>
+              </Card>
+            </div>
           </Section>
         </aside>
       </div>
