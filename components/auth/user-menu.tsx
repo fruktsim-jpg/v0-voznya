@@ -126,13 +126,23 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 pl-1 pr-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20"
+        className="inline-flex h-9 items-center gap-2 rounded-full border border-primary/50 bg-primary/20 pl-1 pr-2.5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-primary/30"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/30 text-xs font-bold">
+        {/* Stronger avatar: solid gradient + white initial so the account is
+            clearly the main control on the right, not a faint dot. */}
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-inner">
           {initial}
         </span>
         <span className="max-w-[6rem] truncate sm:max-w-[9rem]">{displayName}</span>
+        {/* Balance chip — самое ценное число под рукой. Только для
+            зарегистрированных и только на sm+, чтобы не переполнять мобайл. */}
+        {data.registered && data.balance !== null && (
+          <span className="hidden items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200 sm:inline-flex">
+            {formatEsh(data.balance)} 🥚
+          </span>
+        )}
       </button>
+
 
       {open && (
         <>

@@ -36,20 +36,23 @@ export function SiteHeader({ botId, oidcEnabled }: SiteHeaderProps = {}) {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Stats link: icon-only on mobile to keep the header uncluttered. */}
+          {/* Stats link. Hidden on mobile: there, Live already lives in the
+              bottom nav, so showing it here too left a label-less "dot" pill
+              competing with the profile. Desktop keeps it as a live accent. */}
           <Link
             href="/live"
             aria-label="Живая статистика"
-            className="group inline-flex h-9 items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20 sm:px-4"
+            className="group hidden h-9 items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-primary/20 sm:inline-flex"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            <Activity className="hidden h-4 w-4 text-primary sm:block" />
-            <span className="hidden sm:inline">Статистика</span>
+            <Activity className="h-4 w-4 text-primary" />
+            <span>Статистика</span>
           </Link>
           <UserMenu botId={botId} oidcEnabled={oidcEnabled} />
+
 
         </div>
       </div>
