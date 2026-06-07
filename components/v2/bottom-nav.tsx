@@ -11,7 +11,8 @@ import { usePathname } from 'next/navigation'
 
 const ITEMS = [
   { href: '/', label: 'Главная', icon: '🏠', match: (p: string) => p === '/' },
-  { href: '/live', label: 'Live', icon: '🔥', match: (p: string) => p.startsWith('/live') },
+  { href: '/live-v2', label: 'Live', icon: '🔥', match: (p: string) => p.startsWith('/live') },
+
   { href: '/cases', label: 'Кейсы', icon: '📦', match: (p: string) => p.startsWith('/cases') },
   { href: '/gifts', label: 'Подарки', icon: '🎁', match: (p: string) => p.startsWith('/gifts') },
   { href: '/profile/me', label: 'Профиль', icon: '👤', match: (p: string) => p.startsWith('/profile') },
