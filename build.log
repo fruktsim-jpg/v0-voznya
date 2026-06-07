@@ -1,30 +1,43 @@
+
+> my-project@0.1.0 build C:\Users\Administrator\v0-voznya
+> next build
+
 ▲ Next.js 16.2.6 (Turbopack)
 
   Creating an optimized production build ...
-✓ Compiled successfully in 1326ms
+✓ Compiled successfully in 1471ms
   Skipping validation of types
   Finished TypeScript config validation in 6ms ...
   Collecting page data using 15 workers ...
-  Generating static pages using 15 workers (0/5) ...
-  Generating static pages using 15 workers (1/5) 
-  Generating static pages using 15 workers (2/5) 
-  Generating static pages using 15 workers (3/5) 
-✓ Generating static pages using 15 workers (5/5) in 134ms
+  Generating static pages using 15 workers (0/3) ...
+✓ Generating static pages using 15 workers (3/3) in 71ms
   Finalizing page optimization ...
 
 Route (app)
-┌ ○ /
+┌ ƒ /
 ├ ○ /_not-found
 ├ ƒ /admin
 ├ ƒ /admin/audit
+├ ƒ /admin/cases
+├ ƒ /admin/economy
+├ ƒ /admin/economy/cases
+├ ƒ /admin/economy/casino
+├ ƒ /admin/economy/gifts
+├ ƒ /admin/gifts
+├ ƒ /admin/gifts/deliveries
 ├ ƒ /admin/players
 ├ ƒ /admin/players/[id]
 ├ ƒ /api/achievements
 ├ ƒ /api/admin/achievements
 ├ ƒ /api/admin/audit
 ├ ƒ /api/admin/bootstrap-owner
+├ ƒ /api/admin/cases
+├ ƒ /api/admin/cases/[code]/rewards
+├ ƒ /api/admin/cases/openings
 ├ ƒ /api/admin/dashboard
 ├ ƒ /api/admin/economy
+├ ƒ /api/admin/gifts
+├ ƒ /api/admin/gifts/deliveries
 ├ ƒ /api/admin/inventory
 ├ ƒ /api/admin/mmr
 ├ ƒ /api/admin/players
@@ -45,10 +58,15 @@ Route (app)
 ├ ƒ /api/stats
 ├ ƒ /api/top-rich
 ├ ƒ /api/top-weekly
+├ ƒ /cases
+├ ƒ /casino
+├ ƒ /gifts
 ├ ƒ /link
-├ ○ /live
+├ ƒ /live
+├ ƒ /live-v2
 ├ ƒ /profile/[id]
-└ ƒ /profile/me
+├ ƒ /profile/me
+└ ƒ /u/[id]
 
 
 ○  (Static)   prerendered as static content
