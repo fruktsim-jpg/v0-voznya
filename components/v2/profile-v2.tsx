@@ -166,17 +166,19 @@ export function ProfileV2({
             </div>
           </div>
 
-          {/* Ключевые показатели — без скролла */}
+          {/* Ключевые показатели статуса — без скролла.
+              MMR + место в рейтинге + баланс + достижения: статусность профиля. */}
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <HeroStat icon="🏅" value={profile.mmr != null ? fmt(profile.mmr) : '—'} label="MMR" accent />
+            <HeroStat
+              icon="📊"
+              value={profile.rankInTop != null ? `#${fmt(profile.rankInTop)}` : '—'}
+              label="место в топе"
+            />
             <HeroStat icon="💰" value={fmt(profile.balance)} label="баланс" />
             <HeroStat icon="🏆" value={fmt(profile.achievementsUnlocked)} label="достижений" />
-            <HeroStat
-              icon="⭐"
-              value={profile.reputation != null ? fmt(profile.reputation) : '—'}
-              label="репутация"
-            />
           </div>
+
         </div>
       </section>
 
