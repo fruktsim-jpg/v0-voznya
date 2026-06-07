@@ -7,6 +7,8 @@ import { ActivityCard } from '@/components/v2/activity-card'
 import { Section } from '@/components/v2/section'
 import { UserBadge } from '@/components/v2/user-badge'
 import { Card } from '@/components/v2/card'
+import { PageHero } from '@/components/v2/page-hero'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -42,25 +44,21 @@ export default async function CasesPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Hero */}
-      <section className="relative px-6 pb-2 pt-20 text-center sm:pt-24">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/20 blur-[120px]"
-        />
-        <div className="relative mx-auto max-w-2xl">
-          <div className="mb-2 text-5xl">📦</div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Кейсы <span className="text-gradient">Возни</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+      <PageHero
+        badge="Экономика · кейсы"
+        icon="📦"
+        title="Кейсы"
+        accent="Возни"
+        description={
+          <>
             Что внутри, насколько это редко и ценно. Честные шансы из дроп-листа.
             Открыть можно в боте командой{' '}
             <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/кейсы</code> — каждое
             открытие фиксируется в проверяемом логе.
-          </p>
-        </div>
-      </section>
+          </>
+        }
+      />
+
 
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {cases.length === 0 ? (

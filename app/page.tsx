@@ -33,11 +33,12 @@ export default async function Page() {
         limit={5}
         action={
           <Link
-            href="/live-v2"
+            href="/live"
             className="rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20"
           >
             Смотреть всё
           </Link>
+
         }
       />
 

@@ -4,6 +4,8 @@ import { Section } from '@/components/v2/section'
 import { Card } from '@/components/v2/card'
 import { UserBadge } from '@/components/v2/user-badge'
 import { EmptyState } from '@/components/v2/empty-state'
+import { PageHero } from '@/components/v2/page-hero'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -35,24 +37,20 @@ export default async function CasinoPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Hero — сдержанный, премиальный */}
-      <section className="relative px-6 pb-2 pt-20 text-center sm:pt-24">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/15 blur-[120px]"
-        />
-        <div className="relative mx-auto max-w-2xl">
-          <div className="mb-2 text-5xl">🎰</div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Азартная часть <span className="text-gradient">Возни</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+      <PageHero
+        badge="Развлечение · внутри экосистемы"
+        icon="🎰"
+        title="Азартная часть"
+        accent="Возни"
+        description={
+          <>
             Развлечение внутри экосистемы: кто сейчас в ударе, кто рискует и какие
             ставки заходят. Играть можно в боте командой{' '}
             <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/казино</code>.
-          </p>
-        </div>
-      </section>
+          </>
+        }
+      />
+
 
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {!hasActivity ? (

@@ -1,50 +1,19 @@
-import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
-import { ProfileV2 } from '@/components/v2/profile-v2'
-import { getPlayerProfile, getAchievementsProgress, getCommunityStats } from '@/lib/queries'
-import { getUserFeed } from '@/lib/feed'
-
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = {
-  title: 'Профиль · ВОЗНЯ',
-}
-
 /**
- * Профиль V2 (Steam-стиль) на РЕАЛЬНЫХ данных: getPlayerProfile (баланс, MMR,
- * достижения) + getUserFeed (личная активность). Read-only, без новых API/таблиц.
- * Существующий /profile/[id] не тронут — это параллельный V2-маршрут.
+ * Canonical profile route is `/profile/[id]` (rich PlayerCard: 3-axis status,
+ * MMR progress, marriage, full achievements, inventory). The earlier `/u/[id]`
+ * (ProfileV2) was a weaker parallel fork and lost data — per the product audit
+ * we converge on the stronger page and keep one clear system. This redirect
+ * preserves any existing `/u/<id>` links (UserBadge, TopMembers, shares).
  */
-export default async function ProfileV2Page({
+export default async function UserProfileRedirect({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const userId = Number(id)
-  if (!Number.isFinite(userId)) notFound()
-
-  const profile = await getPlayerProfile(userId)
-  if (!profile) notFound()
-
-  // Личная лента + глобальная редкость достижений (для статусности).
-  const [activity, achProgress, stats] = await Promise.all([
-    getUserFeed(userId, 30),
-    getAchievementsProgress(),
-    getCommunityStats(),
-  ])
-  const achievementCounts = new Map(achProgress.items.map((i) => [i.code, i.unlocked]))
-
-  return (
-    <ProfileV2
-      profile={profile}
-      activity={activity}
-      achievementCounts={achievementCounts}
-      totalPlayers={stats.users}
-    />
-  )
+  redirect(`/profile/${id}`)
 }
-
-
-

@@ -22,17 +22,19 @@ export async function TopMembers({ limit = 8 }: { limit?: number }) {
       subtitle="Самые богатые игроки Возни"
       action={
         <Link
-          href="/live-v2"
+          href="/live#top-rich"
           className="rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20"
         >
           Все рейтинги
         </Link>
+
       }
     >
       {/* Подиум топ-3 */}
       <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[first, second, third].filter(Boolean).map((u, i) => (
-          <Link key={u.userId} href={`/u/${u.userId}`}>
+          <Link key={u.userId} href={`/profile/${u.userId}`}>
+
             <Card
               variant={i === 0 ? 'legendary' : i === 1 ? 'epic' : 'rare'}
               className="flex items-center gap-3 transition hover:-translate-y-0.5"
@@ -55,9 +57,10 @@ export async function TopMembers({ limit = 8 }: { limit?: number }) {
           {rest.map((u) => (
             <Link
               key={u.userId}
-              href={`/u/${u.userId}`}
+              href={`/profile/${u.userId}`}
               className="flex items-center gap-3 py-2 transition hover:opacity-80"
             >
+
               <span className="w-6 shrink-0 text-center text-sm font-bold text-muted-foreground">
                 {u.rank}
               </span>

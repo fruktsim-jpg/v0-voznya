@@ -33,11 +33,14 @@ export function Card({
 }) {
   const base =
     'glass rounded-3xl border p-4 transition duration-200'
-  let border = 'border-white/10'
+  // Канон: стеклянные поверхности профиля/Live используют `border-border`.
+  // Держим тот же токен, чтобы карточки витрин читались как часть продукта.
+  let border = 'border-border'
   let style: React.CSSProperties | undefined
 
   if (variant === 'elevated') {
     border = 'border-white/15'
+
     style = { boxShadow: '0 8px 30px -12px rgba(0,0,0,0.6)' }
   } else if (variant !== 'default') {
     const token = rarityToken(VARIANT_TO_RARITY[variant])

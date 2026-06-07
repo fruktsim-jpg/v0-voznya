@@ -42,14 +42,15 @@ export function CollectibleTile({
 
   return (
     <article
-      className={`group relative flex flex-col items-center overflow-hidden rounded-3xl border bg-white/[0.02] p-4 text-center transition ${
+      className={`glass group relative flex flex-col items-center overflow-hidden rounded-3xl border border-border p-4 text-center transition ${
         locked ? 'opacity-50 grayscale' : 'hover:-translate-y-0.5'
       }`}
       style={{
-        borderColor: accent ? t.color : 'rgba(255,255,255,0.1)',
+        borderColor: accent ? t.color : undefined,
         boxShadow: accent ? t.glow || undefined : undefined,
       }}
     >
+
       {topRight && <div className="absolute right-2 top-2 z-10">{topRight}</div>}
 
       {/* Свечение-фон */}

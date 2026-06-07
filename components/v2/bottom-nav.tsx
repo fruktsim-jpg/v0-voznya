@@ -51,7 +51,8 @@ const I = {
 
 const ITEMS: Item[] = [
   { href: '/', label: 'Главная', icon: I.home, match: (p) => p === '/' },
-  { href: '/live-v2', label: 'Live', icon: I.live, match: (p) => p.startsWith('/live') },
+  { href: '/live', label: 'Live', icon: I.live, match: (p) => p.startsWith('/live') },
+
   { href: '/cases', label: 'Кейсы', icon: I.cases, match: (p) => p.startsWith('/cases') },
   { href: '/gifts', label: 'Подарки', icon: I.gifts, match: (p) => p.startsWith('/gifts') },
   { href: '/casino', label: 'Казино', icon: I.casino, match: (p) => p.startsWith('/casino') },

@@ -1,11 +1,13 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPlayerProfile } from '@/lib/queries'
+import { getUserFeed } from '@/lib/feed'
 import { PlayerCard } from '@/components/profile/player-card'
 import { NotRegistered } from '@/components/auth/not-registered'
 import { getSession } from '@/lib/auth/get-session'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { ACHIEVEMENTS } from '@/lib/voznya-bot'
+
 
 
 
@@ -82,8 +84,15 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     notFound()
   }
 
-  return <PlayerCard profile={profile} isOwner={isOwner} isAdmin={isAdmin} />
+  // Личная лента событий игрока — переносим сильную идею из ProfileV2 (Timeline)
+  // в каноничный PlayerCard, не переписывая его. Деградирует к пустому списку.
+  const activity = await getUserFeed(userId, 20)
+
+  return (
+    <PlayerCard profile={profile} isOwner={isOwner} isAdmin={isAdmin} activity={activity} />
+  )
 
 }
+
 
 

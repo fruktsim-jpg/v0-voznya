@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { getShowcaseGifts } from '@/lib/gifts'
 import { GiftCard } from '@/components/v2/gift-card'
 import { Section } from '@/components/v2/section'
+import { PageHero } from '@/components/v2/page-hero'
 import { RARITY_TOKENS, type Rarity } from '@/lib/rarity'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -39,24 +41,20 @@ export default async function GiftsPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Hero */}
-      <section className="relative px-6 pb-2 pt-20 text-center sm:pt-24">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-amber-400/20 blur-[120px]"
-        />
-        <div className="relative mx-auto max-w-2xl">
-          <div className="mb-2 text-5xl">🎁</div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Коллекция <span className="text-gradient">подарков</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+      <PageHero
+        badge="Коллекция · Telegram Gifts"
+        icon="🎁"
+        title="Коллекция"
+        accent="подарков"
+        description={
+          <>
             Реальные Telegram Gifts — трофеи Возни. Чем реже подарок, тем он ценнее.
             Забрать можно в боте командой{' '}
             <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/подарки</code>.
-          </p>
-        </div>
-      </section>
+          </>
+        }
+      />
+
 
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         {sorted.length === 0 ? (

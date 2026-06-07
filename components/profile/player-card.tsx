@@ -16,13 +16,18 @@ import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
 import { InventoryShowcase } from '@/components/profile/inventory-showcase'
+import { ActivityCard } from '@/components/v2/activity-card'
 import type { PlayerProfile } from '@/lib/queries'
+import type { CommunityEvent } from '@/lib/events'
 
 interface PlayerCardProps {
   profile: PlayerProfile
   isOwner?: boolean
   isAdmin?: boolean
+  /** Личная лента событий игрока (Timeline). Опционально — без неё блок скрыт. */
+  activity?: CommunityEvent[]
 }
+
 
 
 const TOTAL_ACHIEVEMENTS = ACHIEVEMENTS.length
@@ -33,7 +38,13 @@ function rarityFor(category: string): AchievementRarity {
   return 'normal'
 }
 
-export function PlayerCard({ profile, isOwner = false, isAdmin = false }: PlayerCardProps) {
+export function PlayerCard({
+  profile,
+  isOwner = false,
+  isAdmin = false,
+  activity = [],
+}: PlayerCardProps) {
+
 
   const title = titleForEarned(profile.totalEarned)
   const duelsTotal = profile.duelsWon + profile.duelsLost
@@ -457,7 +468,39 @@ export function PlayerCard({ profile, isOwner = false, isAdmin = false }: Player
         })}
       </motion.div>
 
+      {/* ============================================================== */}
+      {/* История — личная лента событий игрока (Timeline из ProfileV2). */}
+      {/* ============================================================== */}
+      {activity.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="mt-4 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+                📜
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground sm:text-xl">История</h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">Путь игрока в Возне</p>
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {activity.slice(0, 15).map((e) => (
+                <li key={e.id}>
+                  <ActivityCard event={e} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </motion.div>
+      )}
+
       <PlayerNavigation currentUserId={profile.userId} currentRank={profile.rankInTop} />
+
       <ShareButton userId={profile.userId} playerName={profile.firstName} />
       <QuickLinks />
 

@@ -331,8 +331,9 @@ export function ProfileV2({
 
         <div className="pt-4 text-center">
           <Link
-            href="/live-v2"
+            href="/live"
             className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+
           >
             ← К жизни сообщества
           </Link>
