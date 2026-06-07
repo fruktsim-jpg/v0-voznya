@@ -149,11 +149,11 @@ export async function POST(req: NextRequest) {
             stock, reserved, sold_count, is_active, sort_order,
             created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,
-                 COALESCE((SELECT reserved FROM gift_catalog WHERE code = $1), 0),
-                 COALESCE((SELECT sold_count FROM gift_catalog WHERE code = $1), 0),
+                 0, 0,
                  $8,$9, now(), now())
          ON CONFLICT (code) DO UPDATE SET
            name = EXCLUDED.name,
+
            description = EXCLUDED.description,
            star_cost = EXCLUDED.star_cost,
            price_eshki = EXCLUDED.price_eshki,
