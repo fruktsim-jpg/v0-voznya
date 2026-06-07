@@ -39,6 +39,7 @@ type DeliveryRow = {
   transaction_id: string | null
   star_cost: number | null
   manual: boolean
+  manual_by_admin: number | null
   created_at: string
   gift_name: string | null
   price_eshki: string | null
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
               gt.transaction_id,
               (gt.meta->>'star_cost')::int          AS star_cost,
               COALESCE((gt.meta->>'manual_delivery')::boolean, false) AS manual,
+              (gt.meta->>'manual_by_admin')::bigint  AS manual_by_admin,
               gt.created_at,
               gc.name                                AS gift_name,
               gc.price_eshki                         AS price_eshki,

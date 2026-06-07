@@ -5,6 +5,7 @@ import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { roleLabel } from '@/lib/admin-format'
 import { PlayerActions } from './actions'
+import { PlayerGifts, type PlayerGift } from './player-gifts'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,19 @@ type InventoryRow = {
   rarity: string | null
   type: string | null
 }
+
+type CaseOpeningRow = {
+  case_item_code: string
+  reward_kind: string
+  reward_item_code: string | null
+  amount: string | null
+  qty: number
+  created_at: string
+  case_name: string | null
+  reward_name: string | null
+  reward_rarity: string | null
+}
+
 
 export default async function PlayerPage({
   params,
@@ -72,7 +86,11 @@ export default async function PlayerPage({
     }
   }
 
-  const [mmrRows, repRows, inventory] = await Promise.all([
+  const canGiftView = hasPermission(session.role, PERM.GIFT_VIEW)
+  const canGiftManage = hasPermission(session.role, PERM.GIFT_MANAGE)
+  const canCasesView = hasPermission(session.role, PERM.CASES_VIEW)
+
+  const [mmrRows, repRows, inventory, gifts, caseOpenings] = await Promise.all([
     safe(query<{ mmr: string | null }>('SELECT mmr FROM users WHERE user_id = $1', [userId])),
     safe(
       query<{ rep: string | null }>(
@@ -88,6 +106,46 @@ export default async function PlayerPage({
         [userId],
       ),
     ),
+    // Gift deliveries (purchases) for this player — newest first.
+    canGiftView
+      ? safe(
+          query<PlayerGift>(
+            `SELECT gt.idempotency_key,
+                    gt.item_code,
+                    gt.status,
+                    (gt.meta->>'star_cost')::int          AS star_cost,
+                    COALESCE((gt.meta->>'manual_delivery')::boolean, false) AS manual,
+                    (gt.meta->>'manual_by_admin')::bigint  AS manual_by_admin,
+                    gt.created_at,
+                    gc.name                                AS gift_name,
+                    gc.price_eshki                         AS price_eshki
+               FROM gift_transactions gt
+               LEFT JOIN gift_catalog gc ON gc.code = gt.item_code
+              WHERE gt.kind = 'tg_gift' AND gt.recipient_user_id = $1
+              ORDER BY gt.created_at DESC
+              LIMIT 50`,
+            [userId],
+          ),
+        )
+      : Promise.resolve([] as PlayerGift[]),
+    // Recent case openings (read-only history) for support/investigations.
+    canCasesView
+      ? safe(
+          query<CaseOpeningRow>(
+            `SELECT o.case_item_code, o.reward_kind, o.reward_item_code,
+                    o.amount, o.qty, o.created_at,
+                    cd.name AS case_name,
+                    ii.name AS reward_name, ii.rarity AS reward_rarity
+               FROM case_openings o
+               LEFT JOIN case_definitions cd ON cd.item_code = o.case_item_code
+               LEFT JOIN inventory_items ii ON ii.code = o.reward_item_code
+              WHERE o.user_id = $1
+              ORDER BY o.created_at DESC
+              LIMIT 25`,
+            [userId],
+          ),
+        )
+      : Promise.resolve([] as CaseOpeningRow[]),
   ])
 
   const p = profileRows[0]
@@ -234,6 +292,59 @@ export default async function PlayerPage({
           </div>
         )}
       </section>
+
+      {/* Gifts — purchases + manual resolution of pending deliveries */}
+      {canGiftView && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Подарки ({gifts.length})
+          </h2>
+          <PlayerGifts userId={p.user_id} initialGifts={gifts} canManage={canGiftManage} />
+        </section>
+      )}
+
+      {/* Case openings — read-only history for support/investigations */}
+      {canCasesView && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Открытия кейсов ({caseOpenings.length})
+          </h2>
+          {caseOpenings.length === 0 ? (
+            <div className="glass rounded-2xl border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+              Открытий кейсов нет.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {caseOpenings.map((o, idx) => {
+                const reward =
+                  o.reward_kind === 'currency'
+                    ? `${fmt(Number(o.amount ?? 0))} ешек`
+                    : `${o.reward_name ?? o.reward_item_code ?? 'предмет'}${o.qty > 1 ? ` ×${o.qty}` : ''}`
+                const rs = o.reward_rarity ? rarityStyle(o.reward_rarity) : null
+                return (
+                  <div
+                    key={`${o.case_item_code}-${idx}`}
+                    className="glass flex items-center gap-3 rounded-2xl border border-border p-3"
+                  >
+                    <span className="text-xl">🎁</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {o.case_name ?? o.case_item_code}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        → {reward}
+                        {rs ? ` · ${rs.label}` : ''}
+                        {' · '}
+                        {new Date(o.created_at).toLocaleString('ru-RU')}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }
