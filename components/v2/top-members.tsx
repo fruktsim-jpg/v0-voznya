@@ -10,6 +10,42 @@ import { getTopRich } from '@/lib/queries'
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 const MEDAL = ['🥇', '🥈', '🥉']
 
+/**
+ * Аватар участника: реальное Telegram-фото, если оно есть (photo_url), иначе
+ * инициал имени в фирменном кружке. Fallback держит вид целостным, пока не у
+ * всех заполнено фото.
+ */
+function MemberAvatar({
+  name,
+  photoUrl,
+  className = 'h-9 w-9 text-sm',
+}: {
+  name: string
+  photoUrl: string | null
+  className?: string
+}) {
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt=""
+        className={`shrink-0 rounded-full object-cover ring-1 ring-white/10 ${className}`}
+      />
+    )
+  }
+  const initial = name.trim().charAt(0).toUpperCase() || '?'
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-primary/20 font-semibold text-primary ring-1 ring-primary/30 ${className}`}
+      aria-hidden="true"
+    >
+      {initial}
+    </span>
+  )
+}
+
+
 export async function TopMembers({ limit = 8 }: { limit?: number }) {
   const top = await getTopRich(limit)
   if (top.length === 0) return null
@@ -64,7 +100,9 @@ export async function TopMembers({ limit = 8 }: { limit?: number }) {
               <span className="w-6 shrink-0 text-center text-sm font-bold text-muted-foreground">
                 {u.rank}
               </span>
+              <MemberAvatar name={u.name} photoUrl={u.photoUrl} className="h-7 w-7 text-[11px]" />
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">{u.name}</span>
+
               <span className="shrink-0 text-sm font-medium text-muted-foreground">
                 {fmt(u.balance)}
               </span>

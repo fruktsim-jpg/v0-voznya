@@ -78,11 +78,36 @@ export async function userExists(userId: number): Promise<boolean> {
   return Boolean(rows[0]?.exists)
 }
 
+/**
+ * Persist the Telegram avatar URL for an EXISTING player. Called at login time
+ * (Login Widget `photo_url` / OIDC `picture`) — the only moment Telegram hands
+ * us a public photo URL.
+ *
+ * Narrow by design and consistent with «bot owns users»:
+ *   - UPDATE-only: never inserts a row (the bot creates users). A login by a
+ *     Telegram account that never played simply updates 0 rows.
+ *   - touches a single cosmetic column (`photo_url`), nothing else.
+ *   - column-guarded: silently no-ops if migration 0023 hasn't been applied,
+ *     and never throws into the auth path (login must succeed regardless).
+ */
+export async function saveUserPhoto(userId: number, photoUrl: string | null): Promise<void> {
+  if (!photoUrl) return
+  try {
+    if (!(await columnExists('users', 'photo_url'))) return
+    await query(`UPDATE users SET photo_url = $2 WHERE user_id = $1`, [userId, photoUrl])
+  } catch {
+    // Login must not fail because of an avatar write. Swallow and move on.
+  }
+}
+
+
 export type UserSummary = {
   registered: boolean
   name: string | null
   balance: number | null
   rank: number | null
+  // Telegram avatar URL (migration 0023). null when unknown.
+  photoUrl: string | null
 }
 
 /**
@@ -91,14 +116,17 @@ export type UserSummary = {
  * `registered: false` when the logged-in Telegram user has never played.
  */
 export async function getUserSummary(userId: number): Promise<UserSummary> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     first_name: string | null
     username: string | null
     balance: string
     rank: string
+    photo_url: string | null
   }>(
-    `SELECT first_name, username, balance, rank FROM (
+    `SELECT first_name, username, balance, rank, photo_url FROM (
        SELECT user_id, first_name, username, balance,
+              ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'},
               ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rank
          FROM users
      ) ranked
@@ -107,15 +135,17 @@ export async function getUserSummary(userId: number): Promise<UserSummary> {
   )
   const row = rows[0]
   if (!row) {
-    return { registered: false, name: null, balance: null, rank: null }
+    return { registered: false, name: null, balance: null, rank: null, photoUrl: null }
   }
   return {
     registered: true,
     name: displayName(row.first_name, row.username),
     balance: Number(row.balance),
     rank: Number(row.rank),
+    photoUrl: row.photo_url ?? null,
   }
 }
+
 
 
 export type Economy = {
@@ -167,17 +197,23 @@ export type RichUser = {
   name: string
   balance: number
   totalEarned: number
+  // Telegram avatar URL (migration 0023). null when unknown — UI falls back to
+  // a name initial. Selected only when the column exists.
+  photoUrl: string | null
 }
 
 export async function getTopRich(limit = 10): Promise<RichUser[]> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id: string
     first_name: string | null
     username: string | null
     balance: string
     total_earned: string
+    photo_url: string | null
   }>(
-    `SELECT user_id, first_name, username, balance, total_earned
+    `SELECT user_id, first_name, username, balance, total_earned,
+            ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'}
        FROM users
       ORDER BY balance DESC, user_id ASC
       LIMIT $1`,
@@ -189,8 +225,10 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
     name: displayName(r.first_name, r.username),
     balance: Number(r.balance),
     totalEarned: Number(r.total_earned),
+    photoUrl: r.photo_url ?? null,
   }))
 }
+
 
 export type WeeklyEarner = {
   rank: number
@@ -410,7 +448,11 @@ export type PlayerProfile = {
   userId: number
   username: string | null
   firstName: string
+  // Telegram avatar URL (migration 0023). null when unknown — UI falls back to
+  // the title/initial avatar.
+  photoUrl: string | null
   balance: number
+
   totalEarned: number
   totalSpent: number
   farmStreak: number
@@ -474,10 +516,12 @@ export type PlayerProfile = {
 
 
 export async function getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id: string
     username: string | null
     first_name: string | null
+    photo_url: string | null
     balance: string
     total_earned: string
     total_spent: string
@@ -494,6 +538,7 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
   }>(
     `SELECT 
        user_id, username, first_name,
+       ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'},
        balance, total_earned, total_spent,
        farm_streak, max_farm_streak,
        duels_won, duels_lost,
@@ -506,6 +551,7 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
 
     [userId],
   )
+
 
   if (rows.length === 0) return null
 
@@ -730,7 +776,9 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     userId: Number(user.user_id),
     username: user.username,
     firstName: user.first_name || 'Аноним',
+    photoUrl: user.photo_url ?? null,
     balance: Number(user.balance),
+
     totalEarned: Number(user.total_earned),
     totalSpent: Number(user.total_spent),
     farmStreak: Number(user.farm_streak),

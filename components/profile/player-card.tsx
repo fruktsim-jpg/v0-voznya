@@ -252,14 +252,26 @@ export function PlayerCard({
         )}
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
-          {/* Avatar — title emoji; элитная рамка/медаль для топ-игроков */}
+          {/* Avatar — реальное Telegram-фото, если есть (photoUrl); иначе
+              эмодзи титула. Элитная рамка/медаль топ-игроков сохраняется
+              поверх в любом случае. */}
           <div
-            className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl ${
+            className={`relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl ${
               elite ? elite.avatar : 'from-primary/20 to-accent/20'
             } ${elite ? 'ring-2 ring-inset ' + elite.ring : ''}`}
           >
-            {title.emoji}
+            {profile.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.photoUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              title.emoji
+            )}
             {profile.rankInTop && profile.rankInTop <= 10 && (
+
               <div
                 className={`absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shadow-md ${
                   elite ? elite.accent : 'text-primary-foreground'

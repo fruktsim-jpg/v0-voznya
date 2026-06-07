@@ -34,7 +34,9 @@ export async function GET() {
         name: summary.name ?? session.firstName ?? session.username ?? null,
         balance: summary.balance,
         rank: summary.rank,
+        photoUrl: summary.photoUrl,
         isAdmin: !!adminSession,
+
       },
       { status: 200 },
     )

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyLoginWidget } from '@/lib/auth/telegram'
+import { saveUserPhoto } from '@/lib/queries'
 import {
   createSessionToken,
   getSessionCookieName,
   getSessionCookieOptions,
 } from '@/lib/auth/session'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,10 +17,13 @@ export const dynamic = 'force-dynamic'
  * The widget redirects here with the signed login payload. We verify the HMAC,
  * issue a stateless session cookie and redirect to the user's profile.
  *
- * IMPORTANT: this route never writes to the database. The bot is the single
- * source of truth for users. If the verified user has never played, the profile
- * page itself shows a friendly "not registered yet" message.
+ * The bot remains the single source of truth for users: this route never
+ * INSERTS. The only write is a narrow, cosmetic UPDATE of `users.photo_url`
+ * (the avatar URL Telegram includes in the verified login payload), and only
+ * for a row that already exists. If the verified user has never played, the
+ * update touches 0 rows and the profile page shows "not registered yet".
  */
+
 export async function GET(request: NextRequest) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
   if (!botToken || !process.env.AUTH_SECRET) {
@@ -35,7 +40,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/?auth=failed', request.url))
   }
 
+  // Cosmetic-only: persist the Telegram avatar URL for an existing player.
+  // UPDATE-only and self-guarded (never throws into the login path).
+  await saveUserPhoto(verified.userId, verified.data.photo_url ?? null)
+
   const token = await createSessionToken({
+
     uid: verified.userId,
     username: verified.data.username ?? null,
     firstName: verified.data.first_name ?? null,

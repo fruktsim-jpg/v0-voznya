@@ -6,6 +6,8 @@ import {
   verifyIdToken,
 } from '@/lib/auth/oidc'
 import { createLinkRequest, getUserIdBySub } from '@/lib/auth/account-link'
+import { saveUserPhoto } from '@/lib/queries'
+
 import {
   createSessionToken,
   getSessionCookieName,
@@ -111,8 +113,13 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Cosmetic-only: persist the Telegram avatar (OIDC `picture` claim) for the
+  // linked, existing player. UPDATE-only and self-guarded — never throws here.
+  await saveUserPhoto(userId, claims.picture ?? null)
+
   // Linked: issue the standard session keyed on the real Telegram user id.
   const token = await createSessionToken({
+
     uid: userId,
     username: claims.preferredUsername ?? null,
     firstName: claims.name ?? null,
