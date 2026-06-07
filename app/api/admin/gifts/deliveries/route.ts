@@ -57,16 +57,17 @@ export async function GET(req: NextRequest) {
   }
 
   const status = req.nextUrl.searchParams.get('status')?.trim() || 'pending'
-  const userIdRaw = req.nextUrl.searchParams.get('userId')?.trim() || ''
-  const userId = userIdRaw ? Number(userIdRaw) : null
+  // Free-text search: matches recipient by ID (exact) OR name/username (ILIKE).
+  // Back-compat: the old `userId` param is still accepted as an exact ID.
+  const queryRaw =
+    req.nextUrl.searchParams.get('q')?.trim() ||
+    req.nextUrl.searchParams.get('userId')?.trim() ||
+    ''
 
   // Whitelist statuses (matches GIFT_STATUSES in the bot). "all" = no filter.
   const allowed = new Set(['pending', 'completed', 'cancelled', 'all'])
   if (!allowed.has(status)) {
     return NextResponse.json({ error: 'invalid status' }, { status: 400 })
-  }
-  if (userIdRaw && (!Number.isInteger(userId) || (userId as number) <= 0)) {
-    return NextResponse.json({ error: 'invalid userId' }, { status: 400 })
   }
 
   try {
@@ -76,9 +77,27 @@ export async function GET(req: NextRequest) {
       params.push(status)
       conditions.push(`gt.status = $${params.length}`)
     }
-    if (userId) {
-      params.push(userId)
-      conditions.push(`gt.recipient_user_id = $${params.length}`)
+    if (queryRaw) {
+      // Numeric query → exact recipient id OR name/username match.
+      // Non-numeric query → name/username match only. ILIKE handles a leading
+      // "@" in usernames gracefully via the wildcard pattern.
+      const term = queryRaw.replace(/^@/, '')
+      const numeric = /^\d+$/.test(term)
+      params.push(`%${term}%`)
+      const likeIdx = params.length
+      if (numeric) {
+        params.push(Number(term))
+        const idIdx = params.length
+        conditions.push(
+          `(gt.recipient_user_id = $${idIdx}` +
+            ` OR u.first_name ILIKE $${likeIdx}` +
+            ` OR u.username ILIKE $${likeIdx})`,
+        )
+      } else {
+        conditions.push(
+          `(u.first_name ILIKE $${likeIdx} OR u.username ILIKE $${likeIdx})`,
+        )
+      }
     }
     // Pending first (oldest first within), then most recent activity.
     const deliveries = await query<DeliveryRow>(

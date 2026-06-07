@@ -48,6 +48,29 @@ function recipientLabel(d: AdminDelivery): string {
   return name ? `${name} (${d.recipient_user_id})` : d.recipient_user_id
 }
 
+/** Human "waiting for N" since purchase — helps triage the oldest pending. */
+function waitedLabel(createdAt: string): string {
+  const then = new Date(createdAt).getTime()
+  if (Number.isNaN(then)) return ''
+  const mins = Math.max(0, Math.floor((Date.now() - then) / 60000))
+  if (mins < 60) return `${mins} мин`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} ч`
+  const days = Math.floor(hours / 24)
+  return `${days} дн`
+}
+
+/** Older pending = louder. Red after 24h, amber after 1h, muted otherwise. */
+function waitedTone(createdAt: string): string {
+  const then = new Date(createdAt).getTime()
+  if (Number.isNaN(then)) return 'text-muted-foreground'
+  const hours = (Date.now() - then) / 3600000
+  if (hours >= 24) return 'text-destructive-foreground'
+  if (hours >= 1) return 'text-amber-300'
+  return 'text-muted-foreground'
+}
+
+
 export function DeliveriesManager({
   initialDeliveries,
   initialStatus,
@@ -59,7 +82,7 @@ export function DeliveriesManager({
 }) {
   const [deliveries, setDeliveries] = useState<AdminDelivery[]>(initialDeliveries)
   const [status, setStatus] = useState(initialStatus)
-  const [userId, setUserId] = useState('')
+  const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -67,7 +90,7 @@ export function DeliveriesManager({
     setBusy(true)
     try {
       const params = new URLSearchParams({ status })
-      if (userId.trim()) params.set('userId', userId.trim())
+      if (search.trim()) params.set('q', search.trim())
       const res = await fetch(`/api/admin/gifts/deliveries?${params.toString()}`)
       if (res.ok) {
         const d = await res.json()
@@ -76,7 +99,7 @@ export function DeliveriesManager({
     } finally {
       setBusy(false)
     }
-  }, [status, userId])
+  }, [status, search])
 
   // Reload when the status tab changes (search runs on submit only).
   useEffect(() => {
@@ -135,11 +158,10 @@ export function DeliveriesManager({
         </div>
         <div className="mt-2 flex gap-2">
           <input
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && load()}
-            placeholder="ID игрока (поиск)"
-            inputMode="numeric"
+            placeholder="Поиск: ID, имя или @username"
             className="w-full rounded-xl border border-input bg-white/[0.04] px-3 py-2 text-sm text-foreground outline-none ring-primary/40 transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2"
           />
           <button
@@ -191,6 +213,11 @@ export function DeliveriesManager({
                   {d.star_cost ? ` · ${d.star_cost}★` : ''}
                   {' · '}
                   {new Date(d.created_at).toLocaleString('ru-RU')}
+                  {d.status === 'pending' && (
+                    <span className={`ml-1 font-semibold ${waitedTone(d.created_at)}`}>
+                      · ждёт {waitedLabel(d.created_at)}
+                    </span>
+                  )}
                 </div>
               </div>
               {canManage && d.status === 'pending' && (
