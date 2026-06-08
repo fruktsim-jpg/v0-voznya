@@ -7,14 +7,20 @@ import { notifyBalanceChanged } from '@/lib/balance-events'
 import type { InventoryItem, InventoryGiftItem } from '@/lib/inventory-list'
 
 /**
- * InventoryClient (VOZNYA 2.2) — the player's inventory as a Steam-style grid.
+ * InventoryClient (VOZNYA 2.2) — инвентарь как Steam-style сетка.
  *
- * Items are full game objects: stack items (cosmetics / keys / collectibles)
- * and pending Telegram Gifts / Premium. For gifts the player decides the fate
- * right here — Sell (instant 70% eshki) or Withdraw (queue real delivery) —
- * mirroring the bot's case-open choice screen. Every mutation hits the same
- * server logic as the bot (sell_gift) and fires notifyBalanceChanged() so the
- * header balance updates без F5 (P5).
+ * Предметы — полноценные игровые объекты. Для подарков/Premium игрок прямо тут
+ * решает судьбу. UX-проход на понятность (Release 2.2): четыре действия с
+ * однозначными формулировками + защита от случайной потери.
+ *
+ *   💰 Продать за X      — мгновенно за ешки (с подтверждением «Точно?»).
+ *   📤 Вывести себе      — реальный подарок ТЕБЕ в Telegram.
+ *   🎁 Отправить другу   — реальный подарок другому человеку: по @username
+ *                          (если он знаком боту) ИЛИ по ссылке (кому угодно).
+ *   🤝 Передать в Возне  — отдать предмет другому игроку ВНУТРИ игры (без TG).
+ *
+ * Каждое действие меняет тот же серверный стейт, что и бот, и дёргает
+ * notifyBalanceChanged() — баланс в шапке обновляется без F5 (P5).
  */
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -31,9 +37,11 @@ type ActionState =
   | 'transferred'
   | 'error'
 
-// Что раскрыто под карточкой: реальный Telegram-подарок другу по @username,
-// внутренняя передача игроку Возни, или подарок по ссылке (кому угодно).
-type Panel = 'none' | 'gift' | 'transfer' | 'link'
+// Что раскрыто под карточкой:
+//   none     — обычная сетка из 4 действий;
+//   send     — «Отправить другу»: ввод @username ИЛИ ссылка (кому угодно);
+//   transfer — «Передать в Возне»: внутренняя передача игроку.
+type Panel = 'none' | 'send' | 'transfer'
 
 function GiftCard({
   item,
@@ -47,6 +55,9 @@ function GiftCard({
   const [panel, setPanel] = useState<Panel>('none')
   const [recipient, setRecipient] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
+  // Подтверждение продажи: первый клик показывает «Точно?», второй — продаёт.
+  // Защищает от случайной потери предмета (продажа необратима).
+  const [confirmSell, setConfirmSell] = useState(false)
 
   const t = rarityToken(item.rarity as Rarity)
   const busy =
@@ -55,7 +66,16 @@ function GiftCard({
     state === 'gifting' ||
     state === 'transferring'
 
-  // «Подарить другу» — РЕАЛЬНАЯ Telegram-доставка подарка получателю.
+  function resetPanels() {
+    setPanel('none')
+    setRecipient('')
+    setLinkUrl('')
+    setConfirmSell(false)
+    setState('idle')
+    setMsg('')
+  }
+
+  // 🎁 «Отправить другу» по @username — РЕАЛЬНАЯ Telegram-доставка получателю.
   async function gift() {
     const to = recipient.trim()
     if (busy || !to) return
@@ -83,16 +103,16 @@ function GiftCard({
         if (data.status === 'cancelled') {
           setState('gifted')
           setMsg(data.refunded ? '↩️ Не вышло — ешки возвращены.' : 'Отменено.')
-
           notifyBalanceChanged()
           window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
           return
         }
       }
       setState('error')
+      // Если получатель не знаком боту — подсказываем путь «по ссылке».
       setMsg(
         data.status === 'recipient_not_found'
-          ? 'Получатель не запускал бота Возни.'
+          ? 'Этот человек не запускал бота. Отправь ему ссылку ниже 👇'
           : data.status === 'self_transfer'
             ? 'Нельзя подарить самому себе.'
             : data.status === 'not_pending'
@@ -107,7 +127,7 @@ function GiftCard({
     }
   }
 
-  // «Передать игроку Возни» — внутренняя передача (без Telegram-доставки).
+  // 🤝 «Передать в Возне» — внутренняя передача предмета игроку (без Telegram).
   async function transfer() {
     const to = recipient.trim()
     if (busy || !to) return
@@ -123,7 +143,7 @@ function GiftCard({
       if (res.ok && data.status === 'ok') {
         setState('transferred')
         const who = data.recipientUsername ? `@${data.recipientUsername}` : to
-        setMsg(`📦 Передано игроку ${who}`)
+        setMsg(`🤝 Передано игроку ${who}`)
         window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
         return
       }
@@ -143,8 +163,8 @@ function GiftCard({
     }
   }
 
-  // «Подарить по ссылке» — создаёт claim-ссылку для кого угодно (даже если
-  // получатель ещё НЕ запускал бота): он откроет ссылку и заберёт подарок.
+  // Ссылка «кому угодно»: даже если получатель НЕ запускал бота — он откроет
+  // ссылку и заберёт подарок. Создаётся внутри панели «Отправить другу».
   async function makeLink() {
     if (busy || linkUrl) return
     setState('gifting')
@@ -184,23 +204,24 @@ function GiftCard({
     }
   }
 
-  // «Поделиться в Telegram» — открывает нативный выбор чата Telegram с готовым
-  // текстом «лови подарок». Получатель тапает ссылку → бот узнаёт его user_id →
-  // выдаёт подарок. Это и есть «отправить кому угодно»: одним нажатием, без
-  // ручного копирования. Резолва @username у бота нет — ссылку инициирует
-  // получатель сам одним кликом.
+  // «Отправить в Telegram» — нативный выбор чата с готовым текстом. Получатель
+  // тапает ссылку → бот узнаёт его user_id → выдаёт подарок. Способ «кому
+  // угодно» одним нажатием (резолва @username у бота нет — клик делает сам
+  // получатель).
   function shareToTelegram() {
     const text = `🎁 Лови подарок: ${item.name}! Жми, чтобы забрать в Telegram.`
     const share = `https://t.me/share/url?url=${encodeURIComponent(linkUrl)}&text=${encodeURIComponent(text)}`
     window.open(share, '_blank', 'noopener,noreferrer')
   }
 
-
-
-
+  // 💰 Продажа: первый клик ставит подтверждение, второй — продаёт (необратимо).
   async function sell() {
-
     if (busy) return
+    if (!confirmSell) {
+      setConfirmSell(true)
+      return
+    }
+    setConfirmSell(false)
     setState('selling')
     setMsg('')
     try {
@@ -231,6 +252,7 @@ function GiftCard({
     }
   }
 
+  // 📤 «Вывести себе» — реальный подарок игроку в Telegram (авто-выдача).
   async function withdraw() {
     if (busy) return
     setState('withdrawing')
@@ -242,14 +264,14 @@ function GiftCard({
         body: JSON.stringify({ deliveryKey: item.deliveryKey }),
       })
       const data = await res.json().catch(() => ({}))
-      // Авто-выдача — основной путь (Release 2.2). Возможные статусы:
+      // Авто-выдача — основной путь (Release 2.2):
       //   delivered — выдан сразу → убираем из активного инвентаря;
       //   cancelled — постоянная ошибка + возврат → тоже убираем (вернулись ешки);
       //   pending/queued — выдаст фоновый воркер, оставляем с пометкой.
       if (res.ok || res.status === 202) {
         if (data.status === 'delivered') {
           setState('withdrawn')
-          setMsg(item.isPremium ? '⭐ Premium отправлен!' : '✅ Подарок отправлен!')
+          setMsg(item.isPremium ? '⭐ Premium активирован!' : '✅ Подарок пришёл в Telegram!')
           window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
           return
         }
@@ -274,14 +296,14 @@ function GiftCard({
     }
   }
 
-
   const done =
     state === 'sold' ||
     state === 'withdrawn' ||
     state === 'gifted' ||
     state === 'transferred'
 
-
+  // Подпись действия «Вывести/Активировать» зависит от типа предмета.
+  const withdrawLabel = item.isPremium ? '⭐ Активировать себе' : '📤 Вывести себе'
 
   return (
     <div
@@ -310,68 +332,108 @@ function GiftCard({
 
       {!done ? (
         <div className="flex flex-col gap-1.5">
-          {/* «Оставить» = ничего не делать (предмет уже в инвентаре). Явная
-              кнопка-подсказка, чтобы цикл читался как в ТЗ. */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={sell}
-              disabled={busy}
-              className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-50"
-            >
-              {state === 'selling' ? '…' : `Продать за ${fmt(item.sellAmount)}`}
-            </button>
-            <button
-              onClick={withdraw}
-              disabled={busy}
-              className="rounded-lg border border-primary/50 bg-primary/10 py-2 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
-            >
-              {state === 'withdrawing' ? '…' : item.isPremium ? 'Активировать' : 'Вывести'}
-            </button>
-          </div>
-          {/* Две разные механики:
-              • «Подарить другу» — РЕАЛЬНЫЙ Telegram-подарок по @username;
-              • «Передать игроку» — внутренняя передача предмета в Возне. */}
           {panel === 'none' ? (
             <>
+              {/* Главные действия с собой: забрать в Telegram или продать. */}
               <div className="grid grid-cols-2 gap-1.5">
                 <button
-                  onClick={() => { setPanel('gift'); setRecipient('') }}
+                  onClick={withdraw}
                   disabled={busy}
-                  className="rounded-lg border border-emerald-400/40 bg-emerald-400/10 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                  className="rounded-lg border border-primary/50 bg-primary/10 py-2 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
                 >
-                  🎁 Подарить другу
+                  {state === 'withdrawing' ? '…' : withdrawLabel}
+                </button>
+                {!confirmSell ? (
+                  <button
+                    onClick={sell}
+                    disabled={busy}
+                    className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-50"
+                  >
+                    {state === 'selling' ? '…' : `💰 Продать за ${fmt(item.sellAmount)}`}
+                  </button>
+                ) : (
+                  // Подтверждение продажи: предмет исчезнет навсегда.
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      onClick={sell}
+                      disabled={busy}
+                      className="rounded-lg border border-amber-400/70 bg-amber-400/25 py-2 text-xs font-bold text-amber-100 transition hover:bg-amber-400/35 disabled:opacity-50"
+                    >
+                      Продать ✓
+                    </button>
+                    <button
+                      onClick={() => setConfirmSell(false)}
+                      className="rounded-lg border border-white/15 bg-white/5 py-2 text-xs font-bold text-muted-foreground transition hover:bg-white/10"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* Отдать другому: реальный подарок в Telegram ИЛИ внутри Возни. */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => { resetPanels(); setPanel('send') }}
+                  disabled={busy}
+                  className="rounded-lg border border-sky-400/40 bg-sky-400/10 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20 disabled:opacity-50"
+                >
+                  🎁 Отправить другу
                 </button>
                 <button
-                  onClick={() => { setPanel('transfer'); setRecipient('') }}
+                  onClick={() => { resetPanels(); setPanel('transfer') }}
                   disabled={busy}
                   className="rounded-lg border border-white/15 bg-white/5 py-2 text-xs font-bold text-foreground transition hover:bg-white/10 disabled:opacity-50"
                 >
-                  📦 Передать игроку
+                  🤝 Передать в Возне
                 </button>
               </div>
-              {/* Подарить по ссылке — работает даже если получатель НЕ запускал
-                  бота: он откроет ссылку, запустит бота и заберёт подарок. */}
-              <button
-                onClick={() => { setPanel('link'); setLinkUrl(''); setMsg(''); makeLink() }}
-                disabled={busy}
-                className="rounded-lg border border-sky-400/40 bg-sky-400/10 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20 disabled:opacity-50"
-              >
-                🔗 Подарить по ссылке
-              </button>
+              {confirmSell && (
+                <p className="text-center text-[11px] text-amber-200/80">
+                  Продажа необратима — предмет исчезнет за ешки.
+                </p>
+              )}
             </>
-          ) : panel === 'link' ? (
+          ) : panel === 'send' ? (
+            // 🎁 Отправить другу — настоящий Telegram-подарок другому человеку.
             <div className="flex flex-col gap-1.5">
               <p className="px-0.5 text-[11px] text-muted-foreground">
-                Отправь ссылку кому угодно — даже если он не запускал бота. Он
-                откроет её, запустит Возню и заберёт подарок.
+                Настоящий подарок в Telegram другому человеку. Знаешь его @username
+                — впиши; не запускал бота — отправь ссылку ниже.
               </p>
-              {linkUrl ? (
+              <div className="flex gap-1.5">
+                <input
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && gift()}
+                  placeholder="@username или ID"
+                  autoFocus
+                  className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-xs text-foreground outline-none focus:border-sky-400/50"
+                />
+                <button
+                  onClick={gift}
+                  disabled={busy || !recipient.trim()}
+                  className="rounded-lg border border-sky-400/50 bg-sky-400/10 px-3 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20 disabled:opacity-50"
+                >
+                  {state === 'gifting' ? '…' : 'Отправить'}
+                </button>
+              </div>
+
+              {/* Способ «кому угодно»: ссылка-приглашение забрать подарок. */}
+              {!linkUrl ? (
+                <button
+                  onClick={makeLink}
+                  disabled={busy}
+                  className="rounded-lg border border-sky-400/30 bg-sky-400/5 py-2 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-400/15 disabled:opacity-50"
+                >
+                  {state === 'gifting' ? 'Создаю ссылку…' : '🔗 Получить ссылку (для любого)'}
+                </button>
+              ) : (
                 <div className="flex flex-col gap-1.5">
                   <button
                     onClick={shareToTelegram}
                     className="rounded-lg border border-sky-400/60 bg-sky-400/20 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-400/30"
                   >
-                    ✈️ Отправить в Telegram
+                    ✈️ Отправить ссылку в Telegram
                   </button>
                   <div className="flex gap-1.5">
                     <input
@@ -388,61 +450,64 @@ function GiftCard({
                     </button>
                   </div>
                 </div>
-              ) : (
-
-                <p className="text-center text-[11px] text-muted-foreground">
-                  {state === 'gifting' ? 'Создаю ссылку…' : ' '}
-                </p>
               )}
+
               <button
-                onClick={() => { setPanel('none'); setState('idle'); setMsg(''); setLinkUrl('') }}
+                onClick={resetPanels}
                 className="self-start rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-white/10"
               >
                 ← назад
               </button>
-              {msg && <p className="text-center text-[11px] text-sky-300">{msg}</p>}
+              {msg && (
+                <p className={`text-center text-[11px] ${state === 'error' ? 'text-red-300' : 'text-sky-300'}`}>
+                  {msg}
+                </p>
+              )}
             </div>
           ) : (
-
-            <div className="flex flex-col gap-1">
+            // 🤝 Передать в Возне — внутренняя передача предмета игроку (без TG).
+            <div className="flex flex-col gap-1.5">
               <p className="px-0.5 text-[11px] text-muted-foreground">
-                {panel === 'gift'
-                  ? 'Реальный Telegram-подарок получателю (должен был запускать бота).'
-                  : 'Передать предмет внутри Возни — решит судьбу сам.'}
+                Отдать предмет другому игроку ВНУТРИ Возни. Он окажется в его
+                инвентаре — без отправки в Telegram.
               </p>
               <div className="flex gap-1.5">
                 <input
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (panel === 'gift' ? gift() : transfer())}
-                  placeholder="@username или ID"
+                  onKeyDown={(e) => e.key === 'Enter' && transfer()}
+                  placeholder="@username или ID игрока"
                   autoFocus
                   className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-xs text-foreground outline-none focus:border-primary/50"
                 />
                 <button
-                  onClick={() => (panel === 'gift' ? gift() : transfer())}
+                  onClick={transfer}
                   disabled={busy || !recipient.trim()}
                   className="rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
                 >
-                  {state === 'gifting' || state === 'transferring' ? '…' : 'Отправить'}
-                </button>
-                <button
-                  onClick={() => { setPanel('none'); setState('idle'); setMsg('') }}
-                  disabled={busy}
-                  className="rounded-lg border border-white/15 bg-white/5 px-2 py-2 text-xs text-muted-foreground transition hover:bg-white/10 disabled:opacity-50"
-                >
-                  ✕
+                  {state === 'transferring' ? '…' : 'Передать'}
                 </button>
               </div>
+              <button
+                onClick={resetPanels}
+                className="self-start rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-white/10"
+              >
+                ← назад
+              </button>
+              {msg && (
+                <p className={`text-center text-[11px] ${state === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
+                  {msg}
+                </p>
+              )}
             </div>
           )}
-          {state === 'error' && <p className="text-center text-[11px] text-red-300">{msg}</p>}
+          {panel === 'none' && state === 'error' && (
+            <p className="text-center text-[11px] text-red-300">{msg}</p>
+          )}
         </div>
-
-
       ) : (
         <p className="text-center text-xs font-semibold text-emerald-300">
-          {state === 'sold' ? `Продано ${msg}` : `✅ ${msg}`}
+          {state === 'sold' ? `Продано ${msg}` : msg}
         </p>
       )}
     </div>
