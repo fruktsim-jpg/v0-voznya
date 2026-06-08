@@ -184,6 +184,18 @@ function GiftCard({
     }
   }
 
+  // «Поделиться в Telegram» — открывает нативный выбор чата Telegram с готовым
+  // текстом «лови подарок». Получатель тапает ссылку → бот узнаёт его user_id →
+  // выдаёт подарок. Это и есть «отправить кому угодно»: одним нажатием, без
+  // ручного копирования. Резолва @username у бота нет — ссылку инициирует
+  // получатель сам одним кликом.
+  function shareToTelegram() {
+    const text = `🎁 Лови подарок: ${item.name}! Жми, чтобы забрать в Telegram.`
+    const share = `https://t.me/share/url?url=${encodeURIComponent(linkUrl)}&text=${encodeURIComponent(text)}`
+    window.open(share, '_blank', 'noopener,noreferrer')
+  }
+
+
 
 
   async function sell() {
@@ -354,21 +366,30 @@ function GiftCard({
                 откроет её, запустит Возню и заберёт подарок.
               </p>
               {linkUrl ? (
-                <div className="flex gap-1.5">
-                  <input
-                    readOnly
-                    value={linkUrl}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-[11px] text-foreground outline-none"
-                  />
+                <div className="flex flex-col gap-1.5">
                   <button
-                    onClick={copyLink}
-                    className="rounded-lg border border-sky-400/50 bg-sky-400/10 px-3 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20"
+                    onClick={shareToTelegram}
+                    className="rounded-lg border border-sky-400/60 bg-sky-400/20 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-400/30"
                   >
-                    Копировать
+                    ✈️ Отправить в Telegram
                   </button>
+                  <div className="flex gap-1.5">
+                    <input
+                      readOnly
+                      value={linkUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-[11px] text-foreground outline-none"
+                    />
+                    <button
+                      onClick={copyLink}
+                      className="rounded-lg border border-sky-400/50 bg-sky-400/10 px-3 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20"
+                    >
+                      Копировать
+                    </button>
+                  </div>
                 </div>
               ) : (
+
                 <p className="text-center text-[11px] text-muted-foreground">
                   {state === 'gifting' ? 'Создаю ссылку…' : ' '}
                 </p>
