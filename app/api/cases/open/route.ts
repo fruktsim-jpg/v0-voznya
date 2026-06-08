@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
+import { isDbConfigured, query } from '@/lib/db'
+import { openCase } from '@/lib/cases-open'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,17 +10,17 @@ export const revalidate = 0
 /**
  * POST /api/cases/open — открыть кейс игроком с сайта.
  *
- * Сайт НЕ открывает кейс сам и НЕ дублирует экономику: вся выдача (CSPRNG,
- * блокировки строк, списание ешек, инкремент лимитов, выдача награды и
- * pending-конвейер Telegram Gifts/Premium, леджер открытий) живёт в боте в
- * единственной функции open_case. Этот роут — тонкий мост:
+ * Открытие выполняется НА СТОРОНЕ САЙТА, но против ОБЩЕЙ с ботом базы и в одной
+ * транзакции (lib/cases-open.openCase — точный порт open_case бота: CSPRNG,
+ * блокировки строк, списание ешек, инкремент лимитов, выдача награды,
+ * pending-конвейер Telegram Gifts/Premium, леджер открытий). Так сделано потому,
+ * что сайт (Vercel) не может достучаться до внутреннего API бота (отдельный VPS),
+ * а БД у них общая. Бот остаётся местом ручной выдачи pending-гифтов.
  *
- *   1) проверяет ПОДПИСАННУЮ player-сессию (кто открывает — берём из неё,
- *      а НЕ из тела запроса; иначе можно было бы открыть кейс за чужой счёт);
- *   2) проксирует запрос во внутренний API бота (общий секрет, docker-сеть);
- *   3) возвращает результат фронту для анимации и показа награды.
+ * Кто открывает — берём из ПОДПИСАННОЙ сессии (session.uid), а НЕ из тела
+ * запроса, иначе можно было бы открыть кейс за чужой счёт.
  *
- * Тело запроса: { caseItemCode: string }. user_id берём из сессии.
+ * Тело запроса: { caseItemCode: string }.
  */
 export async function POST(req: NextRequest) {
   const session = await getSession()
@@ -26,15 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const botUrl = process.env.BOT_INTERNAL_URL
-  const secret = process.env.BOT_INTERNAL_SECRET
-  if (!botUrl || !secret) {
-    // Мост не сконфигурирован — открытие через сайт недоступно (но витрина
-    // продолжает работать). Явная 503, чтобы фронт показал понятную ошибку.
-    return NextResponse.json(
-      { error: 'cases_open_unavailable' },
-      { status: 503 },
-    )
+  if (!isDbConfigured()) {
+    return NextResponse.json({ error: 'cases_open_unavailable' }, { status: 503 })
   }
 
   let body: { caseItemCode?: string }
@@ -49,26 +44,53 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${botUrl.replace(/\/$/, '')}/internal/cases/open`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Internal-Secret': secret,
-      },
-      body: JSON.stringify({
-        user_id: session.uid,
-        case_item_code: caseItemCode,
-      }),
-      // Внутренний вызов в docker-сети — короткий таймаут не нужен, но не висим.
-      signal: AbortSignal.timeout(15_000),
-      cache: 'no-store',
-    })
+    const r = await openCase(session.uid, caseItemCode)
 
-    const data = await res.json().catch(() => ({}))
-    // Прокидываем статус бота как есть (200/402/404/409/...), чтобы фронт мог
-    // различать «не хватает ешек» и «кейс выключен» без угадывания.
-    return NextResponse.json(data, { status: res.status })
-  } catch {
-    return NextResponse.json({ error: 'bot_unreachable' }, { status: 502 })
+    // HTTP-статус по бизнес-исходу — фронт различает причины без угадывания.
+    const statusMap: Record<string, number> = {
+      ok: 200,
+      not_found: 404,
+      inactive: 409,
+      no_key: 409,
+      not_enough: 402,
+      empty: 409,
+    }
+    const httpStatus = statusMap[r.status] ?? 200
+
+    // Для tg_gift добавляем ценность в Stars (для экрана результата).
+    let starCost: number | null = null
+    if (r.status === 'ok' && r.rewardKind === 'tg_gift' && r.rewardItemCode) {
+      try {
+        const rows = await query<{ star_cost: number | null }>(
+          `SELECT star_cost FROM gift_catalog WHERE code = $1`,
+          [r.rewardItemCode],
+        )
+        starCost = rows[0]?.star_cost == null ? null : Number(rows[0].star_cost)
+      } catch {
+        starCost = null
+      }
+    }
+
+    return NextResponse.json(
+      {
+        status: r.status,
+        caseName: r.caseName ?? null,
+        rewardKind: r.rewardKind ?? null,
+        rewardItemCode: r.rewardItemCode ?? null,
+        rewardItemName: r.rewardItemName ?? null,
+        rewardRarity: r.rewardRarity ?? null,
+        amount: r.amount ?? null,
+        qty: r.qty ?? 1,
+        isJackpot: Boolean(r.isJackpot),
+        balance: r.balance ?? null,
+        deliveryKey: r.deliveryKey ?? null,
+        starCost,
+      },
+      { status: httpStatus },
+    )
+  } catch (err) {
+    // Любая ошибка открытия → откат транзакции уже сделан в openCase.
+    console.error('cases/open failed', err)
+    return NextResponse.json({ status: 'error' }, { status: 500 })
   }
 }
