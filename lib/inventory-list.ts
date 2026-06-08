@@ -69,24 +69,24 @@ function sellValue(fullValue: number): number {
 }
 
 /**
- * Полная внутренняя стоимость pending-предмета в ешках — порт _item_full_value:
- *  - покупка магазина (есть transaction_id): база = price_eshki;
- *  - приз кейса (нет transaction_id): база = star_cost × ESHKI_PER_STAR.
- * star_cost берём из живого каталога, затем из слепка meta (на случай, если
- * позицию каталога удалили/переименовали после выпадения).
+ * Полная стоимость pending-предмета в ешках — порт _item_full_value (Release 2.2):
+ * ЕДИНЫЙ курс независимо от источника. База всегда цена магазина (price_eshki) —
+ * та же сумма, что показана как «ценность» и как цена в магазине. Фолбэк, когда
+ * price_eshki не задан: внутренняя стоимость star_cost × ESHKI_PER_STAR (каталог,
+ * затем слепок meta). Так в магазине и при продаже игрок видит один и тот же курс.
  */
 function itemFullValue(args: {
-  isShopPurchase: boolean
   priceEshki: number | null
   catalogStarCost: number | null
   metaStarCost: number | null
 }): number {
-  if (args.isShopPurchase) {
+  if ((args.priceEshki ?? 0) > 0) {
     return Math.max(0, args.priceEshki ?? 0)
   }
   const starCost = args.catalogStarCost ?? args.metaStarCost ?? 0
   return Math.max(0, starCost) * ESHKI_PER_STAR
 }
+
 
 /**
  * Собирает инвентарь игрока: стековые предметы + pending Gifts/Premium.
@@ -163,11 +163,11 @@ export async function getInventory(userId: number): Promise<InventoryView> {
         typeof meta.star_cost === 'number' ? (meta.star_cost as number) : null
       const priceEshki = r.price_eshki == null ? null : Number(r.price_eshki)
       const fullValue = itemFullValue({
-        isShopPurchase,
         priceEshki,
         catalogStarCost: r.star_cost == null ? null : Number(r.star_cost),
         metaStarCost,
       })
+
       const code = r.item_code ?? '?'
       const isPremium = /premium/i.test(code)
       items.push({

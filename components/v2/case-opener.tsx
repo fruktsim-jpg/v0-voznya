@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { rarityToken, type Rarity } from '@/lib/rarity'
 import type { RewardView } from '@/lib/cases-ux'
 import { notifyBalanceChanged } from '@/lib/balance-events'
-import { ITEM_SELL_RATE } from '@/lib/economy-rules'
+
 
 
 /**
@@ -44,8 +44,12 @@ type OpenResponse = {
   balance?: number | null
   deliveryKey?: string | null
   starCost?: number | null
+  // Единая стоимость (ешки) и сумма продажи (70%) — считает сервер (Release 2.2).
+  value?: number | null
+  sellAmount?: number | null
   error?: string
 }
+
 
 type Cell = {
   rarity: Rarity
@@ -130,12 +134,13 @@ function toWon(data: OpenResponse): Won {
       sellAmount: null,
     }
   }
-  if (kind === 'tg_gift') {
-    // Внутренняя стоимость в ешках = starCost × 10 (ESHKI_PER_STAR); сумма
-    // продажи = floor(value × ITEM_SELL_RATE). Совпадает с расчётом бота.
-    const value = data.starCost != null ? data.starCost * 10 : null
-    const sellAmount = value != null ? Math.floor(value * ITEM_SELL_RATE) : null
+    if (kind === 'tg_gift') {
+    // Стоимость и сумму продажи считает сервер (единый курс, Release 2.2) —
+    // фронт лишь отображает, не пересчитывает. starCost оставлен для подписи
+    // «ценность в ⭐».
+    const sellAmount = data.sellAmount ?? null
     return {
+
       kind,
       rarity: isJackpot || isPremium ? 'mythic' : 'legendary',
       icon: '🎁',

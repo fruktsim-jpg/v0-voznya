@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
 import { isDbConfigured, query } from '@/lib/db'
 import { openCase } from '@/lib/cases-open'
+import { ESHKI_PER_STAR, ITEM_SELL_RATE } from '@/lib/economy-rules'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,17 +59,27 @@ export async function POST(req: NextRequest) {
     }
     const httpStatus = statusMap[r.status] ?? 200
 
-    // Для tg_gift добавляем ценность в Stars (для экрана результата).
+    // Для tg_gift считаем ЕДИНУЮ стоимость и сумму продажи (Release 2.2):
+    // база = цена магазина price_eshki (фолбэк star_cost × курс). Тот же расчёт,
+    // что в инвентаре и при продаже — фронт не должен пересчитывать сам.
     let starCost: number | null = null
+    let value: number | null = null
+    let sellAmount: number | null = null
     if (r.status === 'ok' && r.rewardKind === 'tg_gift' && r.rewardItemCode) {
       try {
-        const rows = await query<{ star_cost: number | null }>(
-          `SELECT star_cost FROM gift_catalog WHERE code = $1`,
+        const rows = await query<{ star_cost: number | null; price_eshki: string | null }>(
+          `SELECT star_cost, price_eshki::text AS price_eshki
+             FROM gift_catalog WHERE code = $1`,
           [r.rewardItemCode],
         )
         starCost = rows[0]?.star_cost == null ? null : Number(rows[0].star_cost)
+        const priceEshki = rows[0]?.price_eshki == null ? 0 : Number(rows[0].price_eshki)
+        value = priceEshki > 0 ? priceEshki : (starCost ?? 0) * ESHKI_PER_STAR
+        sellAmount = Math.floor(Math.max(0, value) * ITEM_SELL_RATE)
       } catch {
         starCost = null
+        value = null
+        sellAmount = null
       }
     }
 
@@ -85,9 +97,12 @@ export async function POST(req: NextRequest) {
         balance: r.balance ?? null,
         deliveryKey: r.deliveryKey ?? null,
         starCost,
+        value,
+        sellAmount,
       },
       { status: httpStatus },
     )
+
   } catch (err) {
     // Любая ошибка открытия → откат транзакции уже сделан в openCase.
     console.error('cases/open failed', err)

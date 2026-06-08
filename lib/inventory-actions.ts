@@ -59,14 +59,15 @@ function sellValue(fullValue: number): number {
 }
 
 /**
- * Полная внутренняя стоимость — порт _item_full_value():
- *  - покупка магазина (transaction_id != null): price_eshki;
- *  - приз кейса: star_cost × ESHKI_PER_STAR (каталог → слепок meta).
+ * Полная стоимость — порт _item_full_value() (Release 2.2): ЕДИНЫЙ курс
+ * независимо от источника. База всегда цена магазина (price_eshki) — та же
+ * сумма, что в инвентаре и в магазине. Фолбэк (price_eshki не задан):
+ * star_cost × ESHKI_PER_STAR (каталог → слепок meta).
  */
 function itemFullValue(d: DeliveryRow, g: GiftRow | null): number {
-  const isShopPurchase = d.transaction_id !== null
-  if (isShopPurchase && g) {
-    return Math.max(0, g.price_eshki == null ? 0 : Number(g.price_eshki))
+  const priceEshki = g?.price_eshki == null ? 0 : Number(g.price_eshki)
+  if (priceEshki > 0) {
+    return Math.max(0, priceEshki)
   }
   let starCost = g?.star_cost == null ? 0 : Number(g.star_cost)
   if (starCost <= 0) {
@@ -75,6 +76,7 @@ function itemFullValue(d: DeliveryRow, g: GiftRow | null): number {
   }
   return Math.max(0, starCost) * ESHKI_PER_STAR
 }
+
 
 async function lockDelivery(
   client: PoolClient,
