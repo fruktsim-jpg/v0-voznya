@@ -323,7 +323,13 @@ function GiftCard({
           </p>
           <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: t.color }}>
             {item.isPremium ? '⭐ Telegram Premium' : rarityToken(item.rarity as Rarity).label}
+            {item.limited && (
+              <span className="ml-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">
+                лимит
+              </span>
+            )}
           </p>
+
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             Ценность: {fmt(item.value)} 🥚 · {item.source === 'case' ? 'из кейса' : 'из магазина'}
           </p>
