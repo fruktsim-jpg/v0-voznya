@@ -25,6 +25,10 @@ export function rewardRarity(r: ShowcaseReward): Rarity {
   let base: Rarity
   if (r.rewardKind === 'item') {
     base = normalizeRarity(r.rewardItemRarity)
+  } else if (r.rewardKind === 'tg_gift') {
+    // Реальный Telegram Gift / Premium — самые ценные награды кейса. Premium
+    // (джекпот) поднимется до legendary ниже; остальные гифты — минимум epic.
+    base = 'epic'
   } else {
     const amount = r.amount ?? 0
     base =
@@ -43,6 +47,7 @@ export function rewardRarity(r: ShowcaseReward): Rarity {
   return base
 }
 
+
 function maxRarity(a: Rarity, b: Rarity): Rarity {
   return RARITY_ORDER.indexOf(a) >= RARITY_ORDER.indexOf(b) ? a : b
 }
@@ -54,8 +59,10 @@ const fmt = (n: number) => n.toLocaleString('ru-RU')
 /** Человеческая подпись награды (без количества). */
 export function rewardLabel(r: ShowcaseReward): string {
   if (r.rewardKind === 'item') return r.rewardItemName ?? r.rewardItemCode ?? 'предмет'
+  if (r.rewardKind === 'tg_gift') return r.rewardItemName ?? r.rewardItemCode ?? 'подарок'
   return `${fmt(r.amount ?? 0)} ешек`
 }
+
 
 /** Подпись количества для награды (×N или диапазон), либо ''. */
 export function qtyLabel(r: ShowcaseReward): string {
@@ -77,6 +84,11 @@ export type CaseView = ShowcaseCase & {
   topReward: RewardView | null
   /** Суммарный шанс джекпот/лимит-наград (%), 0 если их нет. */
   jackpotChance: number
+  /** Суммарный шанс выпадения любого Telegram Gift (tg_gift), %. */
+  giftChance: number
+  /** Суммарный шанс выпадения Telegram Premium (любой срок), %. */
+  premiumChance: number
+
   /**
    * Полоса редкостей содержимого для «кейс-стейджа»: каждая награда — одна
    * плашка цвета своей редкости, в стабильном порядке от редкого к частому.
@@ -107,6 +119,14 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
   const jackpotChance = jackpotRewards.reduce((s, r) => s + r.chance, 0)
   const topReward = best[0] ?? null
 
+  // Шансы реальных Telegram-наград (для строк «шанс Gift / шанс Premium»).
+  const giftRewards = rewardsView.filter((r) => r.rewardKind === 'tg_gift')
+  const giftChance = giftRewards.reduce((s, r) => s + r.chance, 0)
+  const premiumChance = giftRewards
+    .filter((r) => /premium/i.test(r.rewardItemCode ?? ''))
+    .reduce((s, r) => s + r.chance, 0)
+
+
   // Каркас будущей рулетки: плашка на каждую награду, от редкого к частому.
   const rarityStrip = best.map((r) => r.rarity)
 
@@ -119,9 +139,12 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
     hasJackpot,
     topReward,
     jackpotChance,
+    giftChance,
+    premiumChance,
     rarityStrip,
   }
 }
+
 
 /** Подпись шанса в процентах с разумной точностью. */
 export function chanceLabel(pct: number): string {

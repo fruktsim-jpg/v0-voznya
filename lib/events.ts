@@ -1,9 +1,9 @@
 /**
- * Нормализованная модель события (VOZNYA_EVENTS_SYSTEM §2) + mock-данные для
- * UI-фундамента Phase 1. РЕАЛЬНОГО источника тут нет — это presentational mock,
- * чтобы строить Event Feed без БД/API/realtime. Позже `getCommunityFeed` будет
- * читать существующие таблицы (см. VOZNYA_EVENTS_SYSTEM §10), сигнатура та же.
+ * Нормализованная модель события (VOZNYA_EVENTS_SYSTEM §2): типы, фильтры,
+ * копирайтинг и хелперы времени. Реальный источник ленты — `lib/feed.ts`
+ * (`getCommunityFeed`, читает БД). Здесь только presentational-слой.
  */
+
 
 import type { Rarity } from '@/lib/rarity'
 
@@ -78,90 +78,8 @@ export function eventText(e: CommunityEvent): string {
   }
 }
 
-/** Mock-лента для Phase 1 (демонстрирует common / rare / epic / legendary). */
-export const MOCK_FEED: CommunityEvent[] = [
-  {
-    id: 'e1',
-    code: 'CASE_GIFT_DROP',
-    actor: { id: 1, name: 'Артём' },
-    rarity: 'mythic',
-    value: null,
-    occurredAt: new Date(Date.now() - 2 * 60_000).toISOString(),
-    icon: '🎁',
-  },
-  {
-    id: 'e2',
-    code: 'CASE_JACKPOT',
-    actor: { id: 2, name: 'Лена' },
-    rarity: 'legendary',
-    value: 5000,
-    occurredAt: new Date(Date.now() - 11 * 60_000).toISOString(),
-    icon: '💎',
-  },
-  {
-    id: 'e3',
-    code: 'MMR_RANK_UP',
-    actor: { id: 3, name: 'Влад' },
-    rarity: 'epic',
-    occurredAt: new Date(Date.now() - 23 * 60_000).toISOString(),
-    icon: '⬆️',
-  },
-  {
-    id: 'e4',
-    code: 'GIFT_PLAYER',
-    actor: { id: 4, name: 'Маша' },
-    target: { id: 5, name: 'Костя' },
-    rarity: 'rare',
-    occurredAt: new Date(Date.now() - 40 * 60_000).toISOString(),
-    icon: '💝',
-  },
-  {
-    id: 'e5',
-    code: 'CASINO_BIG_WIN',
-    actor: { id: 6, name: 'Денис' },
-    rarity: 'epic',
-    value: 12000,
-    occurredAt: new Date(Date.now() - 55 * 60_000).toISOString(),
-    icon: '🎰',
-  },
-  {
-    id: 'e6',
-    code: 'MARRIAGE_CREATED',
-    actor: { id: 7, name: 'Игорь' },
-    target: { id: 8, name: 'Оля' },
-    rarity: 'rare',
-    occurredAt: new Date(Date.now() - 70 * 60_000).toISOString(),
-    icon: '💍',
-  },
-  {
-    id: 'e7',
-    code: 'ACHIEVEMENT_UNLOCKED',
-    actor: { id: 9, name: 'Саша' },
-    rarity: 'uncommon',
-    occurredAt: new Date(Date.now() - 95 * 60_000).toISOString(),
-    icon: '🏆',
-  },
-  {
-    id: 'e8',
-    code: 'CASE_OPEN',
-    actor: { id: 10, name: 'Никита' },
-    rarity: 'common',
-    value: 150,
-    occurredAt: new Date(Date.now() - 130 * 60_000).toISOString(),
-    icon: '📦',
-  },
-  {
-    id: 'e9',
-    code: 'TREASURE_FOUND',
-    actor: { id: 11, name: 'Юля' },
-    rarity: 'uncommon',
-    value: 800,
-    occurredAt: new Date(Date.now() - 160 * 60_000).toISOString(),
-    icon: '🪙',
-  },
-]
-
 /** Относительное время «N мин/ч назад» (RU). */
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const min = Math.floor(diff / 60_000)

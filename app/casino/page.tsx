@@ -4,7 +4,7 @@ import { Section } from '@/components/v2/section'
 import { Card } from '@/components/v2/card'
 import { UserBadge } from '@/components/v2/user-badge'
 import { EmptyState } from '@/components/v2/empty-state'
-import { PageHero } from '@/components/v2/page-hero'
+import { ScreenHeader } from '@/components/v2/screen-header'
 
 
 export const dynamic = 'force-dynamic'
@@ -37,22 +37,9 @@ export default async function CasinoPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <PageHero
-        badge="Развлечение · внутри экосистемы"
-        icon="🎰"
-        title="Азартная часть"
-        accent="Возни"
-        description={
-          <>
-            Развлечение внутри экосистемы: кто сейчас в ударе, кто рискует и какие
-            ставки заходят. Играть можно в боте командой{' '}
-            <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/казино</code>.
-          </>
-        }
-      />
+      <ScreenHeader icon="🎰" title="Казино" />
 
-
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">
         {!hasActivity ? (
           <div className="mx-auto max-w-md">
             <EmptyState
@@ -154,10 +141,6 @@ export default async function CasinoPage() {
           </>
         )}
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          Казино — развлечение внутри Возни, а не её центр. Играй в меру. Все ставки
-          проходят через бота и фиксируются в экономике.
-        </p>
       </div>
     </main>
   )

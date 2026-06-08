@@ -67,20 +67,36 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
   const per = Math.max(limit, 20)
   const sql = `
     WITH feed AS (
-      -- Открытия кейсов
-      SELECT 'CASE_OPEN' AS code, co.id AS ev_id,
+      -- Открытия кейсов. Джекпот и Telegram Gift/Premium выделяем отдельными
+      -- кодами, чтобы витрина показывала «социальное доказательство» (кто-то
+      -- сорвал джекпот / выбил подарок), а не безликое «открыл кейс».
+      SELECT CASE
+               WHEN co.reward_kind = 'tg_gift' THEN 'CASE_GIFT_DROP'
+               WHEN cr.is_jackpot THEN 'CASE_JACKPOT'
+               ELSE 'CASE_OPEN'
+             END AS code,
+             co.id AS ev_id,
              co.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
              NULL::bigint AS target_id, NULL::text AS target_name,
-             co.amount AS value,
-             COALESCE(ii.rarity, 'common') AS rarity,
+             -- Для подарка показываем его ценность в Stars, иначе сумму ешек.
+             CASE WHEN co.reward_kind = 'tg_gift' THEN gc.star_cost
+                  ELSE co.amount END AS value,
+             CASE
+               WHEN co.reward_kind = 'tg_gift' THEN 'mythic'
+               WHEN cr.is_jackpot THEN 'legendary'
+               ELSE COALESCE(ii.rarity, 'common')
+             END AS rarity,
              co.created_at
         FROM case_openings co
         JOIN users u ON u.user_id = co.user_id
+        LEFT JOIN case_rewards cr ON cr.id = co.reward_id
         LEFT JOIN inventory_items ii ON ii.code = co.reward_item_code
+        LEFT JOIN gift_catalog gc ON gc.code = co.reward_item_code
        ORDER BY co.created_at DESC
        LIMIT ${per}
     )
+
     , gifts AS (
       SELECT CASE WHEN g.kind = 'tg_gift' THEN 'GIFT_DELIVERED'
                   WHEN g.gift_type = 'player' THEN 'GIFT_PLAYER'
@@ -230,14 +246,29 @@ export async function getUserFeed(
 ): Promise<CommunityEvent[]> {
   const sql = `
     WITH ev AS (
-      SELECT 'CASE_OPEN' AS code, co.id AS ev_id, co.user_id AS actor_id,
+      SELECT CASE
+               WHEN co.reward_kind = 'tg_gift' THEN 'CASE_GIFT_DROP'
+               WHEN cr.is_jackpot THEN 'CASE_JACKPOT'
+               ELSE 'CASE_OPEN'
+             END AS code,
+             co.id AS ev_id, co.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
              NULL::bigint AS target_id, NULL::text AS target_name,
-             co.amount AS value, COALESCE(ii.rarity, 'common') AS rarity, co.created_at
+             CASE WHEN co.reward_kind = 'tg_gift' THEN gc.star_cost
+                  ELSE co.amount END AS value,
+             CASE
+               WHEN co.reward_kind = 'tg_gift' THEN 'mythic'
+               WHEN cr.is_jackpot THEN 'legendary'
+               ELSE COALESCE(ii.rarity, 'common')
+             END AS rarity,
+             co.created_at
         FROM case_openings co
         JOIN users u ON u.user_id = co.user_id
+        LEFT JOIN case_rewards cr ON cr.id = co.reward_id
         LEFT JOIN inventory_items ii ON ii.code = co.reward_item_code
+        LEFT JOIN gift_catalog gc ON gc.code = co.reward_item_code
        WHERE co.user_id = $1
+
       UNION ALL
       SELECT 'ACHIEVEMENT_UNLOCKED', ua.user_id, ua.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),

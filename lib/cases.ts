@@ -19,7 +19,10 @@ export type ShowcaseReward = {
   limited: boolean
   // Probability in percent (weight / Σweight * 100), rounded for display.
   chance: number
+  // For tg_gift rewards — the gift's Stars cost (real value), else null.
+  starCost: number | null
 }
+
 
 export type ShowcaseCase = {
   itemCode: string
@@ -37,9 +40,12 @@ export type ShowcaseCase = {
  * the same gate the bot's get_active_cases() applies. Degrades to an empty
  * list if the cases tables are not migrated yet (migration 0016).
  *
- * Only item/currency rewards are shown — the same V1 scope the opener honors,
- * so the displayed odds match what can actually drop.
+ * item/currency/tg_gift rewards are all shown — the same scope the opener
+ * honors, so the displayed odds match what can actually drop. Telegram Gifts
+ * and Premium (tg_gift) are the most valuable drops, so hiding them would
+ * misrepresent the case's value.
  */
+
 export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
   let cases: {
     item_code: string
@@ -77,23 +83,29 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
     max_qty: number
     max_global_supply: number | null
     is_jackpot: boolean
+    star_cost: number | null
   }[] = []
   try {
     rewardRows = await query(
       `SELECT r.case_item_code, r.reward_kind, r.reward_item_code,
-              i.name AS reward_item_name, i.rarity AS reward_item_rarity,
+              COALESCE(i.name, g.name) AS reward_item_name,
+              i.rarity AS reward_item_rarity,
+              g.star_cost AS star_cost,
               r.amount, r.weight, r.min_qty, r.max_qty,
               r.max_global_supply, r.is_jackpot
          FROM case_rewards r
          LEFT JOIN inventory_items i ON i.code = r.reward_item_code
+         LEFT JOIN gift_catalog g ON g.code = r.reward_item_code
         WHERE r.case_item_code = ANY($1)
-          AND r.reward_kind IN ('item', 'currency')
+          AND r.reward_kind IN ('item', 'currency', 'tg_gift')
         ORDER BY r.weight DESC, r.id`,
       [codes],
     )
+
   } catch {
     rewardRows = []
   }
+
 
   const byCase = new Map<string, typeof rewardRows>()
   for (const r of rewardRows) {
@@ -117,7 +129,9 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
       isJackpot: r.is_jackpot,
       limited: r.max_global_supply != null,
       chance: (r.weight / total) * 100,
+      starCost: r.star_cost == null ? null : Number(r.star_cost),
     }))
+
     return {
       itemCode: c.item_code,
       name: c.name,
