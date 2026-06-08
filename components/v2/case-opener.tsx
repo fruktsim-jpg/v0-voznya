@@ -200,19 +200,35 @@ function GiftChoice({ won }: { won: Won }) {
         body: JSON.stringify({ deliveryKey: won.deliveryKey }),
       })
       const data = await res.json().catch(() => ({}))
-      if (res.ok && data.status === 'ok') {
-        if (optimistic === 'selling') {
+      // Продажа: единственный успех — ok.
+      if (optimistic === 'selling') {
+        if (res.ok && data.status === 'ok') {
           setState('sold')
           setMsg(`Продано +${fmt(data.amount ?? won.sellAmount ?? 0)} 🥚`)
           notifyBalanceChanged()
+          return
+        }
+        setState('error')
+        setMsg('Не получилось. Открой раздел «Инвентарь».')
+        return
+      }
+      // Вывод: авто-выдача — основной путь (Release 2.2). 200/202 = принято.
+      if (res.ok || res.status === 202) {
+        setState('withdrawn')
+        if (data.status === 'delivered') {
+          setMsg(won.isPremium ? '⭐ Premium отправлен!' : '✅ Подарок отправлен!')
+        } else if (data.status === 'cancelled') {
+          setMsg(data.refunded ? '↩️ Выдать не вышло — ешки возвращены.' : 'Отменено.')
+          notifyBalanceChanged()
         } else {
-          setState('withdrawn')
-          setMsg(won.isPremium ? '⭐ Заявка на Premium создана.' : '✅ В очереди на выдачу.')
+          // pending / queued
+          setMsg('⏳ В очереди на выдачу — придёт в Telegram.')
         }
         return
       }
       setState('error')
       setMsg('Не получилось. Открой раздел «Инвентарь».')
+
     } catch {
       setState('error')
       setMsg('Сеть недоступна.')

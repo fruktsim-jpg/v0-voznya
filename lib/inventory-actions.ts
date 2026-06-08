@@ -33,10 +33,15 @@ export type SellResult = {
 }
 
 export type WithdrawResult = {
-  status: 'ok' | 'not_found' | 'not_pending'
+  // ok — заявка принята (флаг выставлен, выдаст воркер);
+  // delivered — выдан сразу (бот подтвердил авто-выдачу);
+  // pending — временная ошибка, повторит воркер;
+  // cancelled — постоянная ошибка, оформлен возврат.
+  status: 'ok' | 'delivered' | 'pending' | 'cancelled' | 'not_found' | 'not_pending'
   giftCode?: string | null
   error?: string
 }
+
 
 type DeliveryRow = {
   id: number

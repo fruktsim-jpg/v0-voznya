@@ -76,10 +76,29 @@ function GiftCard({
         body: JSON.stringify({ deliveryKey: item.deliveryKey }),
       })
       const data = await res.json().catch(() => ({}))
-      if (res.ok && data.status === 'ok') {
-        setState('withdrawn')
-        setMsg(item.isPremium ? 'Заявка на Premium создана.' : 'В очереди на выдачу.')
-        return
+      // Авто-выдача — основной путь (Release 2.2). Возможные статусы:
+      //   delivered — выдан сразу → убираем из активного инвентаря;
+      //   cancelled — постоянная ошибка + возврат → тоже убираем (вернулись ешки);
+      //   pending/queued — выдаст фоновый воркер, оставляем с пометкой.
+      if (res.ok || res.status === 202) {
+        if (data.status === 'delivered') {
+          setState('withdrawn')
+          setMsg(item.isPremium ? '⭐ Premium отправлен!' : '✅ Подарок отправлен!')
+          window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
+          return
+        }
+        if (data.status === 'cancelled') {
+          setState('withdrawn')
+          setMsg(data.refunded ? '↩️ Выдать не вышло — ешки возвращены.' : 'Отменено.')
+          notifyBalanceChanged()
+          window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
+          return
+        }
+        if (data.status === 'pending' || data.status === 'queued') {
+          setState('withdrawn')
+          setMsg('⏳ В очереди на выдачу — придёт в Telegram.')
+          return
+        }
       }
       setState('error')
       setMsg(data.status === 'not_pending' ? 'Предмет уже обработан.' : 'Не получилось.')
@@ -88,6 +107,7 @@ function GiftCard({
       setMsg('Сеть недоступна.')
     }
   }
+
 
   const done = state === 'sold' || state === 'withdrawn'
 
