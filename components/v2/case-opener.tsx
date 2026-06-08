@@ -3,6 +3,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { rarityToken, type Rarity } from '@/lib/rarity'
 import type { RewardView } from '@/lib/cases-ux'
+import { notifyBalanceChanged } from '@/lib/balance-events'
+import { ITEM_SELL_RATE } from '@/lib/economy-rules'
+
 
 /**
  * CaseOpener — CS-style рулетка открытия кейса прямо на сайте.
@@ -98,7 +101,11 @@ type Won = {
   isPremium: boolean
   starCost: number | null
   balance: number | null
+  // Для tg_gift — ключ pending-доставки и сумма продажи (P1: оставить/продать/вывести).
+  deliveryKey: string | null
+  sellAmount: number | null
 }
+
 
 /** Ответ сервера → карточка выигрыша. */
 function toWon(data: OpenResponse): Won {
@@ -119,19 +126,27 @@ function toWon(data: OpenResponse): Won {
       isPremium: false,
       starCost: null,
       balance: data.balance ?? null,
+      deliveryKey: null,
+      sellAmount: null,
     }
   }
   if (kind === 'tg_gift') {
+    // Внутренняя стоимость в ешках = starCost × 10 (ESHKI_PER_STAR); сумма
+    // продажи = floor(value × ITEM_SELL_RATE). Совпадает с расчётом бота.
+    const value = data.starCost != null ? data.starCost * 10 : null
+    const sellAmount = value != null ? Math.floor(value * ITEM_SELL_RATE) : null
     return {
       kind,
       rarity: isJackpot || isPremium ? 'mythic' : 'legendary',
       icon: '🎁',
       title: data.rewardItemName ?? data.rewardItemCode ?? 'Подарок',
-      subtitle: '🎁 Заявка создана — подарок выдадут вручную.',
+      subtitle: '🎁 Подарок в инвентаре — реши его судьбу ниже.',
       isJackpot,
       isPremium,
       starCost: data.starCost ?? null,
       balance: data.balance ?? null,
+      deliveryKey: data.deliveryKey ?? null,
+      sellAmount,
     }
   }
   const qty = data.qty && data.qty > 1 ? ` ×${data.qty}` : ''
@@ -145,10 +160,93 @@ function toWon(data: OpenResponse): Won {
     isPremium: false,
     starCost: null,
     balance: data.balance ?? null,
+    deliveryKey: null,
+    sellAmount: null,
   }
 }
 
+
 type Phase = 'idle' | 'spinning' | 'revealed' | 'error'
+
+type ChoiceState = 'idle' | 'selling' | 'withdrawing' | 'sold' | 'withdrawn' | 'error'
+
+/**
+ * GiftChoice — экран решения судьбы выпавшего подарка прямо в результате
+ * открытия (P1): Оставить (предмет уже в инвентаре) / Продать за N (мгновенно
+ * +ешки) / Вывести (заявка на реальную выдачу). Зеркалит ботовый экран выбора.
+ * Действия бьют в те же серверные ручки, что и страница инвентаря.
+ */
+function GiftChoice({ won }: { won: Won }) {
+  const [state, setState] = useState<ChoiceState>('idle')
+  const [msg, setMsg] = useState('')
+  const busy = state === 'selling' || state === 'withdrawing'
+  const done = state === 'sold' || state === 'withdrawn'
+
+  if (!won.deliveryKey) return null
+
+  async function call(path: string, optimistic: ChoiceState) {
+    if (busy) return
+    setState(optimistic)
+    setMsg('')
+    try {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryKey: won.deliveryKey }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.status === 'ok') {
+        if (optimistic === 'selling') {
+          setState('sold')
+          setMsg(`Продано +${fmt(data.amount ?? won.sellAmount ?? 0)} 🥚`)
+          notifyBalanceChanged()
+        } else {
+          setState('withdrawn')
+          setMsg(won.isPremium ? '⭐ Заявка на Premium создана.' : '✅ В очереди на выдачу.')
+        }
+        return
+      }
+      setState('error')
+      setMsg('Не получилось. Открой раздел «Инвентарь».')
+    } catch {
+      setState('error')
+      setMsg('Сеть недоступна.')
+    }
+  }
+
+  if (done) {
+    return <p className="mt-2 text-center text-xs font-semibold text-emerald-300">{msg}</p>
+  }
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
+        <a
+          href="/inventory"
+          className="rounded-lg border border-white/15 bg-white/5 py-2 text-center text-xs font-bold text-foreground transition hover:bg-white/10"
+        >
+          Оставить
+        </a>
+        <button
+          onClick={() => call('/api/inventory/sell', 'selling')}
+          disabled={busy || won.sellAmount == null}
+          className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-50"
+        >
+          {state === 'selling' ? '…' : won.sellAmount != null ? `Продать ${fmt(won.sellAmount)}` : 'Продать'}
+        </button>
+        <button
+          onClick={() => call('/api/inventory/withdraw', 'withdrawing')}
+          disabled={busy}
+          className="rounded-lg border border-primary/50 bg-primary/10 py-2 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+        >
+          {state === 'withdrawing' ? '…' : won.isPremium ? 'Активировать' : 'Вывести'}
+        </button>
+      </div>
+      {state === 'error' && <p className="text-center text-[11px] text-red-300">{msg}</p>}
+    </div>
+  )
+}
+
 
 export function CaseOpener({
   caseItemCode,
@@ -217,10 +315,15 @@ export function CaseOpener({
         return
       }
 
+      // Баланс мог измениться (списание стоимости + валютная награда) — обновляем
+      // чип в шапке сразу, без F5 (P5). Анимация крутится, число уже актуально.
+      notifyBalanceChanged()
+
       const w = toWon(data)
       const winCell: Cell = { rarity: w.rarity, icon: w.icon, label: w.title }
       const newReel = buildReel(winCell)
       setReel(newReel)
+
 
       // Центрируем WIN_INDEX под риской. Контейнер центрируется через CSS
       // (риска по центру), поэтому конечный сдвиг = позиция ячейки минус
@@ -317,6 +420,8 @@ export function CaseOpener({
             <span className="mt-0.5 text-xs text-muted-foreground">{won.subtitle}</span>
           )}
         </div>
+        {/* Для подарка/Premium — экран выбора судьбы (P1): Оставить/Продать/Вывести. */}
+        {won.kind === 'tg_gift' && won.deliveryKey && <GiftChoice won={won} />}
         <button
           onClick={open}
           className="mt-2 w-full rounded-xl border border-primary/50 bg-primary/10 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
@@ -326,6 +431,7 @@ export function CaseOpener({
       </div>
     )
   }
+
 
   // ---- РУЛЕТКА (спин) ----
   if (phase === 'spinning') {

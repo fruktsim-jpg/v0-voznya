@@ -47,7 +47,14 @@ const I = {
       <path d="M5 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5" />
     </>
   ),
+  inventory: (
+    <>
+      <path d="M4 7h16v13H4zM4 7l2-3h12l2 3" />
+      <path d="M9 11h6" />
+    </>
+  ),
 }
+
 
 // Профиль намеренно НЕ дублируется здесь: вход в профиль и его разделы живёт
 // в меню пользователя (верхний правый угол). Так нижний бар не повторяет то,
@@ -57,9 +64,10 @@ const ITEMS: Item[] = [
   { href: '/live', label: 'Live', icon: I.live, match: (p) => p.startsWith('/live') },
 
   { href: '/cases', label: 'Кейсы', icon: I.cases, match: (p) => p.startsWith('/cases') },
-  { href: '/gifts', label: 'Подарки', icon: I.gifts, match: (p) => p.startsWith('/gifts') },
-  { href: '/casino', label: 'Казино', icon: I.casino, match: (p) => p.startsWith('/casino') },
+  { href: '/inventory', label: 'Инвентарь', icon: I.inventory, match: (p) => p.startsWith('/inventory') },
+  { href: '/gifts', label: 'Магазин', icon: I.gifts, match: (p) => p.startsWith('/gifts') || p.startsWith('/shop') },
 ]
+
 
 
 function NavIcon({ children, active }: { children: ReactNode; active: boolean }) {

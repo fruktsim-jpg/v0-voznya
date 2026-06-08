@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TelegramLoginButton } from '@/components/auth/telegram-login-button'
+import { onBalanceChanged } from '@/lib/balance-events'
 
 type Summary =
   | { authenticated: false }
@@ -52,7 +53,7 @@ function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
 
   if (data.registered) {
     items.push(
-      { kind: 'link', id: 'inventory', label: '🎒 Инвентарь', href: `${profile}#inventory` },
+      { kind: 'link', id: 'inventory', label: '🎒 Инвентарь', href: '/inventory' },
       { kind: 'link', id: 'achievements', label: '🏆 Достижения', href: `${profile}#achievements` },
     )
   }
@@ -60,8 +61,9 @@ function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
   items.push(
     { kind: 'divider', id: 'd-shop' },
     { kind: 'link', id: 'cases', label: '📦 Кейсы', href: '/cases' },
-    { kind: 'link', id: 'gifts', label: '🎁 Подарки', href: '/gifts' },
+    { kind: 'link', id: 'gifts', label: '🛒 Магазин', href: '/gifts' },
   )
+
 
   if (data.isAdmin) {
     items.push(
@@ -92,7 +94,10 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
   const [data, setData] = useState<Summary | null>(null)
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
+  // Re-fetch the summary (balance/rank). Called on mount AND whenever a balance
+  // changing action fires notifyBalanceChanged() — so the header chip updates in
+  // real time after a case open / sell / shop buy, без F5 (P5).
+  const refresh = useCallback(() => {
     let alive = true
     fetch('/api/me/summary', { cache: 'no-store' })
       .then((r) => (r.ok ? (r.json() as Promise<Summary>) : Promise.reject()))
@@ -100,12 +105,18 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
         if (alive) setData(d)
       })
       .catch(() => {
-        if (alive) setData({ authenticated: false })
+        if (alive) setData((prev) => prev ?? { authenticated: false })
       })
     return () => {
       alive = false
     }
   }, [])
+
+  useEffect(() => refresh(), [refresh])
+
+  // Live balance updates: any action that changes eshki dispatches the event.
+  useEffect(() => onBalanceChanged(refresh), [refresh])
+
 
   // Initial state — render a spacer to avoid layout flash.
   if (data === null) {
