@@ -65,12 +65,14 @@ export default async function AdminLayout({
     { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
     { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
     { href: '/admin/gifts/deliveries', label: 'Доставки', emoji: '📦' },
+    { href: '/admin/settings', label: 'Настройки', emoji: '⚙️' },
     { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
   ]
   const soon: { label: string; emoji: string }[] = [
     { label: 'Магазин', emoji: '🛒' },
     { label: 'Роли', emoji: '🔑' },
   ]
+
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-header pb-10">
