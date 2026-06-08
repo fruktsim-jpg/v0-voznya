@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+
 import { getSession } from '@/lib/auth/get-session'
 import { isDbConfigured } from '@/lib/db'
 import { createGiftClaimLink } from '@/lib/inventory-actions'
@@ -27,14 +28,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'inventory_unavailable' }, { status: 503 })
   }
 
-  // Имя бота для сборки t.me-ссылки. Без него ссылку не построить.
+  // Имя бота для сборки t.me-ссылки. Используем ту же переменную, что и экран
+  // привязки аккаунта (/link → NEXT_PUBLIC_TELEGRAM_BOT_USERNAME). Доп. фолбэки
+  // оставлены на случай иной конфигурации. Без имени бота ссылку не построить.
   const botUsername = (
+    process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ||
     process.env.NEXT_PUBLIC_BOT_USERNAME ||
     process.env.BOT_USERNAME ||
     ''
   )
     .trim()
     .replace(/^@/, '')
+
   if (!botUsername) {
     return NextResponse.json({ error: 'bot_username_not_configured' }, { status: 503 })
   }
