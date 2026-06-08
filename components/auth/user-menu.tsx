@@ -143,11 +143,13 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
             {initial}
           </span>
         )}
-        <span className="max-w-[6rem] truncate sm:max-w-[9rem]">{displayName}</span>
-        {/* Balance chip — самое ценное число под рукой. Только для
-            зарегистрированных и только на sm+, чтобы не переполнять мобайл. */}
+        {/* Имя прячем на мобиле, чтобы освободить место под баланс — в
+            приложении важнее видеть деньги, чем своё имя. */}
+        <span className="hidden max-w-[6rem] truncate sm:inline sm:max-w-[9rem]">{displayName}</span>
+        {/* Balance chip — самое ценное число под рукой. Видно ВЕЗДЕ (в т.ч. на
+            мобиле): игрок не должен заходить в профиль, чтобы узнать баланс. */}
         {data.registered && data.balance !== null && (
-          <span className="hidden items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200 sm:inline-flex">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
             {formatEsh(data.balance)} 🥚
           </span>
         )}

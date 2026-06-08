@@ -3,9 +3,10 @@ import { CollectibleTile } from '@/components/v2/collectible'
 import type { ShowcaseGift } from '@/lib/gifts'
 
 /**
- * GiftCard (V3, Polish Pass) — Telegram Gift поверх единого CollectibleTile,
- * чтобы подарки, награды, достижения и предметы читались как один мир.
- * Метки лимитки/остатка/«забрали N», цена в ешках цветом редкости.
+ * GiftCard (App Redesign V1) — Telegram Gift поверх единого CollectibleTile,
+ * чтобы подарки, награды, достижения и предметы читались как один мир. Плотная
+ * карточка: только название, цена цветом редкости и метка лимитки/низкого
+ * остатка. Описание и «забрали N» убраны как шум, не влияющий на решение.
  */
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -18,7 +19,6 @@ export function GiftCard({ gift }: { gift: ShowcaseGift }) {
     <CollectibleTile
       icon={gift.icon}
       title={gift.name}
-      subtitle={gift.description ?? undefined}
       rarity={gift.rarity}
       badge
       topRight={
@@ -36,14 +36,11 @@ export function GiftCard({ gift }: { gift: ShowcaseGift }) {
           >
             {fmt(gift.priceEshki)} ешек
           </span>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            {gift.remaining != null && (
-              <span className={lowStock ? 'font-semibold text-amber-300' : ''}>
-                {lowStock ? `🔥 осталось ${fmt(gift.remaining)}` : `осталось ${fmt(gift.remaining)}`}
-              </span>
-            )}
-            {gift.soldCount > 0 && <span>· забрали {fmt(gift.soldCount)}</span>}
-          </div>
+          {lowStock && gift.remaining != null && (
+            <span className="text-[11px] font-semibold text-amber-300">
+              🔥 осталось {fmt(gift.remaining)}
+            </span>
+          )}
         </div>
       }
     />

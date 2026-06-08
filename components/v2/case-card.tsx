@@ -1,18 +1,20 @@
-import { rarityToken, type Rarity } from '@/lib/rarity'
+'use client'
+
+import { Drawer } from 'vaul'
+import { rarityToken } from '@/lib/rarity'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { chanceLabel, qtyLabel, type CaseView, type RewardView } from '@/lib/cases-ux'
 import { CaseOpener } from '@/components/v2/case-opener'
 
-
 /**
- * CaseCard (V3, поверхность №5) — витрина кейса с акцентом на ЦЕННОСТИ наград,
- * не на открытии. Визуальный язык выровнен под `CollectibleTile` (единый мир
- * коллекционных объектов Возни): `glass`-поверхность, лёгкий hover-подъём,
- * капсула с радиальным свечением цвета редкости, бейдж редкости тира. Кейс
- * сохраняет уникальный контент — список лучших наград. Server component.
- * Контейнер `data-case-stage` зарезервирован под будущую анимацию открытия.
+ * CaseCard (App Redesign V1) — ПЛОТНАЯ карточка-витрина решения. На экране
+ * телефона помещается 3+ кейса. Карточка показывает только то, что нужно для
+ * решения «крутить или нет»: название, цена, главный джекпот, шанс Gift, шанс
+ * Premium, кнопка открытия. Всё остальное (полный дроп-лист, описание, редкости)
+ * живёт в bottom-sheet, который открывается по тапу. Открытие (рулетка) тоже
+ * происходит в шите — спокойная сетка карточек не прыгает. Экономика/RNG —
+ * по-прежнему в боте через open_case.
  */
-
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
@@ -22,26 +24,18 @@ function costLabel(c: CaseView): string {
   return 'бесплатно'
 }
 
+/** Строка награды в полном дроп-листе (внутри шита). */
 function RewardRow({ r }: { r: RewardView }) {
   const t = rarityToken(r.rarity)
   const qty = qtyLabel(r)
   return (
     <li
       className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
-      style={{
-        borderColor: r.rarity === 'common' ? 'rgba(255,255,255,0.08)' : `${t.color}66`,
-      }}
+      style={{ borderColor: r.rarity === 'common' ? 'rgba(255,255,255,0.08)' : `${t.color}66` }}
     >
       <span aria-hidden="true">
-        {r.isJackpot
-          ? '💎'
-          : r.rewardKind === 'currency'
-            ? '💰'
-            : r.rewardKind === 'tg_gift'
-              ? '🎁'
-              : '🎖️'}
+        {r.isJackpot ? '💎' : r.rewardKind === 'currency' ? '💰' : r.rewardKind === 'tg_gift' ? '🎁' : '🎖️'}
       </span>
-
       <span className="min-w-0 flex-1 truncate text-foreground">
         {r.label}
         {qty && <span className="ml-1 text-muted-foreground">{qty}</span>}
@@ -55,182 +49,122 @@ function RewardRow({ r }: { r: RewardView }) {
   )
 }
 
-/**
- * Кейс-стейдж: горизонтальная полоса плашек редкостей содержимого с маской по
- * краям и центральной риской-указателем. Чистая декорация (никакого RNG/исхода)
- * и одновременно визуальный каркас будущей рулетки — она ляжет в этот же блок.
- */
-function RarityStrip({ strip }: { strip: Rarity[] }) {
-  // Дублируем полосу, чтобы она выглядела «длинной лентой лута» даже на 3–4
-  // наградах. Порядок (от редкого к частому) повторяется — это превью, не RNG.
-  const cells = strip.length > 0 ? [...strip, ...strip, ...strip] : []
-  if (cells.length === 0) return null
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 overflow-hidden">
-      <div
-        className="flex h-full items-stretch gap-1 px-1"
-        style={{
-          maskImage:
-            'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
-          WebkitMaskImage:
-            'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
-        }}
-      >
-        {cells.map((r, i) => {
-          const t = rarityToken(r)
-          return (
-            <span
-              key={i}
-              className="h-full flex-1 rounded-sm"
-              style={{
-                minWidth: 14,
-                backgroundColor: `${t.color}26`,
-                borderTop: `2px solid ${t.color}`,
-              }}
-            />
-          )
-        })}
-      </div>
-      {/* Центральная риска-указатель — куда «остановится» будущая рулетка. */}
-      <span
-        aria-hidden="true"
-        className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/70"
-      />
-    </div>
-  )
-}
-
 export function CaseCard({ caseView }: { caseView: CaseView }) {
   const c = caseView
   const top = rarityToken(c.topRarity)
-  const preview = c.best.slice(0, 4)
-
   const accent = c.topRarity !== 'common'
 
   return (
-    <article
-      className="glass group relative flex flex-col overflow-hidden rounded-3xl border border-border p-5 transition hover:-translate-y-0.5"
-      style={{
-        borderColor: accent ? top.color : undefined,
-        boxShadow: accent ? top.glow || undefined : undefined,
-      }}
-    >
-      {/* Свечение-фон цвета редкости (как в CollectibleTile) */}
-      {accent && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-8 left-1/2 h-28 w-28 -translate-x-1/2 rounded-full opacity-40 blur-3xl transition group-hover:opacity-60"
-          style={{ backgroundColor: top.color }}
-        />
-      )}
-
-      {/* Капсула кейса (под будущую анимацию открытия) */}
-      <div
-        data-case-stage={c.itemCode}
-        className="relative mb-4 flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-white/10"
-        style={{
-          background: `radial-gradient(circle at 50% 35%, ${top.color}33, transparent 70%)`,
-        }}
-      >
-        <span className="text-6xl drop-shadow-lg transition group-hover:scale-110" aria-hidden="true">
-          📦
-        </span>
-
-        {c.hasJackpot && (
-          <span className="absolute right-2 top-2 z-10 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
-            💎 джекпот
-          </span>
-        )}
-
-        {/* Лента редкостей содержимого — каркас будущей рулетки. */}
-        <RarityStrip strip={c.rarityStrip} />
-      </div>
-
-      {/* Заголовок + стоимость */}
-      <div className="mb-1 flex items-start justify-between gap-2">
-        <h3 className="truncate text-lg font-bold text-foreground">{c.name}</h3>
-        <span
-          className="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold"
-          style={{ borderColor: `${top.color}66`, color: top.color }}
+    <Drawer.Root>
+      <Drawer.Trigger asChild>
+        <article
+          className="glass group relative flex w-full cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border border-border p-3 text-left transition active:scale-[0.99]"
+          style={{
+            borderColor: accent ? `${top.color}99` : undefined,
+          }}
         >
-          {costLabel(c)}
-        </span>
-      </div>
-      {c.description && <p className="mb-3 text-sm text-muted-foreground">{c.description}</p>}
+          {/* Строка 1: иконка + название + цена */}
+          <div className="flex items-center gap-2.5">
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-2xl"
+              style={{ background: `radial-gradient(circle at 50% 35%, ${top.color}33, transparent 70%)` }}
+              aria-hidden="true"
+            >
+              📦
+            </span>
+            <h3 className="min-w-0 flex-1 truncate text-base font-bold text-foreground">{c.name}</h3>
+            <span
+              className="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold"
+              style={{ borderColor: `${top.color}66`, color: top.color }}
+            >
+              {costLabel(c)}
+            </span>
+          </div>
 
-      {/* Шанс редкого выпадения — мера ценности */}
-      {c.rareChance > 0 && (
-        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Шанс редкой награды</span>
-          <span className="font-semibold" style={{ color: top.color }}>
-            {chanceLabel(c.rareChance)}
+          {/* Строка 2: главный джекпот */}
+          {c.hasJackpot && c.topReward && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-200">
+              <span aria-hidden="true">💎</span>
+              <span className="min-w-0 flex-1 truncate">{c.topReward.label}</span>
+              {c.jackpotChance > 0 && (
+                <span className="shrink-0 font-mono font-semibold text-amber-300">
+                  {chanceLabel(c.jackpotChance)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Строка 3: шансы Gift / Premium */}
+          {(c.giftChance > 0 || c.premiumChance > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              {c.giftChance > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.08] px-2 py-0.5 text-[11px] font-semibold text-fuchsia-200">
+                  🎁 Gift {chanceLabel(c.giftChance)}
+                </span>
+              )}
+              {c.premiumChance > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2 py-0.5 text-[11px] font-semibold text-amber-200">
+                  ⭐ Premium {chanceLabel(c.premiumChance)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Кнопка открытия (тап открывает шит, где идёт рулетка) */}
+          <span className="mt-0.5 block w-full rounded-xl border border-primary/50 bg-primary/10 py-2 text-center text-sm font-bold text-primary">
+            Открыть · {costLabel(c)}
           </span>
-        </div>
-      )}
+        </article>
+      </Drawer.Trigger>
 
-      {/* Шансы реальных Telegram-наград — главный крючок кейса */}
-      {(c.giftChance > 0 || c.premiumChance > 0) && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {c.giftChance > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.08] px-2.5 py-1 text-[11px] font-semibold text-fuchsia-200">
-              🎁 Telegram Gift {chanceLabel(c.giftChance)}
-            </span>
-          )}
-          {c.premiumChance > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-              ⭐ Premium {chanceLabel(c.premiumChance)}
-            </span>
-          )}
-        </div>
-      )}
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[70] mt-24 flex max-h-[90vh] flex-col rounded-t-3xl border-t border-border bg-background outline-none">
+          <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-white/20" />
+          <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3">
+            {/* Шапка деталей */}
+            <div className="mb-3 flex items-center gap-3">
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-3xl"
+                style={{ background: `radial-gradient(circle at 50% 35%, ${top.color}33, transparent 70%)` }}
+                aria-hidden="true"
+              >
+                📦
+              </span>
+              <div className="min-w-0 flex-1">
+                <Drawer.Title className="truncate text-lg font-bold text-foreground">{c.name}</Drawer.Title>
+                <div className="text-xs text-muted-foreground">{costLabel(c)}</div>
+              </div>
+            </div>
 
+            {c.description && (
+              <p className="mb-3 text-sm text-muted-foreground">{c.description}</p>
+            )}
 
-      {/* Шанс джекпота / топ-дропа — «ради чего крутить» */}
-      {c.hasJackpot && c.topReward && (
-        <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-2.5 py-1.5 text-xs">
-          <span className="flex min-w-0 items-center gap-1.5 text-amber-200">
-            <span aria-hidden="true">💎</span>
-            <span className="truncate">{c.topReward.label}</span>
-          </span>
-          {c.jackpotChance > 0 && (
-            <span className="shrink-0 font-mono font-semibold text-amber-300">
-              {chanceLabel(c.jackpotChance)}
-            </span>
-          )}
-        </div>
-      )}
+            {/* Открытие прямо в шите */}
+            <CaseOpener caseItemCode={c.itemCode} costLabel={costLabel(c)} rewards={c.rewardsView} />
 
-      {/* Превью лучших наград (ценность вперёд) */}
-      {preview.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Содержимое скоро появится.</p>
-      ) : (
-        <>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Лучшие награды
-          </h4>
-          <ul className="space-y-1.5">
-            {preview.map((r, idx) => (
-              <RewardRow key={`${r.rewardItemCode ?? r.rewardKind}-${idx}`} r={r} />
-            ))}
-          </ul>
-          {c.rewardsView.length > preview.length && (
-            <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              и ещё {c.rewardsView.length - preview.length} наград внутри
+            {/* Полный дроп-лист */}
+            {c.rewardsView.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Содержимое · {c.rewardsView.length} наград
+                </h4>
+                <ul className="space-y-1.5">
+                  {c.best.map((r, idx) => (
+                    <RewardRow key={`${r.rewardItemCode ?? r.rewardKind}-${idx}`} r={r} />
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="mt-4 text-center text-[11px] text-muted-foreground">
+              Шансы — из весов дроп-листа, каждое открытие в проверяемом логе.
+              Лимитированные награды ограничены по количеству.
             </p>
-          )}
-        </>
-      )}
-
-      {/* Открытие кейса прямо с сайта (клиентский компонент). Экономика и RNG
-          считаются в боте через open_case — здесь только анимация и показ. */}
-      <CaseOpener
-        caseItemCode={c.itemCode}
-        costLabel={costLabel(c)}
-        rewards={c.rewardsView}
-      />
-
-    </article>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }
-
-

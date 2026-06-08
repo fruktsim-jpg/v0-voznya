@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Card } from '@/components/v2/card'
 import { Section } from '@/components/v2/section'
 import { ActivityCard } from '@/components/v2/activity-card'
@@ -112,10 +111,9 @@ export function ProfileV2({
       rarity: 'legendary',
     })
 
+  // Статистика БЕЗ дублей с hero-статами (баланс/достижения уже в шапке).
   const stats = [
-    { icon: '💰', value: profile.balance, label: 'баланс' },
     { icon: '📈', value: profile.totalEarned, label: 'всего заработано' },
-    { icon: '🏆', value: profile.achievementsUnlocked, label: 'достижений' },
     { icon: '⚔️', value: profile.duelsWon, label: 'побед в дуэлях' },
     { icon: '🪙', value: profile.treasuresFound, label: 'кладов' },
     { icon: '🔥', value: profile.maxFarmStreak, label: 'макс. стрик' },
@@ -127,48 +125,45 @@ export function ProfileV2({
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background pb-12">
-      {/* ===== HERO ===== */}
+      {/* ===== HERO (компактный, app-feel) ===== */}
       <section className="relative">
-        {/* Обложка */}
-        <div className="relative h-40 w-full overflow-hidden sm:h-52">
+        {/* Обложка — тонкая, чисто как акцент, не пол-экрана */}
+        <div className="relative h-20 w-full overflow-hidden sm:h-24">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-500/15 to-transparent" />
           <div
             aria-hidden="true"
-            className="absolute -top-16 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/25 blur-[110px]"
+            className="absolute -top-16 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-primary/25 blur-[100px]"
           />
         </div>
 
-        <div className="mx-auto -mt-16 max-w-4xl px-4 sm:-mt-20 sm:px-6">
-          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-end sm:text-left">
+        <div className="mx-auto -mt-10 max-w-4xl px-4 sm:px-6">
+          <div className="flex items-end gap-3 text-left">
             {/* Аватар */}
             <div className="relative">
-              <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-primary/20 text-4xl font-bold text-primary ring-4 ring-background sm:h-32 sm:w-32">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20 text-3xl font-bold text-primary ring-4 ring-background sm:h-24 sm:w-24">
                 {initial}
               </div>
             </div>
 
             {/* Имя + титул */}
             <div className="min-w-0 flex-1 pb-1">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
                 {profile.firstName}
               </h1>
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                   {titleText}
                 </span>
                 {profile.username && (
-                  <span className="text-sm text-muted-foreground">@{profile.username}</span>
+                  <span className="text-xs text-muted-foreground">@{profile.username}</span>
                 )}
               </div>
-              {since && (
-                <p className="mt-1 text-xs text-muted-foreground">В Возне с {since}</p>
-              )}
             </div>
           </div>
 
           {/* Ключевые показатели статуса — без скролла.
               MMR + место в рейтинге + баланс + достижения: статусность профиля. */}
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
             <HeroStat icon="🏅" value={profile.mmr != null ? fmt(profile.mmr) : '—'} label="MMR" accent />
             <HeroStat
               icon="📊"
@@ -318,7 +313,7 @@ export function ProfileV2({
                 <EmptyState icon="📜" title="История пуста" description="Скоро здесь появятся события." />
               ) : (
                 <ul className="space-y-2">
-                  {activity.slice(0, 20).map((e) => (
+                  {activity.slice(0, 6).map((e) => (
                     <li key={e.id}>
                       <ActivityCard event={e} />
                     </li>
@@ -329,15 +324,6 @@ export function ProfileV2({
           </>
         )}
 
-        <div className="pt-4 text-center">
-          <Link
-            href="/live"
-            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-
-          >
-            ← К жизни сообщества
-          </Link>
-        </div>
       </div>
     </main>
   )
