@@ -20,7 +20,9 @@ import 'server-only'
 import { query } from './db'
 import { giftRarity, giftIcon } from './gifts-ux'
 import { ESHKI_PER_STAR, ITEM_SELL_RATE } from './economy-rules'
+import { isLimitedGiftId } from './limited-gifts'
 import type { Rarity } from './rarity'
+
 
 // Какие предметы пользователь видит и какие действия доступны.
 export type InventoryStackItem = {
@@ -46,8 +48,11 @@ export type InventoryGiftItem = {
   icon: string
   // Признак Premium (особые действия: активировать/подарить — пока вручную).
   isPremium: boolean
+  // Лимитный (сезонный collectible) — по канону telegram_gift_id.
+  limited: boolean
   // Полная внутренняя стоимость в ешках и сумма продажи (70%).
   value: number
+
   sellAmount: number
   // Источник: 'case' (приз кейса) | 'shop' (покупка магазина).
   source: 'case' | 'shop'
@@ -143,12 +148,14 @@ export async function getInventory(userId: number): Promise<InventoryView> {
       gift_name: string | null
       price_eshki: string | null
       star_cost: number | null
+      telegram_gift_id: string | null
     }>(
       `SELECT gt.idempotency_key, gt.item_code, gt.transaction_id, gt.meta,
               gt.created_at,
               gc.name AS gift_name, gc.price_eshki::text AS price_eshki,
-              gc.star_cost
+              gc.star_cost, gc.telegram_gift_id
          FROM gift_transactions gt
+
          LEFT JOIN gift_catalog gc ON gc.code = gt.item_code
         WHERE gt.kind = 'tg_gift'
           AND gt.recipient_user_id = $1
@@ -170,16 +177,22 @@ export async function getInventory(userId: number): Promise<InventoryView> {
 
       const code = r.item_code ?? '?'
       const isPremium = /premium/i.test(code)
+      // Лимитность — по канону telegram_gift_id (единый источник истины), а не
+      // «всё pending лимитное», как было раньше.
+      const limited = isLimitedGiftId(r.telegram_gift_id)
       items.push({
         kind: 'gift',
         deliveryKey: r.idempotency_key,
         itemCode: code,
         name: r.gift_name ?? code,
-        // Premium — самый ценный тир (мифический), остальные — легендарные.
-        rarity: isPremium ? 'mythic' : giftRarity(fullValue, { limited: true }),
+        // Premium — самый ценный тир (мифический); обычные/лимитные — по цене
+        // с поднятием тира для лимитки.
+        rarity: isPremium ? 'mythic' : giftRarity(fullValue, { limited }),
         icon: isPremium ? '⭐' : giftIcon(code),
         isPremium,
+        limited,
         value: fullValue,
+
         sellAmount: sellValue(fullValue),
         source: isShopPurchase ? 'shop' : 'case',
         status: 'pending',

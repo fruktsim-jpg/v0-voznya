@@ -6,7 +6,9 @@ import 'server-only'
 
 import { query } from './db'
 import { giftRarity, giftIcon } from './gifts-ux'
+import { isLimitedGiftId } from './limited-gifts'
 import type { Rarity } from './rarity'
+
 
 export type ShowcaseGift = {
   code: string
@@ -38,11 +40,12 @@ export async function getShowcaseGifts(): Promise<ShowcaseGift[]> {
     stock: number | null
     reserved: number
     sold_count: number
+    telegram_gift_id: string | null
   }[]
   try {
     rows = await query(
       `SELECT code, name, description, price_eshki::text AS price_eshki,
-              stock, reserved, sold_count
+              stock, reserved, sold_count, telegram_gift_id
          FROM gift_catalog
         WHERE is_active = true
         ORDER BY price_eshki, sort_order, name`,
@@ -57,7 +60,10 @@ export async function getShowcaseGifts(): Promise<ShowcaseGift[]> {
       r.stock == null ? null : r.stock - r.reserved - r.sold_count
     if (remaining != null && remaining <= 0) continue // sold out
     const priceEshki = Number(r.price_eshki)
-    const limited = r.stock != null
+    // Лимитность — по канону telegram_gift_id (единый источник истины), а НЕ по
+    // наличию stock: у сезонных collectible-подарков stock=NULL.
+    const limited = isLimitedGiftId(r.telegram_gift_id)
+
     out.push({
       code: r.code,
       name: r.name,
