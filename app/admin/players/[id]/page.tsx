@@ -4,8 +4,14 @@ import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { roleLabel } from '@/lib/admin-format'
+import {
+  loadPlayerDiagnostics,
+  loadPlayerActivity,
+} from '@/lib/player-analytics'
 import { PlayerActions } from './actions'
 import { PlayerGifts, type PlayerGift } from './player-gifts'
+import { ActivityFeed } from './activity-feed'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -148,9 +154,16 @@ export default async function PlayerPage({
       : Promise.resolve([] as CaseOpeningRow[]),
   ])
 
+  // Diagnostics + unified activity feed (read-only, degrade to zeros/[]).
+  const [diag, activity] = await Promise.all([
+    loadPlayerDiagnostics(userId),
+    loadPlayerActivity(userId, 80),
+  ])
+
   const p = profileRows[0]
   const mmr = mmrRows[0]?.mmr != null ? Number(mmrRows[0].mmr) : null
   const reputation = repRows[0]?.rep != null ? Number(repRows[0].rep) : null
+
 
   const canEconomy =
     hasPermission(session.role, PERM.ECONOMY_ADD) ||
@@ -176,6 +189,25 @@ export default async function PlayerPage({
     { emoji: '📉', label: 'Потрачено', value: fmt(p.total_spent), tone: 'text-foreground' },
     { emoji: '💬', label: 'Сообщений', value: fmt(p.messages_count), tone: 'text-sky-200' },
   ]
+  if (diag.starsBalance != null) {
+    stats.push({
+      emoji: '⭐',
+      label: 'Stars',
+      value: fmt(diag.starsBalance),
+      tone: 'text-yellow-200',
+    })
+  }
+
+  // Quick diagnostic metrics — the questions support asks most often.
+  const quick: { emoji: string; label: string; value: string; tone: string }[] = [
+    { emoji: '🎁', label: 'Кейсов открыто', value: fmt(diag.casesOpened), tone: 'text-foreground' },
+    { emoji: '⭐', label: 'Premium выбито', value: fmt(diag.premiumWon), tone: 'text-yellow-200' },
+    { emoji: '💎', label: 'Лимиток выбито', value: fmt(diag.limitedWon), tone: 'text-fuchsia-200' },
+    { emoji: '🎰', label: 'Проиграно в казино', value: fmt(diag.casinoLost), tone: 'text-destructive-foreground' },
+    { emoji: '🍀', label: 'Выиграно в казино', value: fmt(diag.casinoWon), tone: 'text-emerald-300' },
+    { emoji: '🛒', label: 'Потрачено в магазине', value: fmt(diag.shopSpent), tone: 'text-amber-200' },
+  ]
+
 
 
   return (
@@ -216,9 +248,27 @@ export default async function PlayerPage({
         </div>
       </div>
 
+      {/* Quick diagnostic metrics — top-of-card answers for support */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+        {quick.map((s) => (
+          <div key={s.label} className="glass rounded-2xl border border-border p-3.5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{s.emoji}</span>
+              <div className="min-w-0">
+                <div className={`text-lg font-bold ${s.tone}`}>{s.value}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {s.label}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Stat tiles */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
         {stats.map((s) => (
+
           <div key={s.label} className="glass rounded-2xl border border-border p-3.5">
             <div className="flex items-center gap-2">
               <span className="text-lg">{s.emoji}</span>
@@ -345,6 +395,16 @@ export default async function PlayerPage({
           )}
         </section>
       )}
+
+      {/* Unified activity feed — all events on one filterable timeline */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          История ({activity.length})
+        </h2>
+        <ActivityFeed events={activity} />
+      </section>
     </div>
   )
 }
+
+
