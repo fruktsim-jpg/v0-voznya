@@ -40,12 +40,27 @@ export type WithdrawResult = {
 
 type DeliveryRow = {
   id: number
-  recipient_user_id: number
+  // ВНИМАНИЕ: BIGINT-колонки node-postgres отдаёт СТРОКОЙ (oid 20), а не number.
+  // Поэтому сравнивать с userId (number) можно только через Number()-приведение —
+  // иначе строгое `!==` всегда истинно и владелец «не совпадает» (см. ownerMatches).
+  recipient_user_id: string | number
   item_code: string | null
+  // transaction_id тоже BIGINT → строка|null.
+  transaction_id: string | number | null
   status: string
-  transaction_id: number | null
   meta: Record<string, unknown> | null
 }
+
+/** Владелец доставки == текущий игрок (с приведением BIGINT-строки к number). */
+function ownerMatches(row: DeliveryRow, userId: number): boolean {
+  return Number(row.recipient_user_id) === userId
+}
+
+/** Покупка магазина: есть денежная проводка (BIGINT-строка ИЛИ number, не null). */
+function isShopPurchase(row: DeliveryRow): boolean {
+  return row.transaction_id !== null && row.transaction_id !== undefined
+}
+
 
 type GiftRow = {
   code: string
@@ -115,7 +130,7 @@ export async function sellInventoryItem(
   return withTransaction(async (client) => {
     const d = await lockDelivery(client, deliveryKey)
     if (!d) return { status: 'not_found', error: 'delivery_not_found' }
-    if (d.recipient_user_id !== userId) {
+    if (!ownerMatches(d, userId)) {
       // Не твой предмет — ведём себя как «не найдено» (не раскрываем чужое).
       return { status: 'not_found', error: 'not_owner' }
     }
@@ -124,6 +139,7 @@ export async function sellInventoryItem(
     }
 
     const giftCode = d.item_code ?? ''
+
     const gift = giftCode ? await getGift(client, giftCode) : null
     const fullValue = itemFullValue(d, gift)
     const amount = sellValue(fullValue)
@@ -161,7 +177,8 @@ export async function sellInventoryItem(
     )
 
     // Освободить резерв каталога для покупки магазина (приз кейса не занимал).
-    if (d.transaction_id !== null) {
+    if (isShopPurchase(d)) {
+
       await client.query(
         `UPDATE gift_catalog SET reserved = reserved - 1
           WHERE code = $1 AND reserved > 0`,
@@ -199,7 +216,7 @@ export async function withdrawInventoryItem(
   return withTransaction(async (client) => {
     const d = await lockDelivery(client, deliveryKey)
     if (!d) return { status: 'not_found', error: 'delivery_not_found' }
-    if (d.recipient_user_id !== userId) {
+    if (!ownerMatches(d, userId)) {
       return { status: 'not_found', error: 'not_owner' }
     }
     if (d.status !== 'pending') {
@@ -207,6 +224,7 @@ export async function withdrawInventoryItem(
     }
 
     const meta = {
+
       ...(d.meta ?? {}),
       withdraw_requested: true,
       withdraw_channel: 'site',

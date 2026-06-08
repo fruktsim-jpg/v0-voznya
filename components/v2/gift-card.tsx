@@ -1,6 +1,8 @@
 import { rarityToken } from '@/lib/rarity'
 import { CollectibleTile } from '@/components/v2/collectible'
+import { GiftBuyButton } from '@/components/v2/gift-buy-button'
 import type { ShowcaseGift } from '@/lib/gifts'
+
 
 /**
  * GiftCard (App Redesign V1) — Telegram Gift поверх единого CollectibleTile,
@@ -41,8 +43,12 @@ export function GiftCard({ gift }: { gift: ShowcaseGift }) {
               🔥 осталось {fmt(gift.remaining)}
             </span>
           )}
+          {/* Рабочая покупка (Release 2.2): подарок уходит в инвентарь как
+              pending, дальше игрок решает — хранить/продать/вывести. */}
+          <GiftBuyButton code={gift.code} priceEshki={gift.priceEshki} color={t.color} />
         </div>
       }
+
     />
   )
 }
