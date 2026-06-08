@@ -1,9 +1,14 @@
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { query } from '@/lib/db'
-import { DeliveriesManager, type AdminDelivery } from './deliveries-manager'
+import {
+  DeliveriesManager,
+  type AdminDelivery,
+  type DeliveryStats,
+} from './deliveries-manager'
 
 export const dynamic = 'force-dynamic'
+
 
 /**
  * Gift deliveries admin page. Gates on gift.view, loads the pending queue
@@ -52,7 +57,52 @@ export default async function AdminGiftDeliveriesPage() {
     deliveries = []
   }
 
+  // All-time delivery stats for the header (graceful on un-migrated DBs).
+  let initialStats: DeliveryStats | null = null
+  try {
+    const s = await query<{
+      total: string
+      completed: string
+      pending: string
+      cancelled: string
+      failed: string
+      premium: string
+      limited: string
+    }>(
+      `SELECT COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE gt.status = 'completed')::text AS completed,
+              COUNT(*) FILTER (WHERE gt.status = 'pending')::text AS pending,
+              COUNT(*) FILTER (WHERE gt.status = 'cancelled')::text AS cancelled,
+              COUNT(*) FILTER (
+                WHERE gt.status = 'pending'
+                  AND COALESCE((gt.meta->>'attempts')::int, 0) > 0
+              )::text AS failed,
+              COUNT(*) FILTER (
+                WHERE gt.item_code IN ('gift_premium_3m', 'gift_premium_6m')
+              )::text AS premium,
+              COUNT(*) FILTER (WHERE ii.is_limited)::text AS limited
+         FROM gift_transactions gt
+         LEFT JOIN inventory_items ii ON ii.code = gt.item_code
+        WHERE gt.kind = 'tg_gift'`,
+    )
+    const r = s[0]
+    if (r) {
+      initialStats = {
+        total: Number(r.total),
+        completed: Number(r.completed),
+        pending: Number(r.pending),
+        cancelled: Number(r.cancelled),
+        failed: Number(r.failed),
+        premium: Number(r.premium),
+        limited: Number(r.limited),
+      }
+    }
+  } catch {
+    initialStats = null
+  }
+
   return (
+
     <div>
       <div className="mb-1 flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-foreground sm:text-2xl">Доставки подарков</h1>
@@ -73,7 +123,9 @@ export default async function AdminGiftDeliveriesPage() {
       <DeliveriesManager
         initialDeliveries={deliveries}
         initialStatus="pending"
+        initialStats={initialStats}
         canManage={canManage}
+
       />
     </div>
   )

@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { query, withTransaction } from '@/lib/db'
 import { getAdminSession, writeAudit } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
+import { requestGiftDelivery } from '@/lib/bot-client'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,7 +47,15 @@ type DeliveryRow = {
   price_eshki: string | null
   recipient_name: string | null
   recipient_username: string | null
+  // Diagnostics surfaced from meta (no migration — bot already writes these).
+  gift_type: string | null // player / system / admin
+  source: string | null // case / gift_buy / gifted / admin
+  attempts: number | null // failed auto-delivery attempts
+  last_error: string | null // last sendGift error
+  gifted_to: string | null // recipient handle for "gift to friend"
+  transaction_eshki: string | null // amount paid (currency gift) or null
 }
+
 
 export async function GET(req: NextRequest) {
   const session = await getAdminSession()
@@ -65,18 +75,45 @@ export async function GET(req: NextRequest) {
     ''
 
   // Whitelist statuses (matches GIFT_STATUSES in the bot). "all" = no filter.
-  const allowed = new Set(['pending', 'completed', 'cancelled', 'all'])
+  // "failed" is a DERIVED view of pending rows that already errored at least
+  // once on auto-delivery (meta.attempts > 0) — the bot has no separate failed
+  // status, a temporary sendGift failure stays pending and accrues attempts.
+  const allowed = new Set([
+    'pending',
+    'completed',
+    'cancelled',
+    'failed',
+    'all',
+  ])
   if (!allowed.has(status)) {
     return NextResponse.json({ error: 'invalid status' }, { status: 400 })
   }
 
+  // Optional source filter: case / shop / gifted / admin (derived from meta).
+  const sourceFilter = req.nextUrl.searchParams.get('source')?.trim() || ''
+
   try {
     const conditions: string[] = [`gt.kind = 'tg_gift'`]
     const params: unknown[] = []
-    if (status !== 'all') {
+    if (status === 'failed') {
+      conditions.push(`gt.status = 'pending'`)
+      conditions.push(`COALESCE((gt.meta->>'attempts')::int, 0) > 0`)
+    } else if (status !== 'all') {
       params.push(status)
       conditions.push(`gt.status = $${params.length}`)
     }
+    if (sourceFilter === 'case') {
+      conditions.push(`gt.meta->>'source' = 'case'`)
+    } else if (sourceFilter === 'admin') {
+      conditions.push(`gt.gift_type = 'admin'`)
+    } else if (sourceFilter === 'gifted') {
+      conditions.push(`gt.meta ? 'gifted_to'`)
+    } else if (sourceFilter === 'shop') {
+      conditions.push(
+        `(gt.gift_type <> 'admin' AND COALESCE(gt.meta->>'source','') <> 'case' AND NOT (gt.meta ? 'gifted_to'))`,
+      )
+    }
+
     if (queryRaw) {
       // Numeric query → exact recipient id OR name/username match.
       // Non-numeric query → name/username match only. ILIKE handles a leading
@@ -114,7 +151,13 @@ export async function GET(req: NextRequest) {
               gc.name                                AS gift_name,
               gc.price_eshki                         AS price_eshki,
               u.first_name                           AS recipient_name,
-              u.username                             AS recipient_username
+              u.username                             AS recipient_username,
+              gt.gift_type                           AS gift_type,
+              gt.meta->>'source'                     AS source,
+              COALESCE((gt.meta->>'attempts')::int, 0) AS attempts,
+              gt.meta->>'last_error'                 AS last_error,
+              gt.meta->>'gifted_to'                  AS gifted_to,
+              gt.amount::text                        AS transaction_eshki
          FROM gift_transactions gt
          LEFT JOIN gift_catalog gc ON gc.code = gt.item_code
          LEFT JOIN users u ON u.user_id = gt.recipient_user_id
@@ -124,7 +167,57 @@ export async function GET(req: NextRequest) {
         LIMIT 200`,
       params,
     )
-    return NextResponse.json({ deliveries })
+
+    // Period stats for the header (independent of the status/source filter).
+    // 'period' = 24h | 7d | 30d | all (default all). Failed = pending+attempts.
+    const period = req.nextUrl.searchParams.get('period')?.trim() || 'all'
+    const since =
+      period === '24h'
+        ? `now() - interval '24 hours'`
+        : period === '7d'
+          ? `now() - interval '7 days'`
+          : period === '30d'
+            ? `now() - interval '30 days'`
+            : null
+    const where = `gt.kind = 'tg_gift'${since ? ` AND gt.created_at >= ${since}` : ''}`
+    const statRows = await query<{
+      total: string
+      completed: string
+      pending: string
+      cancelled: string
+      failed: string
+      premium: string
+      limited: string
+    }>(
+      `SELECT COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE gt.status = 'completed')::text AS completed,
+              COUNT(*) FILTER (WHERE gt.status = 'pending')::text AS pending,
+              COUNT(*) FILTER (WHERE gt.status = 'cancelled')::text AS cancelled,
+              COUNT(*) FILTER (
+                WHERE gt.status = 'pending'
+                  AND COALESCE((gt.meta->>'attempts')::int, 0) > 0
+              )::text AS failed,
+              COUNT(*) FILTER (
+                WHERE gt.item_code IN ('gift_premium_3m', 'gift_premium_6m')
+              )::text AS premium,
+              COUNT(*) FILTER (WHERE ii.is_limited)::text AS limited
+         FROM gift_transactions gt
+         LEFT JOIN inventory_items ii ON ii.code = gt.item_code
+        WHERE ${where}`,
+    )
+    const s = statRows[0]
+    const stats = {
+      total: Number(s?.total ?? 0),
+      completed: Number(s?.completed ?? 0),
+      pending: Number(s?.pending ?? 0),
+      cancelled: Number(s?.cancelled ?? 0),
+      failed: Number(s?.failed ?? 0),
+      premium: Number(s?.premium ?? 0),
+      limited: Number(s?.limited ?? 0),
+    }
+
+    return NextResponse.json({ deliveries, stats })
+
   } catch {
     // Migration not applied yet — degrade to empty list (keeps page alive).
     return NextResponse.json({ deliveries: [] })
@@ -140,7 +233,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  let body: { idempotencyKey?: string; action?: 'complete' | 'refund'; reason?: string }
+  let body: {
+    idempotencyKey?: string
+    action?: 'complete' | 'refund' | 'retry'
+    reason?: string
+  }
   try {
     body = await req.json()
   } catch {
@@ -154,11 +251,59 @@ export async function POST(req: NextRequest) {
   if (!key || key.length > 64) {
     return NextResponse.json({ error: 'invalid idempotencyKey' }, { status: 400 })
   }
-  if (action !== 'complete' && action !== 'refund') {
-    return NextResponse.json({ error: 'action must be complete or refund' }, { status: 400 })
+  if (action !== 'complete' && action !== 'refund' && action !== 'retry') {
+    return NextResponse.json(
+      { error: 'action must be complete, refund or retry' },
+      { status: 400 },
+    )
   }
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
+
+  // RETRY = ask the bot to attempt the REAL Telegram sendGift again (the only
+  // process holding the token + Stars). We look up the recipient, call the
+  // bot's internal API, write an audit row, and let the bot's own logic update
+  // the delivery (completed / still pending / cancelled+refund). If the bot is
+  // unreachable we say so instead of silently doing nothing.
+  if (action === 'retry') {
+    const rows = await query<{ recipient_user_id: string; status: string }>(
+      `SELECT recipient_user_id, status FROM gift_transactions
+        WHERE idempotency_key = $1 AND kind = 'tg_gift'`,
+      [key],
+    )
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'delivery not found' }, { status: 404 })
+    }
+    if (rows[0].status !== 'pending') {
+      return NextResponse.json(
+        { error: 'delivery already processed (not pending)' },
+        { status: 409 },
+      )
+    }
+    const recipientId = Number(rows[0].recipient_user_id)
+    const res = await requestGiftDelivery(recipientId, key)
+
+    await writeAudit({
+      actorUserId: session.uid,
+      actorRole: session.role,
+      action: 'gift.delivery_retry',
+      targetUserId: recipientId,
+      targetType: 'gift_delivery',
+      targetId: key,
+      reason,
+      meta: { result: res.status, error: res.error ?? null },
+      ip,
+    })
+
+    if (res.status === 'unreachable') {
+      return NextResponse.json(
+        { error: 'бот недоступен — повтор выдачи невозможен сейчас' },
+        { status: 503 },
+      )
+    }
+    return NextResponse.json({ ok: true, ...res })
+  }
+
 
   try {
     const result = await withTransaction(async (client) => {

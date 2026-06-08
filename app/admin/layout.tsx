@@ -64,8 +64,9 @@ export default async function AdminLayout({
     { href: '/admin/economy', label: 'Экономика', emoji: '💹' },
     { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
     { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
-    { href: '/admin/gifts/deliveries', label: 'Доставки', emoji: '📦' },
+    { href: '/admin/deliveries', label: 'Доставки', emoji: '📦' },
     { href: '/admin/settings', label: 'Настройки', emoji: '⚙️' },
+
     { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
   ]
   const soon: { label: string; emoji: string }[] = [
