@@ -19,7 +19,15 @@ import type { InventoryItem, InventoryGiftItem } from '@/lib/inventory-list'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
-type ActionState = 'idle' | 'selling' | 'withdrawing' | 'sold' | 'withdrawn' | 'error'
+type ActionState =
+  | 'idle'
+  | 'selling'
+  | 'withdrawing'
+  | 'gifting'
+  | 'sold'
+  | 'withdrawn'
+  | 'gifted'
+  | 'error'
 
 function GiftCard({
   item,
@@ -30,8 +38,46 @@ function GiftCard({
 }) {
   const [state, setState] = useState<ActionState>('idle')
   const [msg, setMsg] = useState<string>('')
+  const [showGift, setShowGift] = useState(false)
+  const [recipient, setRecipient] = useState('')
   const t = rarityToken(item.rarity as Rarity)
-  const busy = state === 'selling' || state === 'withdrawing'
+  const busy = state === 'selling' || state === 'withdrawing' || state === 'gifting'
+
+  async function gift() {
+    const to = recipient.trim()
+    if (busy || !to) return
+    setState('gifting')
+    setMsg('')
+    try {
+      const res = await fetch('/api/inventory/gift', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryKey: item.deliveryKey, recipient: to }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.status === 'ok') {
+        setState('gifted')
+        const who = data.recipientUsername ? `@${data.recipientUsername}` : to
+        setMsg(`🎁 Передано ${who}`)
+        window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
+        return
+      }
+      setState('error')
+      setMsg(
+        data.status === 'recipient_not_found'
+          ? 'Игрок не найден в Возне.'
+          : data.status === 'self_transfer'
+            ? 'Нельзя подарить самому себе.'
+            : data.status === 'not_pending'
+              ? 'Предмет уже обработан.'
+              : 'Не получилось передать.',
+      )
+    } catch {
+      setState('error')
+      setMsg('Сеть недоступна.')
+    }
+  }
+
 
   async function sell() {
     if (busy) return
@@ -109,7 +155,8 @@ function GiftCard({
   }
 
 
-  const done = state === 'sold' || state === 'withdrawn'
+  const done = state === 'sold' || state === 'withdrawn' || state === 'gifted'
+
 
   return (
     <div
@@ -156,8 +203,38 @@ function GiftCard({
               {state === 'withdrawing' ? '…' : item.isPremium ? 'Активировать' : 'Вывести'}
             </button>
           </div>
+          {/* Подарить по @username — переназначение получателя (универсально
+              для подарков/Premium/будущих товаров). */}
+          {!showGift ? (
+            <button
+              onClick={() => setShowGift(true)}
+              disabled={busy}
+              className="rounded-lg border border-white/15 bg-white/5 py-2 text-xs font-bold text-foreground transition hover:bg-white/10 disabled:opacity-50"
+            >
+              🎁 Подарить другу
+            </button>
+          ) : (
+            <div className="flex gap-1.5">
+              <input
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && gift()}
+                placeholder="@username или ID"
+                autoFocus
+                className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-xs text-foreground outline-none focus:border-primary/50"
+              />
+              <button
+                onClick={gift}
+                disabled={busy || !recipient.trim()}
+                className="rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
+              >
+                {state === 'gifting' ? '…' : 'Отправить'}
+              </button>
+            </div>
+          )}
           {state === 'error' && <p className="text-center text-[11px] text-red-300">{msg}</p>}
         </div>
+
       ) : (
         <p className="text-center text-xs font-semibold text-emerald-300">
           {state === 'sold' ? `Продано ${msg}` : `✅ ${msg}`}

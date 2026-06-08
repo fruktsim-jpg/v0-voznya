@@ -242,3 +242,105 @@ export async function withdrawInventoryItem(
     return { status: 'ok', giftCode: d.item_code }
   })
 }
+
+export type GiftTransferResult = {
+  // ok — передан; recipient_* — кому ушёл (для подтверждения в UI).
+  status:
+    | 'ok'
+    | 'not_found'
+    | 'not_pending'
+    | 'recipient_not_found'
+    | 'self_transfer'
+  giftCode?: string | null
+  recipientUserId?: number | null
+  recipientUsername?: string | null
+  error?: string
+}
+
+/** Нормализует ввод получателя: @username | username | числовой Telegram ID. */
+function parseRecipient(raw: string): { username?: string; userId?: number } {
+  const v = raw.trim()
+  if (/^\d{4,}$/.test(v)) return { userId: Number(v) }
+  const uname = v.replace(/^@/, '').toLowerCase()
+  return { username: uname }
+}
+
+/**
+ * Передаёт pending-предмет другому игроку по @username или Telegram ID (P0).
+ *
+ * Универсально для ЛЮБОГО pending gift_transactions (Telegram Gift, Premium,
+ * будущие товары): подарок ещё не выдан в Telegram, поэтому «передача» — это
+ * переназначение получателя (recipient_user_id) на нового игрока. Дальше новый
+ * владелец сам решает судьбу (Оставить / Вывести / Продать / Передать).
+ *
+ * Получатель должен существовать в users (быть в Возне). Нельзя передать самому
+ * себе и не-pending предмет. Владелец — из подписанной сессии (senderId).
+ * Идемпотентность через FOR UPDATE строки доставки.
+ */
+export async function giftInventoryItem(
+  senderId: number,
+  deliveryKey: string,
+  recipientRaw: string,
+): Promise<GiftTransferResult> {
+  return withTransaction(async (client) => {
+    const d = await lockDelivery(client, deliveryKey)
+    if (!d) return { status: 'not_found', error: 'delivery_not_found' }
+    if (!ownerMatches(d, senderId)) {
+      return { status: 'not_found', error: 'not_owner' }
+    }
+    if (d.status !== 'pending') {
+      return { status: 'not_pending', giftCode: d.item_code }
+    }
+
+    // Найти получателя по username или числовому id.
+    const parsed = parseRecipient(recipientRaw)
+    let recipient: { user_id: string; username: string | null } | null = null
+    if (parsed.userId != null) {
+      const r = await client.query<{ user_id: string; username: string | null }>(
+        `SELECT user_id, username FROM users WHERE user_id = $1`,
+        [parsed.userId],
+      )
+      recipient = r.rows[0] ?? null
+    } else if (parsed.username) {
+      const r = await client.query<{ user_id: string; username: string | null }>(
+        `SELECT user_id, username FROM users WHERE lower(username) = $1`,
+        [parsed.username],
+      )
+      recipient = r.rows[0] ?? null
+    }
+    if (!recipient) {
+      return { status: 'recipient_not_found', giftCode: d.item_code }
+    }
+
+    const recipientUserId = Number(recipient.user_id)
+    if (recipientUserId === senderId) {
+      return { status: 'self_transfer', giftCode: d.item_code }
+    }
+
+    // Переназначаем получателя. Сбрасываем флаг вывода (новый владелец решит
+    // сам) и пишем след передачи в meta для аудита.
+    const meta = {
+      ...(d.meta ?? {}),
+      withdraw_requested: false,
+      transferred_from: senderId,
+      transferred_to: recipientUserId,
+      transferred_at: new Date().toISOString(),
+      transfer_channel: 'site',
+    }
+    await client.query(
+      `UPDATE gift_transactions
+          SET recipient_user_id = $2, meta = $3
+        WHERE id = $1`,
+      [d.id, recipientUserId, JSON.stringify(meta)],
+    )
+
+    return {
+      status: 'ok',
+      giftCode: d.item_code,
+      recipientUserId,
+      recipientUsername: recipient.username,
+    }
+  })
+}
+
+
