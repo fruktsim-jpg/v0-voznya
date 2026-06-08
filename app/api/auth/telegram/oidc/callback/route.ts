@@ -13,6 +13,8 @@ import {
   getSessionCookieName,
   getSessionCookieOptions,
 } from '@/lib/auth/session'
+import { externalUrl } from '@/lib/auth/external-origin'
+
 
 
 export const runtime = 'nodejs'
@@ -45,9 +47,10 @@ function clearTempCookies(res: NextResponse): NextResponse {
 
 function fail(request: NextRequest, reason: string): NextResponse {
   return clearTempCookies(
-    NextResponse.redirect(new URL(`/?auth=${reason}`, request.url)),
+    NextResponse.redirect(externalUrl(request, `/?auth=${reason}`)),
   )
 }
+
 
 export async function GET(request: NextRequest) {
   const config = getOidcConfig()
@@ -109,8 +112,9 @@ export async function GET(request: NextRequest) {
       return fail(request, 'db_unavailable')
     }
     return clearTempCookies(
-      NextResponse.redirect(new URL(`/link?token=${linkToken}`, request.url)),
+      NextResponse.redirect(externalUrl(request, `/link?token=${linkToken}`)),
     )
+
   }
 
   // Cosmetic-only: persist the Telegram avatar (OIDC `picture` claim) for the
@@ -126,8 +130,9 @@ export async function GET(request: NextRequest) {
   })
 
   const response = clearTempCookies(
-    NextResponse.redirect(new URL(`/profile/${userId}`, request.url)),
+    NextResponse.redirect(externalUrl(request, `/profile/${userId}`)),
   )
+
   response.cookies.set(getSessionCookieName(), token, getSessionCookieOptions())
   return response
 }

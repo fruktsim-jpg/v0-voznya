@@ -6,6 +6,8 @@ import {
   getSessionCookieName,
   getSessionCookieOptions,
 } from '@/lib/auth/session'
+import { externalUrl } from '@/lib/auth/external-origin'
+
 
 
 export const runtime = 'nodejs'
@@ -27,8 +29,9 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
   if (!botToken || !process.env.AUTH_SECRET) {
-    return NextResponse.redirect(new URL('/?auth=unconfigured', request.url))
+    return NextResponse.redirect(externalUrl(request, '/?auth=unconfigured'))
   }
+
 
   const params: Record<string, string> = {}
   request.nextUrl.searchParams.forEach((value, key) => {
@@ -37,8 +40,9 @@ export async function GET(request: NextRequest) {
 
   const verified = verifyLoginWidget(params, botToken)
   if (!verified) {
-    return NextResponse.redirect(new URL('/?auth=failed', request.url))
+    return NextResponse.redirect(externalUrl(request, '/?auth=failed'))
   }
+
 
   // Cosmetic-only: persist the Telegram avatar URL for an existing player.
   // UPDATE-only and self-guarded (never throws into the login path).
@@ -52,8 +56,9 @@ export async function GET(request: NextRequest) {
   })
 
   const response = NextResponse.redirect(
-    new URL(`/profile/${verified.userId}`, request.url),
+    externalUrl(request, `/profile/${verified.userId}`),
   )
+
   response.cookies.set(getSessionCookieName(), token, getSessionCookieOptions())
   return response
 }
