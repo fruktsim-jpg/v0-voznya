@@ -1,21 +1,29 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
 import { isDbConfigured } from '@/lib/db'
-import { giftInventoryItem } from '@/lib/inventory-actions'
+import { requestGiftDelivery } from '@/lib/bot-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
- * POST /api/inventory/gift — передать предмет другому игроку по @username (P0).
+ * POST /api/inventory/gift — «Подарить другу»: РЕАЛЬНАЯ Telegram-доставка
+ * подарка другому пользователю по @username или Telegram ID (P0, Release 2.2).
  *
- * Универсально для любого pending-предмета (Telegram Gift / Premium / товар):
- * подарок ещё не выдан, поэтому передача = переназначение получателя. Новый
- * владелец увидит предмет в своём инвентаре и сам решит судьбу.
+ * Это НЕ внутренняя передача предмета внутри Возни (та — /api/inventory/transfer).
+ * Здесь бот реально отправляет Telegram Gift получателю через sendGift. Так как
+ * sendGift требует числовой user_id, бот резолвит @username по своей таблице
+ * users — поэтому получатель должен был хотя бы раз запускать бота.
  *
- * Отправитель — из ПОДПИСАННОЙ сессии, не из тела. Получателя проверяем по БД.
- * Body: { deliveryKey: string, recipient: string }.  recipient = @username | id.
+ * Исходы (от бота):
+ *   completed         → подарок отправлен другу, предмет исчезает из инвентаря;
+ *   pending           → временная ошибка, повторит воркер (предмет остаётся);
+ *   cancelled         → постоянная ошибка + возврат стоимости плательщику;
+ *   recipient_not_found / self_transfer → ошибка ввода;
+ *   unreachable       → бот недоступен (нет конфига/сеть) — просим повторить.
+ *
+ * Отправитель — из ПОДПИСАННОЙ сессии. Body: { deliveryKey, recipient }.
  */
 export async function POST(req: NextRequest) {
   const session = await getSession()
@@ -42,24 +50,29 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const r = await giftInventoryItem(session.uid, deliveryKey, recipient)
-    const statusMap: Record<string, number> = {
-      ok: 200,
-      not_found: 404,
-      not_pending: 409,
+    const d = await requestGiftDelivery(session.uid, deliveryKey, recipient)
+    if (d.status === 'completed') {
+      return NextResponse.json({ status: 'delivered' }, { status: 200 })
+    }
+    if (d.status === 'pending') {
+      return NextResponse.json({ status: 'pending' }, { status: 202 })
+    }
+    if (d.status === 'cancelled') {
+      return NextResponse.json(
+        { status: 'cancelled', refunded: Boolean(d.refunded) },
+        { status: 200 },
+      )
+    }
+    const map: Record<string, number> = {
       recipient_not_found: 404,
       self_transfer: 400,
+      not_found: 404,
+      not_pending: 409,
+      unreachable: 503,
     }
-    return NextResponse.json(
-      {
-        status: r.status,
-        giftCode: r.giftCode ?? null,
-        recipientUsername: r.recipientUsername ?? null,
-      },
-      { status: statusMap[r.status] ?? 200 },
-    )
+    return NextResponse.json({ status: d.status }, { status: map[d.status] ?? 502 })
   } catch (err) {
-    console.error('inventory/gift failed', err)
+    console.error('inventory/gift (telegram) failed', err)
     return NextResponse.json({ status: 'error' }, { status: 500 })
   }
 }

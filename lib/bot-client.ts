@@ -20,6 +20,9 @@ export type DeliverGiftResult = {
     | 'skip'
     | 'error'
     | 'unreachable'
+    // «Подарить другу»: получатель не найден в Возне / нельзя себе.
+    | 'recipient_not_found'
+    | 'self_transfer'
   refunded?: boolean
   error?: string | null
 }
@@ -28,10 +31,15 @@ export type DeliverGiftResult = {
  * Просит бота попытаться выдать подарок СРАЗУ (P2: авто-выдача — основной путь).
  * Возвращает 'unreachable', если внутренний API не настроен/недоступен — тогда
  * вызывающий код деградирует на постановку в очередь (pending + воркер).
+ *
+ * ``recipient`` (опционально) — @username или Telegram ID друга: тогда РЕАЛЬНЫЙ
+ * подарок уходит ему («Подарить другу»). Бот резолвит username по своей БД
+ * (получатель должен быть в Возне). Без recipient — обычная выдача себе.
  */
 export async function requestGiftDelivery(
   userId: number,
   deliveryKey: string,
+  recipient?: string,
 ): Promise<DeliverGiftResult> {
   const base = process.env.BOT_INTERNAL_URL
   const secret = process.env.BOT_INTERNAL_SECRET
@@ -44,13 +52,18 @@ export async function requestGiftDelivery(
     // тормозит — не держим запрос, отдадим в очередь.
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 8000)
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      delivery_key: deliveryKey,
+    }
+    if (recipient && recipient.trim()) payload.recipient = recipient.trim()
     const res = await fetch(`${base.replace(/\/$/, '')}/internal/gifts/deliver`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Internal-Secret': secret,
       },
-      body: JSON.stringify({ user_id: userId, delivery_key: deliveryKey }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
       cache: 'no-store',
     }).finally(() => clearTimeout(timer))
