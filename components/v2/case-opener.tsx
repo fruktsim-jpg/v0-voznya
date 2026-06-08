@@ -66,10 +66,13 @@ function kindIcon(kind: string, isJackpot: boolean): string {
 /** Человеческое сообщение по статусу/ошибке открытия. */
 function failureMessage(httpStatus: number, data: OpenResponse): string {
   if (httpStatus === 401) return 'Войди через Telegram, чтобы открывать кейсы.'
-  if (data.error === 'cases_open_unavailable' || httpStatus === 503)
-    return 'Открытие кейсов с сайта временно недоступно. Попробуй в боте: /кейсы'
-  if (data.error === 'bot_unreachable' || httpStatus === 502)
-    return 'Сервис открытия недоступен. Попробуй чуть позже.'
+  if (
+    data.error === 'cases_open_unavailable' ||
+    data.error === 'bot_unreachable' ||
+    httpStatus === 503 ||
+    httpStatus === 502
+  )
+    return 'Открытие временно недоступно. Попробуй ещё раз через пару секунд.'
   switch (data.status) {
     case 'not_enough':
       return 'Не хватает ешек на этот кейс.'
@@ -82,6 +85,7 @@ function failureMessage(httpStatus: number, data: OpenResponse): string {
     default:
       return 'Не получилось открыть кейс. Попробуй позже.'
   }
+
 }
 
 type Won = {
@@ -260,6 +264,33 @@ export function CaseOpener({
           {special && (
             <span className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, transparent, ${t.color}, transparent)` }} />
           )}
+          {/* Салют частиц для джекпота/Premium — событие, а не просто строка. */}
+          {special && (
+            <span className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (360 / 14) * i
+                const dist = 60 + (i % 3) * 18
+                const dx = Math.cos((angle * Math.PI) / 180) * dist
+                const dy = Math.sin((angle * Math.PI) / 180) * dist
+                return (
+                  <span
+                    key={i}
+                    className="absolute left-1/2 top-8 h-1.5 w-1.5 rounded-full"
+                    style={{
+                      backgroundColor: t.color,
+                      animation: `caseBurst 900ms ease-out forwards`,
+                      '--dx': `${dx}px`,
+                      '--dy': `${dy}px`,
+                    } as Record<string, string>}
+                  />
+
+
+                )
+              })}
+            </span>
+          )}
+          <style>{`@keyframes caseBurst{0%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),var(--dy)) scale(0);opacity:0}}`}</style>
+
           {won.isJackpot && (
             <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 animate-pulse">
               💎 ДЖЕКПОТ

@@ -14,23 +14,30 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'Кейсы — Возня',
-  description: 'Кейсы Возни: что внутри, насколько редко и ценно, кто что выбил.',
+  description: 'Открывай кейсы Возни: ешки, Telegram Gifts, Premium и джекпоты. Честные шансы.',
 }
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
 /**
- * Cases (V3, поверхность №5) — витрина кейсов с акцентом на ЦЕННОСТИ наград и
- * социальном доказательстве, не на открытии. Кейсы — часть экономики/статуса,
- * не отдельная игра. Реальные данные: getActiveCasesWithRewards + лента
- * (case_openings). Открытие — в боте (/кейсы). Read-only.
+ * Cases (V3, поверхность №5) — ИГРОВАЯ механика открытия прямо на сайте.
+ * Игрок видит линейку кейсов (от дешёвого к джекпоту), понимает ценность,
+ * жмёт «Открыть» → CS-style рулетка → награда. Экономика и RNG считаются в
+ * боте (open_case, единственный writer); сайт — основная точка взаимодействия.
  */
 export default async function CasesPage() {
   const [rawCases, feed] = await Promise.all([
     getActiveCasesWithRewards(),
     getCommunityFeed(60),
   ])
-  const cases = rawCases.map(buildCaseView)
+  // Линейка читается как прогрессия: от самого дешёвого к джекпоту.
+  const cases = rawCases
+    .map(buildCaseView)
+    .sort((a, b) => a.openCostAmount - b.openCostAmount)
+
+  // Самый дорогой/желанный кейс — для подсказки новичку.
+  const flagship = cases.length > 0 ? cases[cases.length - 1] : null
+
 
   // Социальное доказательство из реальной ленты.
   const caseEvents = feed.filter(
@@ -51,17 +58,49 @@ export default async function CasesPage() {
         accent="Возни"
         description={
           <>
-            Что внутри, насколько это редко и ценно. Честные шансы из дроп-листа.
-            Открыть можно в боте командой{' '}
-            <code className="rounded bg-white/[0.06] px-1.5 py-0.5">/кейсы</code> — каждое
-            открытие фиксируется в проверяемом логе.
+            Трать ешки — лови <strong className="text-foreground">Telegram Gifts</strong>,{' '}
+            <strong className="text-foreground">Premium</strong> и денежные джекпоты. Жми
+            «Открыть» прямо здесь: крутится рулетка, награда зачисляется сразу. Шансы честные —
+            из дроп-листа, каждое открытие в проверяемом логе.
           </>
         }
       />
 
 
+
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        {/* Гид новичку: за 5 секунд понять линейку и где искать ценное. */}
+        {cases.length > 0 && (
+          <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="glass rounded-2xl border border-border p-3 text-center">
+              <div className="text-xl">📦</div>
+              <div className="mt-1 text-xs font-semibold text-foreground">{cases.length} кейса</div>
+              <div className="text-[11px] text-muted-foreground">от дешёвого к топовому</div>
+            </div>
+            <div className="glass rounded-2xl border border-fuchsia-400/25 p-3 text-center">
+              <div className="text-xl">🎁</div>
+              <div className="mt-1 text-xs font-semibold text-fuchsia-200">Telegram Gifts</div>
+              <div className="text-[11px] text-muted-foreground">реальные подарки</div>
+            </div>
+            <div className="glass rounded-2xl border border-amber-400/25 p-3 text-center">
+              <div className="text-xl">⭐</div>
+              <div className="mt-1 text-xs font-semibold text-amber-200">Premium 3 и 6 мес</div>
+              <div className="text-[11px] text-muted-foreground">шанс в каждом кейсе</div>
+            </div>
+            <div className="glass rounded-2xl border border-amber-400/25 p-3 text-center">
+              <div className="text-xl">💎</div>
+              <div className="mt-1 text-xs font-semibold text-amber-200">
+                {flagship ? flagship.name : 'Джекпот'}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {flagship ? `топовый — ${fmt(flagship.openCostAmount)} ешек` : 'самый желанный'}
+              </div>
+            </div>
+          </div>
+        )}
+
         {cases.length === 0 ? (
+
           <div className="glass mx-auto max-w-md rounded-3xl border border-border p-8 text-center">
             <div className="mb-2 text-3xl">📦</div>
             <p className="text-sm text-muted-foreground">
