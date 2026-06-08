@@ -39,6 +39,13 @@ export type Achievement = {
 /** Achievement categories in display order — mirrors app/settings/achievements.py v1.3. */
 export const ACHIEVEMENT_CATEGORIES = [
   { code: 'economy', emoji: '💰', name: 'Экономика' },
+  { code: 'messages', emoji: '💬', name: 'Сообщения' },
+  { code: 'cases', emoji: '📦', name: 'Кейсы' },
+  { code: 'farm', emoji: '🌱', name: 'Ферма' },
+  { code: 'gifts', emoji: '🎁', name: 'Подарки' },
+  { code: 'spending', emoji: '💸', name: 'Траты' },
+  { code: 'collection', emoji: '🗃', name: 'Коллекционер' },
+  { code: 'season', emoji: '🏆', name: 'Сезон' },
   { code: 'casino', emoji: '🎰', name: 'Казино' },
   { code: 'duel', emoji: '⚔️', name: 'Дуэли' },
   { code: 'treasure', emoji: '📦', name: 'Клады' },
@@ -48,6 +55,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   { code: 'secret', emoji: '🤫', name: 'Секретные' },
 ] as const
 
+
 /** Achievement catalog — mirrors app/settings/achievements.py v1.3. */
 export const ACHIEVEMENTS: Achievement[] = [
   // --- 💰 Экономика ---
@@ -55,7 +63,48 @@ export const ACHIEVEMENTS: Achievement[] = [
   { code: 'thousandaire', emoji: '💰', name: 'Первый чемодан', description: 'Поднял 1 000 ешек за всё время', category: 'economy', reward: 100, hidden: false },
   { code: 'magnate', emoji: '💰', name: 'Магнат аптеки', description: 'Поднял 10 000 ешек за всё время', category: 'economy', reward: 400, hidden: false },
 
+  // --- 💬 Сообщения ---
+  { code: 'chatter_100', emoji: '💬', name: 'Разговорился', description: 'Написал 100 сообщений', category: 'messages', reward: 20, hidden: false },
+  { code: 'chatter_1k', emoji: '💬', name: 'Болтун Возни', description: 'Написал 1 000 сообщений', category: 'messages', reward: 75, hidden: false },
+  { code: 'chatter_5k', emoji: '💬', name: 'Голос двора', description: 'Написал 5 000 сообщений', category: 'messages', reward: 200, hidden: false },
+  { code: 'chatter_10k', emoji: '💬', name: 'Старожил чата', description: 'Написал 10 000 сообщений', category: 'messages', reward: 400, hidden: false },
+  { code: 'chatter_50k', emoji: '💬', name: 'Легенда трёпа', description: 'Написал 50 000 сообщений', category: 'messages', reward: 1000, hidden: false },
+
+  // --- 📦 Кейсы ---
+  { code: 'opener_10', emoji: '📦', name: 'Первый дроп', description: 'Открыл 10 кейсов', category: 'cases', reward: 40, hidden: false },
+  { code: 'opener_50', emoji: '📦', name: 'Любитель кейсов', description: 'Открыл 50 кейсов', category: 'cases', reward: 120, hidden: false },
+  { code: 'opener_100', emoji: '📦', name: 'Кейсовый маньяк', description: 'Открыл 100 кейсов', category: 'cases', reward: 250, hidden: false },
+  { code: 'opener_500', emoji: '📦', name: 'Машина открытий', description: 'Открыл 500 кейсов', category: 'cases', reward: 700, hidden: false },
+
+  // --- 🌱 Ферма ---
+  { code: 'farmer_50', emoji: '🌱', name: 'Начинающий аптекарь', description: '50 удачных ферм', category: 'farm', reward: 40, hidden: false },
+  { code: 'farmer_250', emoji: '🌿', name: 'Опытный аптекарь', description: '250 удачных ферм', category: 'farm', reward: 150, hidden: false },
+  { code: 'farmer_1000', emoji: '🌾', name: 'Король грядки', description: '1 000 удачных ферм', category: 'farm', reward: 600, hidden: false },
+
+  // --- 🎁 Подарки ---
+  { code: 'gifted_1', emoji: '🎁', name: 'Получил подарок', description: 'Получил первый подарок', category: 'gifts', reward: 25, hidden: false },
+  { code: 'gifted_10', emoji: '🎁', name: 'Любимчик Возни', description: 'Получил 10 подарков', category: 'gifts', reward: 100, hidden: false },
+  { code: 'gifted_50', emoji: '🎁', name: 'Гора подарков', description: 'Получил 50 подарков', category: 'gifts', reward: 300, hidden: false },
+
+  // --- 💸 Траты ---
+  { code: 'spender_1k', emoji: '💸', name: 'Транжира', description: 'Потратил 1 000 ешек', category: 'spending', reward: 30, hidden: false },
+  { code: 'spender_5k', emoji: '💸', name: 'Мот', description: 'Потратил 5 000 ешек', category: 'spending', reward: 100, hidden: false },
+  { code: 'spender_25k', emoji: '💸', name: 'Кутёж по-аптечному', description: 'Потратил 25 000 ешек', category: 'spending', reward: 400, hidden: false },
+
+  // --- 🗃 Коллекционер ---
+  { code: 'collector_5', emoji: '🗃', name: 'Начало коллекции', description: 'Собрал 5 разных предметов', category: 'collection', reward: 50, hidden: false },
+  { code: 'collector_10', emoji: '🗃', name: 'Коллекционер', description: 'Собрал 10 разных предметов', category: 'collection', reward: 150, hidden: false },
+  { code: 'collector_25', emoji: '🗃', name: 'Хранитель Возни', description: 'Собрал 25 разных предметов', category: 'collection', reward: 500, hidden: false },
+
+  // --- 🏆 Сезон ---
+  { code: 'season_silver', emoji: '🥈', name: 'Серебро сезона', description: 'Достиг дивизиона Silver', category: 'season', reward: 50, hidden: false },
+  { code: 'season_gold', emoji: '🥇', name: 'Золото сезона', description: 'Достиг дивизиона Gold', category: 'season', reward: 120, hidden: false },
+  { code: 'season_platinum', emoji: '💠', name: 'Платина сезона', description: 'Достиг дивизиона Platinum', category: 'season', reward: 250, hidden: false },
+  { code: 'season_diamond', emoji: '💎', name: 'Алмаз сезона', description: 'Достиг дивизиона Diamond', category: 'season', reward: 500, hidden: false },
+  { code: 'season_master', emoji: '🏅', name: 'Мастер сезона', description: 'Достиг дивизиона Master', category: 'season', reward: 1000, hidden: false },
+
   // --- 🎰 Казино ---
+
   { code: 'ludoman', emoji: '🎰', name: 'Лудоман', description: 'Крутанул казино 10 раз', category: 'casino', reward: 50, hidden: false },
   { code: 'casino_grandpa', emoji: '🎰', name: 'Казиношный дед', description: 'Крутанул казино 100 раз', category: 'casino', reward: 150, hidden: false },
 

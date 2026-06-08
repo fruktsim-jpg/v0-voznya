@@ -49,7 +49,9 @@ function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
   const profile = `/profile/${data.userId}`
   const items: MenuEntry[] = [
     { kind: 'link', id: 'profile', label: '👤 Профиль', href: profile },
+    { kind: 'link', id: 'season', label: '🏆 Сезон', href: '/season' },
   ]
+
 
   if (data.registered) {
     items.push(

@@ -62,7 +62,9 @@ export default async function AdminLayout({
   const nav: { href: string; label: string; emoji: string }[] = [
     { href: '/admin', label: 'Дашборд', emoji: '📊' },
     { href: '/admin/economy', label: 'Экономика', emoji: '💹' },
+    { href: '/admin/season', label: 'Сезон', emoji: '🏆' },
     { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
+
     { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
     { href: '/admin/shop', label: 'Магазин', emoji: '🛒' },
     { href: '/admin/deliveries', label: 'Доставки', emoji: '📦' },

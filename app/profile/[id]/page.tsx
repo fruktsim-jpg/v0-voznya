@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation'
 import { getPlayerProfile } from '@/lib/queries'
 import { getUserFeed } from '@/lib/feed'
 import { PlayerCard } from '@/components/profile/player-card'
+import { SeasonBadge } from '@/components/profile/season-badge'
 import { NotRegistered } from '@/components/auth/not-registered'
+
 import { getSession } from '@/lib/auth/get-session'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { ACHIEVEMENTS } from '@/lib/voznya-bot'
@@ -89,10 +91,19 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const activity = await getUserFeed(userId, 20)
 
   return (
-    <PlayerCard profile={profile} isOwner={isOwner} isAdmin={isAdmin} activity={activity} />
+    <div className="space-y-4">
+      <SeasonBadge userId={userId} />
+      <PlayerCard
+        profile={profile}
+        isOwner={isOwner}
+        isAdmin={isAdmin}
+        activity={activity}
+      />
+    </div>
   )
 
 }
+
 
 
 
