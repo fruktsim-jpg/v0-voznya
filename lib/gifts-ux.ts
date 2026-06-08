@@ -36,14 +36,23 @@ export function giftRarity(priceEshki: number, opts?: { limited?: boolean }): Ra
 export function giftIcon(code: string, metaEmoji?: string | null): string {
   if (metaEmoji) return metaEmoji
   const c = code.toLowerCase()
+  if (c.includes('premium')) return '⭐'
   if (c.includes('heart') || c.includes('love')) return '❤️'
-  if (c.includes('star')) return '⭐'
-  if (c.includes('rose') || c.includes('flower')) return '🌹'
-  if (c.includes('ring') || c.includes('diamond')) return '💍'
+  if (c.includes('rose') || c.includes('bouquet') || c.includes('flower')) return '🌹'
+  if (c.includes('ring')) return '💍'
+  if (c.includes('diamond')) return '💎'
   if (c.includes('crown') || c.includes('king')) return '👑'
   if (c.includes('rocket')) return '🚀'
   if (c.includes('cake') || c.includes('birthday')) return '🎂'
-  if (c.includes('trophy')) return '🏆'
+  if (c.includes('champagne')) return '🍾'
+  if (c.includes('cup') || c.includes('trophy')) return '🏆'
   if (c.includes('gem')) return '💎'
+  // Сезонные collectible-мишки и ёлка (новый каталог, Release 2.2).
+  if (c.includes('tree')) return '🎄'
+  if (c.includes('clown')) return '🤡'
+  if (c.includes('bear')) return '🧸'
+  if (c.includes('box')) return '🎁'
+  if (c.includes('star')) return '⭐'
   return '🎁'
+
 }
