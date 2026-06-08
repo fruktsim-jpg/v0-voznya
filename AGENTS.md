@@ -1,39 +1,39 @@
 # AGENTS.md
 
-## Cursor Cloud specific instructions
+## Что это
 
-### Product overview
+Сайт и админ-панель экосистемы «Возня» — Next.js App Router (Tailwind v4, pnpm).
+Спутник Telegram-бота `voznya-bot`. Это **не** статический лендинг: приложение
+читает PostgreSQL бота, имеет авторизацию (Telegram-логин + OIDC), сессии и
+админ-панель с RBAC.
 
-Single Next.js 16 App Router app: Russian-language **ВОЗНЯ (Voznya)** community landing page. No backend, database, Docker, or monorepo. Content and outbound links live in `lib/voznya.ts`.
+См. `README.md` для карты страниц и слоёв данных.
 
-### Services
+## Границы (важно)
 
-| Service | Port | Command |
-|---------|------|---------|
-| Next.js dev | 3000 | `pnpm dev` |
-| Next.js prod | 3000 | `pnpm build && pnpm start` |
+- PostgreSQL бота — источник истины. Сайт по `users` — **только чтение**.
+- Запись разрешена только через `app/api/admin/*` (под RBAC) и OIDC-флоу.
+- Не вводить запись в `users`/игровые таблицы в обход бота.
 
-Only one process is required for local development and E2E checks.
+## Команды
 
-### Standard commands
+| Действие | Команда |
+|---|---|
+| Установка | `pnpm install` |
+| Dev | `pnpm dev` → http://localhost:3000 |
+| Сборка | `pnpm build` |
+| Прод | `pnpm start` (после сборки) |
 
-See `package.json` scripts and `README.md`:
+## Особенности
 
-- Install: `pnpm install`
-- Dev: `pnpm dev` → http://localhost:3000
-- Build: `pnpm build`
-- Prod: `pnpm start` (after build)
-- Lint: `pnpm lint` (see caveat below)
+- **Package manager:** pnpm (`pnpm-lock.yaml` — единственный лок-файл).
+- **Images:** `next.config.mjs` ставит `images.unoptimized: true`.
+- **Типы при сборке:** `next build` пропускает валидацию типов (см. `next.config.mjs`).
+- **Analytics:** `@vercel/analytics` грузится только в продакшен-сборке.
+- **Тесты:** автотестов в репозитории нет — проверять сборкой + ручным просмотром.
+- **MMR-ранги** продублированы с ботом (`lib/mmr.ts` ↔ `app/settings/mmr.py`) —
+  менять синхронно.
 
-### Lint caveat
+## Деплой
 
-`pnpm lint` runs `eslint .`, but **ESLint is not listed** in `package.json` dependencies, so the command fails with `eslint: not found` on a fresh install. Typecheck/build still work (`next build` skips type validation per `next.config.mjs`). To fix lint locally, add ESLint as a dev dependency or use the project's intended lint setup from v0.
-
-### Non-obvious notes
-
-- **Package manager:** Use **pnpm** (`pnpm-lock.yaml` is the lockfile).
-- **Images:** `next.config.mjs` sets `images.unoptimized: true`; optional `sharp` postinstall may be ignored by pnpm without affecting this app.
-- **pnpm build scripts:** If pnpm warns about ignored `sharp` build scripts, it is safe to ignore for this repo given unoptimized images.
-- **Analytics:** `@vercel/analytics` only loads in production builds, not in `pnpm dev`.
-- **Tests:** No Jest/Playwright/Cypress in the repo; verify via build + manual/browser check of the landing page.
-- **Hello-world check:** Load `/`, scroll through hero → about → community map, click **«Вступить в ВОЗНЮ»** to jump to the platforms section.
+Автоматический на Vercel при merge в `main`.

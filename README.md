@@ -1,33 +1,53 @@
 # v0-voznya
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Сайт и админ-панель экосистемы «Возня» (Next.js App Router, Tailwind v4).
+Спутник Telegram-бота `voznya-bot`.
 
-## Built with v0
+> Источник истины — код, а не документация. Этот README описывает фактическое
+> состояние. Завершённые планы и одноразовые отчёты — в `docs/archive/`, они
+> НЕ отражают актуальное состояние.
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+## Роль и границы
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_mNcICwlNOuz5iUAByyMEJEJZtxJ2)
+- **PostgreSQL бота — источник истины.** Бот — единственный писатель `users` и
+  игровых таблиц.
+- Сайт по `users` — **только чтение**. Запись возможна только через
+  аутентифицированные админ-роуты (`app/api/admin/*`) и OIDC-флоу привязки.
+- Лоадеры данных безопасно деградируют (`[]`/`null`/0) на немигрированной БД.
 
-## Getting Started
+## Страницы (`app/`)
 
-First, run the development server:
+- `/` — главная (дашборд сообщества: hero, live-статы, лента событий, топы).
+- `/live` — Live Center: статистика, топы, экономика, достижения, справочник.
+- `/cases` — витрина кейсов (содержимое, шансы, лучшие открытия). Открытие — в боте.
+- `/gifts` — коллекция Telegram Gifts. Покупка — в боте.
+- `/casino` — витрина азартной части (пульс, крупные выигрыши, топ игроков).
+- `/profile/[id]`, `/profile/me` — публичный профиль игрока.
+- `/link` — привязка Telegram-аккаунта (OIDC).
+- `/admin/*` — админ-панель (RBAC): игроки, экономика, кейсы, подарки, доставки, audit.
+- Редиректы для совместимости: `/u/[id]` → `/profile/[id]`, `/live-v2` → `/live`.
+
+## Данные и логика
+
+- `lib/queries.ts` — публичные выборки (профиль, топы, экономика, MMR, сообщения).
+- `lib/cases.ts`, `lib/gifts.ts`, `lib/casino.ts`, `lib/feed.ts` — витрины и лента.
+- `lib/auth/` — сессии, Telegram-логин, OIDC, RBAC (`admin-permissions.ts`).
+- `components/v2/` — текущая дизайн-система (Card, rarity, bottom-nav, event-feed и т.д.).
+- `components/live/`, `components/profile/`, `components/voznya/` — секции страниц.
+
+Важно: ранги MMR продублированы в `lib/mmr.ts` (`MMR_RANKS`) и в боте
+(`app/settings/mmr.py`) — менять синхронно.
+
+## Запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+pnpm install
+pnpm dev      # http://localhost:3000
+pnpm build    # продакшен-сборка
+pnpm start    # запуск собранного приложения
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Менеджер пакетов — **pnpm** (`pnpm-lock.yaml`). Переменные окружения — в
+`.env.example` (DATABASE_URL, TELEGRAM_BOT_TOKEN, секреты сессий/OIDC).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-## Learn More
-
-To learn more, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+Деплой: автоматический на Vercel при merge в `main`.
