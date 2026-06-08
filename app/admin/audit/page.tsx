@@ -13,9 +13,18 @@ type Entry = {
   target_id: string | null
   amount: number | null
   reason: string | null
+  meta: Record<string, unknown> | null
   ip: string | null
   created_at: string
 }
+
+/** Compact rendering of a JSON value for the old → new diff line. */
+function fmtVal(v: unknown): string {
+  if (v == null) return '∅'
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
 
 /**
  * Audit viewer: filter audit_log by user, action and date range. Calls
@@ -131,7 +140,27 @@ export default function AuditViewerPage() {
                   </span>{' '}
                   <span className={h.tone}>{h.text}</span>
                   {e.reason && <span className="text-muted-foreground"> · {e.reason}</span>}
+                  {e.meta &&
+                    'old' in e.meta &&
+                    'new' in e.meta &&
+                    fmtVal(e.meta.old) !== fmtVal(e.meta.new) && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        {e.target_id && (
+                          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 text-muted-foreground">
+                            {e.target_id}
+                          </code>
+                        )}
+                        <span className="rounded bg-rose-400/10 px-1.5 py-0.5 text-rose-300 line-through">
+                          {fmtVal(e.meta.old)}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-emerald-300">
+                          {fmtVal(e.meta.new)}
+                        </span>
+                      </div>
+                    )}
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
+
                     {roleLabel(e.actor_role)} id {e.actor_user_id} ·{' '}
                     {new Date(e.created_at).toLocaleString('ru-RU')}
                     {e.ip ? ` · ${e.ip}` : ''}

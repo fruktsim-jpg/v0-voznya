@@ -99,6 +99,13 @@ export async function POST(req: NextRequest) {
         p?: unknown[],
       ) => (await client.query(text, p as never[])).rows as T[]
 
+      // Capture the previous value first so the audit can show old → new.
+      const prev = await exec<{ value: unknown }>(
+        `SELECT value FROM app_settings WHERE key = $1 FOR UPDATE`,
+        [key],
+      )
+      const oldValue = prev.length > 0 ? prev[0].value : null
+
       await exec(
         `INSERT INTO app_settings (key, value, category, description, updated_by, updated_at)
          VALUES ($1, $2::jsonb, $3, $4, $5, now())
@@ -118,11 +125,12 @@ export async function POST(req: NextRequest) {
           action: 'settings.update',
           targetType: 'app_setting',
           targetId: key,
-          meta: { value: body.value, category },
+          meta: { old: oldValue, new: body.value, value: body.value, category },
           ip,
         },
         exec,
       )
+
 
       return { key, auditId }
     })

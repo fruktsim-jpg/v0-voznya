@@ -4,7 +4,12 @@ import {
   loadEconomyOverview,
   loadDailyFlow,
   loadFlowBySource,
+  loadWealthStats,
+  loadCategoryFlow,
+  loadRichestPlayers,
 } from '@/lib/economy-analytics'
+import Link from 'next/link'
+
 import {
   EconomyTabs,
   StatGrid,
@@ -33,11 +38,16 @@ export default async function EconomyDashboardPage() {
     )
   }
 
-  const [overview, daily, sources] = await Promise.all([
-    loadEconomyOverview(),
-    loadDailyFlow(14),
-    loadFlowBySource(30),
-  ])
+  const [overview, daily, sources, wealth, categories, richest] =
+    await Promise.all([
+      loadEconomyOverview(),
+      loadDailyFlow(14),
+      loadFlowBySource(30),
+      loadWealthStats(),
+      loadCategoryFlow(0),
+      loadRichestPlayers(15),
+    ])
+
 
   const cards: Stat[] = [
     { emoji: '💰', label: 'Всего ешек', value: fmt(overview.totalEshki), tone: 'border-amber-400/25 from-amber-400/[0.08]' },
@@ -46,7 +56,18 @@ export default async function EconomyDashboardPage() {
     { emoji: '⚖️', label: 'Средний баланс', value: fmt(overview.avgBalance), tone: 'border-sky-400/25 from-sky-400/[0.08]' },
     { emoji: '🟢', label: 'Создано за день', value: fmt(overview.mintedToday), tone: 'border-emerald-400/25 from-emerald-400/[0.08]' },
     { emoji: '🔴', label: 'Сожжено за день', value: fmt(overview.burnedToday), tone: 'border-rose-400/25 from-rose-400/[0.08]' },
+    { emoji: '🪙', label: 'Медианный баланс', value: fmt(wealth.medianBalance), tone: 'border-sky-400/25 from-sky-400/[0.08]', hint: 'половина игроков ниже этого' },
+    { emoji: '🐳', label: 'Топ 1% владеют', value: fmt(wealth.top1Percent), tone: 'border-fuchsia-400/25 from-fuchsia-400/[0.08]', hint: wealth.top1Share != null ? `${Math.round(wealth.top1Share * 100)}% всей массы` : undefined },
   ]
+
+  const maxCat = Math.max(
+    1,
+    ...categories.generation.map((c) => c.minted),
+    ...categories.destruction.map((c) => c.burned),
+  )
+  const maxBucket = Math.max(1, ...wealth.buckets.map((b) => b.players))
+  const maxRich = Math.max(1, ...richest.map((r) => r.balance))
+
 
   const maxFlow = Math.max(
     1,
@@ -176,6 +197,142 @@ export default async function EconomyDashboardPage() {
           </Note>
         </div>
       </section>
+
+      {/* Generation / destruction by logical category (all time) */}
+      <section>
+        <SectionTitle>Источники генерации и уничтожения</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="glass rounded-2xl border border-border p-4">
+            <div className="mb-2 text-sm font-semibold text-emerald-300">
+              🟢 Генерация
+            </div>
+            {categories.generation.length === 0 ? (
+              <Empty>Нет данных.</Empty>
+            ) : (
+              <div className="space-y-1.5">
+                {categories.generation.map((c) => (
+                  <div key={c.category} className="text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground">{c.category}</span>
+                      <span className="text-emerald-400">{fmt(c.minted)}</span>
+                    </div>
+                    <div className="mt-0.5 h-1.5 rounded bg-white/[0.05]">
+                      <div
+                        className="h-1.5 rounded bg-emerald-400/70"
+                        style={{ width: `${(c.minted / maxCat) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="glass rounded-2xl border border-border p-4">
+            <div className="mb-2 text-sm font-semibold text-rose-300">
+              🔴 Уничтожение
+            </div>
+            {categories.destruction.length === 0 ? (
+              <Empty>Нет данных.</Empty>
+            ) : (
+              <div className="space-y-1.5">
+                {categories.destruction.map((c) => (
+                  <div key={c.category} className="text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground">{c.category}</span>
+                      <span className="text-rose-400">{fmt(c.burned)}</span>
+                    </div>
+                    <div className="mt-0.5 h-1.5 rounded bg-white/[0.05]">
+                      <div
+                        className="h-1.5 rounded bg-rose-400/70"
+                        style={{ width: `${(c.burned / maxCat) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-3">
+          <Note>
+            Категории сгруппированы из reason/source транзакций: ферма, клад,
+            кейсы, казино, админ, возвраты, подарки → генерация; кейсы, магазин,
+            казино, передачи → уничтожение. За всё время.
+          </Note>
+        </div>
+      </section>
+
+      {/* Wealth distribution buckets */}
+      <section>
+        <SectionTitle>Распределение богатства</SectionTitle>
+        <div className="glass rounded-2xl border border-border p-4">
+          <div className="space-y-2">
+            {wealth.buckets.map((b) => (
+              <div key={b.label} className="text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground">{b.label} ешек</span>
+                  <span className="text-muted-foreground">{fmt(b.players)} игроков</span>
+                </div>
+                <div className="mt-0.5 h-2 rounded bg-white/[0.05]">
+                  <div
+                    className="h-2 rounded bg-primary/70"
+                    style={{ width: `${(b.players / maxBucket) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Richest players */}
+      <section>
+        <SectionTitle>Богатейшие игроки</SectionTitle>
+        {richest.length === 0 ? (
+          <Empty>Нет данных.</Empty>
+        ) : (
+          <div className="glass overflow-hidden rounded-2xl border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2 font-semibold">#</th>
+                  <th className="px-3 py-2 font-semibold">Игрок</th>
+                  <th className="px-3 py-2 text-right font-semibold">Баланс</th>
+                  <th className="px-3 py-2 font-semibold">Доля</th>
+                </tr>
+              </thead>
+              <tbody>
+                {richest.map((r, i) => (
+                  <tr key={r.userId} className="border-b border-border/50 last:border-0">
+                    <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/admin/players/${r.userId}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {r.name || (r.username ? `@${r.username}` : `id${r.userId}`)}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-amber-200">
+                      {fmt(r.balance)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="h-1.5 w-24 rounded bg-white/[0.05]">
+                        <div
+                          className="h-1.5 rounded bg-amber-400/70"
+                          style={{ width: `${(r.balance / maxRich) * 100}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
+
+

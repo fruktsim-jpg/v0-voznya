@@ -156,8 +156,165 @@ export async function loadFlowBySource(days = 30): Promise<SourceFlow[]> {
 }
 
 // ---------------------------------------------------------------------------
+// 1b. Wealth distribution (Admin V2 final — /admin/economy)
+// ---------------------------------------------------------------------------
+
+export type WealthStats = {
+  medianBalance: number | null
+  top1Percent: number | null // Σ balance held by the richest 1% of players
+  top1Share: number | null // that as a fraction of total (0..1)
+  buckets: { label: string; players: number }[]
+}
+
+/**
+ * Wealth concentration over `users.balance`. Median via percentile_cont, top-1%
+ * via an ordered window, and fixed balance buckets. Read-only, degrades to
+ * nulls/[] on a missing table.
+ */
+export async function loadWealthStats(): Promise<WealthStats> {
+  const [agg, buckets] = await Promise.all([
+    safeRows<{
+      median: string | null
+      top1: string | null
+      total: string | null
+    }>(
+      `WITH ranked AS (
+         SELECT balance,
+                ntile(100) OVER (ORDER BY balance DESC) AS pct
+           FROM users
+       )
+       SELECT (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY balance)
+                 FROM users)::bigint::text AS median,
+              (SELECT COALESCE(SUM(balance), 0) FROM ranked WHERE pct = 1)::text AS top1,
+              (SELECT COALESCE(SUM(balance), 0) FROM users)::text AS total`,
+    ),
+    safeRows<{ bucket: string; players: string }>(
+      `SELECT CASE
+                WHEN balance < 100 THEN '0–100'
+                WHEN balance < 1000 THEN '100–1000'
+                WHEN balance < 10000 THEN '1000–10000'
+                ELSE '10000+'
+              END AS bucket,
+              COUNT(*)::text AS players
+         FROM users
+        GROUP BY 1`,
+    ),
+  ])
+
+  const a = agg[0]
+  const total = NUM(a?.total)
+  const top1 = a?.top1 != null ? NUM(a.top1) : null
+  const order = ['0–100', '100–1000', '1000–10000', '10000+']
+  const byLabel = new Map(buckets.map((b) => [b.bucket, NUM(b.players)]))
+  return {
+    medianBalance: a?.median != null ? NUM(a.median) : null,
+    top1Percent: top1,
+    top1Share: top1 != null && total > 0 ? top1 / total : null,
+    buckets: order.map((label) => ({ label, players: byLabel.get(label) ?? 0 })),
+  }
+}
+
+/**
+ * Generation / destruction split by logical category over `days` (0 = all
+ * time). Maps raw transaction reasons → the operator's buckets. Read-only.
+ *   gen:  farm / klad / case / casino / admin / refund / gift / other
+ *   burn: case / shop / casino / transfer / other
+ */
+export type CategoryFlow = { category: string; minted: number; burned: number }
+
+export async function loadCategoryFlow(days = 0): Promise<{
+  generation: CategoryFlow[]
+  destruction: CategoryFlow[]
+}> {
+  const since = days > 0 ? `WHERE created_at >= now() - ${days} * interval '1 day'` : ''
+  const rows = await safeRows<{
+    reason: string
+    source: string | null
+    minted: string | null
+    burned: string | null
+  }>(
+    `SELECT reason,
+            meta->>'source' AS source,
+            COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0)::text AS minted,
+            COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0)::text AS burned
+       FROM transactions
+       ${since}
+      GROUP BY reason, meta->>'source'`,
+  )
+
+  const gen = new Map<string, CategoryFlow>()
+  const burn = new Map<string, CategoryFlow>()
+  const add = (m: Map<string, CategoryFlow>, cat: string, minted: number, burned: number) => {
+    const cur = m.get(cat) ?? { category: cat, minted: 0, burned: 0 }
+    cur.minted += minted
+    cur.burned += burned
+    m.set(cat, cur)
+  }
+
+  for (const r of rows) {
+    const minted = NUM(r.minted)
+    const burned = NUM(r.burned)
+    const reason = r.reason
+    const source = r.source ?? ''
+    // Generation bucket
+    let genCat = 'Прочее'
+    if (reason === 'farm') genCat = 'Ферма'
+    else if (reason === 'klad' || reason === 'treasure') genCat = 'Клад'
+    else if (source === 'case_open' || reason === 'case') genCat = 'Кейсы'
+    else if (reason === 'casino') genCat = 'Казино'
+    else if (reason === 'admin' || source === 'admin') genCat = 'Админ'
+    else if (source === 'gift_refund' || source === 'case_prize_refund') genCat = 'Возвраты'
+    else if (reason === 'gift' || source === 'gift_buy') genCat = 'Подарки'
+    if (minted > 0) add(gen, genCat, minted, 0)
+
+    // Destruction bucket
+    let burnCat = 'Прочее'
+    if (source === 'case_open' || reason === 'case') burnCat = 'Кейсы'
+    else if (source === 'gift_buy' || reason === 'gift') burnCat = 'Магазин'
+    else if (reason === 'casino') burnCat = 'Казино'
+    else if (reason === 'transfer' || source === 'transfer') burnCat = 'Передачи'
+    if (burned > 0) add(burn, burnCat, 0, burned)
+  }
+
+  const sortDesc = (m: Map<string, CategoryFlow>, key: 'minted' | 'burned') =>
+    Array.from(m.values()).sort((a, b) => b[key] - a[key])
+  return {
+    generation: sortDesc(gen, 'minted'),
+    destruction: sortDesc(burn, 'burned'),
+  }
+}
+
+/** Top richest players by current balance. Read-only, [] on missing table. */
+export type RichPlayer = {
+  userId: string
+  name: string | null
+  username: string | null
+  balance: number
+}
+
+export async function loadRichestPlayers(limit = 15): Promise<RichPlayer[]> {
+  const rows = await safeRows<{
+    user_id: string
+    first_name: string | null
+    username: string | null
+    balance: string
+  }>(
+    `SELECT user_id::text, first_name, username, balance::text
+       FROM users ORDER BY balance DESC LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r) => ({
+    userId: r.user_id,
+    name: r.first_name,
+    username: r.username,
+    balance: NUM(r.balance),
+  }))
+}
+
+// ---------------------------------------------------------------------------
 // 2. Cases Analytics
 // ---------------------------------------------------------------------------
+
 
 export type CaseStat = {
   caseCode: string
@@ -543,8 +700,140 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
 }
 
 // ---------------------------------------------------------------------------
+// 4b. Shop item lifecycle analytics (Admin V2 final — /admin/shop)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-item shop analytics. Every gift instance lives in `gift_transactions`
+ * (kind='tg_gift'); the row's gift_type/meta tells us where it came from and
+ * what happened to it. We fold those into per-item lifecycle counters, then
+ * join the catalog for name/price/limited and sold-back counts from the ledger.
+ *
+ * Counters per item (read-only, no migration):
+ *   boughtToday / boughtTotal — shop purchases (gift_type<>admin, not a case drop)
+ *   fromCases                 — instances that dropped from a case (meta.source='case')
+ *   withdrawn                 — delivered to Telegram (status='completed')
+ *   giftedToFriend            — has meta.gifted_to
+ *   inInventories             — still pending (lives in the player inventory)
+ *   refunded                  — cancelled (sold back / refunded)
+ *   revenueEshki              — Σ purchase_history.price for this gift (net of refunds)
+ */
+export type ShopItemStat = {
+  code: string
+  name: string | null
+  priceEshki: number
+  isLimited: boolean
+  boughtToday: number
+  boughtTotal: number
+  fromCases: number
+  withdrawn: number
+  giftedToFriend: number
+  inInventories: number
+  refunded: number
+  soldBack: number
+  revenueEshki: number
+}
+
+export async function loadShopItemStats(): Promise<ShopItemStat[]> {
+  const [tx, sold, revenue, catalog] = await Promise.all([
+    safeRows<{
+      code: string
+      bought_today: string
+      bought_total: string
+      from_cases: string
+      withdrawn: string
+      gifted: string
+      in_inventories: string
+      refunded: string
+    }>(
+      `SELECT item_code AS code,
+              COUNT(*) FILTER (
+                WHERE gift_type <> 'admin'
+                  AND COALESCE(meta->>'source','') <> 'case'
+                  AND created_at >= now() - interval '24 hours'
+              )::text AS bought_today,
+              COUNT(*) FILTER (
+                WHERE gift_type <> 'admin'
+                  AND COALESCE(meta->>'source','') <> 'case'
+              )::text AS bought_total,
+              COUNT(*) FILTER (WHERE meta->>'source' = 'case')::text AS from_cases,
+              COUNT(*) FILTER (WHERE status = 'completed')::text AS withdrawn,
+              COUNT(*) FILTER (WHERE meta ? 'gifted_to')::text AS gifted,
+              COUNT(*) FILTER (WHERE status = 'pending')::text AS in_inventories,
+              COUNT(*) FILTER (WHERE status = 'cancelled')::text AS refunded
+         FROM gift_transactions
+        WHERE kind = 'tg_gift' AND item_code IS NOT NULL
+        GROUP BY item_code`,
+    ),
+    safeRows<{ code: string; sold_back: string }>(
+      `SELECT meta->>'gift' AS code, COUNT(*)::text AS sold_back
+         FROM transactions
+        WHERE meta->>'source' = 'item_sell' AND meta ? 'gift'
+        GROUP BY meta->>'gift'`,
+    ),
+    safeRows<{ code: string; revenue: string }>(
+      `SELECT meta->>'gift' AS code,
+              COALESCE(SUM(price), 0)::text AS revenue
+         FROM purchase_history
+        WHERE source = 'gift'
+          AND COALESCE(meta->>'refunded','false') <> 'true'
+          AND meta ? 'gift'
+        GROUP BY meta->>'gift'`,
+    ),
+    safeRows<{
+      code: string
+      name: string
+      price_eshki: string
+      is_limited: boolean | null
+    }>(
+      `SELECT gc.code, gc.name, gc.price_eshki::text AS price_eshki,
+              ii.is_limited
+         FROM gift_catalog gc
+         LEFT JOIN inventory_items ii ON ii.code = gc.code
+        ORDER BY gc.sort_order, gc.name`,
+    ),
+  ])
+
+  const soldByCode = new Map(sold.map((s) => [s.code, NUM(s.sold_back)]))
+  const revByCode = new Map(revenue.map((r) => [r.code, NUM(r.revenue)]))
+  const txByCode = new Map(tx.map((t) => [t.code, t]))
+
+  // Catalog drives the row set; gift_transactions may also reference retired
+  // codes — include those too so nothing is hidden.
+  const codes = new Set<string>([
+    ...catalog.map((c) => c.code),
+    ...tx.map((t) => t.code),
+  ])
+  const nameByCode = new Map(catalog.map((c) => [c.code, c]))
+
+  const stats: ShopItemStat[] = []
+  for (const code of codes) {
+    const t = txByCode.get(code)
+    const cat = nameByCode.get(code)
+    stats.push({
+      code,
+      name: cat?.name ?? null,
+      priceEshki: cat ? NUM(cat.price_eshki) : 0,
+      isLimited: Boolean(cat?.is_limited),
+      boughtToday: t ? NUM(t.bought_today) : 0,
+      boughtTotal: t ? NUM(t.bought_total) : 0,
+      fromCases: t ? NUM(t.from_cases) : 0,
+      withdrawn: t ? NUM(t.withdrawn) : 0,
+      giftedToFriend: t ? NUM(t.gifted) : 0,
+      inInventories: t ? NUM(t.in_inventories) : 0,
+      refunded: t ? NUM(t.refunded) : 0,
+      soldBack: soldByCode.get(code) ?? 0,
+      revenueEshki: revByCode.get(code) ?? 0,
+    })
+  }
+  stats.sort((a, b) => b.boughtTotal - a.boughtTotal)
+  return stats
+}
+
+// ---------------------------------------------------------------------------
 // 5. Per-case live drop stats (Admin V2 P0 — /admin/cases)
 // ---------------------------------------------------------------------------
+
 
 /**
  * Live per-case drop counters over the `case_openings` ledger. Complements
