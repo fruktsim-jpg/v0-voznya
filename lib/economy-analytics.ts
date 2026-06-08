@@ -542,5 +542,185 @@ export async function loadGiftsOverview(): Promise<GiftsOverview> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 5. Per-case live drop stats (Admin V2 P0 — /admin/cases)
+// ---------------------------------------------------------------------------
+
+/**
+ * Live per-case drop counters over the `case_openings` ledger. Complements
+ * loadCaseStats (openings/granted/EV) with: today vs all-time, Premium /
+ * limited / jackpot drops, eshki spent and actual currency RTP. Read-only,
+ * degrades to an empty Map.
+ *
+ * Classification: Premium = reward_item_code in (gift_premium_3m/6m); jackpot =
+ * rolled case_reward.is_jackpot; limited = inventory_items.is_limited.
+ * Eshki spent = openings × currency open-cost. RTP = currency returned ÷ spent.
+ */
+export type CaseLiveStats = {
+  caseCode: string
+  openingsToday: number
+  openingsTotal: number
+  eshkiSpent: number
+  premiumDrops: number
+  limitedDrops: number
+  jackpotDrops: number
+  currencyReturned: number
+  actualRtp: number | null
+}
+
+export async function loadCaseLiveStats(): Promise<Map<string, CaseLiveStats>> {
+  const rows = await safeRows<{
+    case_code: string
+    openings_today: string
+    openings_total: string
+    premium_drops: string
+    limited_drops: string
+    jackpot_drops: string
+    currency_returned: string
+  }>(
+    `SELECT o.case_item_code AS case_code,
+            COUNT(*) FILTER (WHERE o.created_at >= now() - interval '24 hours')::text
+              AS openings_today,
+            COUNT(*)::text AS openings_total,
+            COUNT(*) FILTER (
+              WHERE o.reward_item_code IN ('gift_premium_3m', 'gift_premium_6m')
+            )::text AS premium_drops,
+            COUNT(*) FILTER (WHERE i.is_limited)::text AS limited_drops,
+            COUNT(*) FILTER (WHERE r.is_jackpot)::text AS jackpot_drops,
+            COALESCE(
+              SUM(o.amount) FILTER (WHERE o.reward_kind = 'currency'), 0
+            )::text AS currency_returned
+       FROM case_openings o
+       LEFT JOIN case_rewards r ON r.id = o.reward_id
+       LEFT JOIN inventory_items i ON i.code = o.reward_item_code
+      GROUP BY o.case_item_code`,
+  )
+
+  const costRows = await safeRows<{ case_code: string; cost: string }>(
+    `SELECT item_code AS case_code,
+            (CASE WHEN open_cost_kind = 'currency'
+                  THEN open_cost_amount ELSE 0 END)::text AS cost
+       FROM case_definitions`,
+  )
+  const costByCase = new Map(costRows.map((r) => [r.case_code, NUM(r.cost)]))
+
+  const out = new Map<string, CaseLiveStats>()
+  for (const r of rows) {
+    const openingsTotal = NUM(r.openings_total)
+    const cost = costByCase.get(r.case_code) ?? 0
+    const eshkiSpent = openingsTotal * cost
+    const currencyReturned = NUM(r.currency_returned)
+    const actualRtp = eshkiSpent > 0 ? currencyReturned / eshkiSpent : null
+    out.set(r.case_code, {
+      caseCode: r.case_code,
+      openingsToday: NUM(r.openings_today),
+      openingsTotal,
+      eshkiSpent,
+      premiumDrops: NUM(r.premium_drops),
+      limitedDrops: NUM(r.limited_drops),
+      jackpotDrops: NUM(r.jackpot_drops),
+      currencyReturned,
+      actualRtp,
+    })
+  }
+  return out
+}
+
+export type NotableDrop = {
+  caseCode: string
+  userId: string
+  rewardKind: string
+  rewardItemCode: string | null
+  rewardItemName: string | null
+  amount: number | null
+  qty: number
+  isJackpot: boolean
+  isLimited: boolean
+  createdAt: string
+}
+
+/** Biggest single currency drops across all cases. Read-only, [] on missing. */
+export async function loadBiggestDrops(limit = 10): Promise<NotableDrop[]> {
+  const rows = await safeRows<{
+    case_code: string
+    user_id: string
+    reward_kind: string
+    reward_item_code: string | null
+    reward_item_name: string | null
+    amount: string | null
+    qty: number
+    is_jackpot: boolean | null
+    is_limited: boolean | null
+    created_at: string
+  }>(
+    `SELECT o.case_item_code AS case_code, o.user_id::text AS user_id,
+            o.reward_kind, o.reward_item_code,
+            i.name AS reward_item_name, o.amount::text AS amount, o.qty,
+            r.is_jackpot, i.is_limited, o.created_at
+       FROM case_openings o
+       LEFT JOIN case_rewards r ON r.id = o.reward_id
+       LEFT JOIN inventory_items i ON i.code = o.reward_item_code
+      WHERE o.reward_kind = 'currency'
+      ORDER BY o.amount DESC NULLS LAST
+      LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r) => ({
+    caseCode: r.case_code,
+    userId: r.user_id,
+    rewardKind: r.reward_kind,
+    rewardItemCode: r.reward_item_code,
+    rewardItemName: r.reward_item_name,
+    amount: r.amount == null ? null : NUM(r.amount),
+    qty: r.qty,
+    isJackpot: Boolean(r.is_jackpot),
+    isLimited: Boolean(r.is_limited),
+    createdAt: r.created_at,
+  }))
+}
+
+/** Latest notable drops (premium / limited / jackpot). Read-only, [] on missing. */
+export async function loadLatestDrops(limit = 15): Promise<NotableDrop[]> {
+  const rows = await safeRows<{
+    case_code: string
+    user_id: string
+    reward_kind: string
+    reward_item_code: string | null
+    reward_item_name: string | null
+    amount: string | null
+    qty: number
+    is_jackpot: boolean | null
+    is_limited: boolean | null
+    created_at: string
+  }>(
+    `SELECT o.case_item_code AS case_code, o.user_id::text AS user_id,
+            o.reward_kind, o.reward_item_code,
+            i.name AS reward_item_name, o.amount::text AS amount, o.qty,
+            r.is_jackpot, i.is_limited, o.created_at
+       FROM case_openings o
+       LEFT JOIN case_rewards r ON r.id = o.reward_id
+       LEFT JOIN inventory_items i ON i.code = o.reward_item_code
+      WHERE r.is_jackpot = true
+         OR i.is_limited = true
+         OR o.reward_item_code IN ('gift_premium_3m', 'gift_premium_6m')
+      ORDER BY o.created_at DESC
+      LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r) => ({
+    caseCode: r.case_code,
+    userId: r.user_id,
+    rewardKind: r.reward_kind,
+    rewardItemCode: r.reward_item_code,
+    rewardItemName: r.reward_item_name,
+    amount: r.amount == null ? null : NUM(r.amount),
+    qty: r.qty,
+    isJackpot: Boolean(r.is_jackpot),
+    isLimited: Boolean(r.is_limited),
+    createdAt: r.created_at,
+  }))
+}
+
+
 
 
