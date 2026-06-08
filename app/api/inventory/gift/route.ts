@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
 import { isDbConfigured } from '@/lib/db'
 import { requestGiftDelivery } from '@/lib/bot-client'
+import { queueGiftToFriend } from '@/lib/inventory-actions'
+
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -63,14 +65,24 @@ export async function POST(req: NextRequest) {
         { status: 200 },
       )
     }
+    if (d.status === 'unreachable') {
+      // Бот недоступен (нет конфига/сеть) — НЕ тупик: ставим в очередь с
+      // получателем, фоновый воркер бота отправит реальный подарок другу.
+      const q = await queueGiftToFriend(session.uid, deliveryKey, recipient)
+      if (q.status === 'ok') {
+        return NextResponse.json({ status: 'queued' }, { status: 202 })
+      }
+      const qmap: Record<string, number> = { not_found: 404, not_pending: 409 }
+      return NextResponse.json({ status: q.status }, { status: qmap[q.status] ?? 502 })
+    }
     const map: Record<string, number> = {
       recipient_not_found: 404,
       self_transfer: 400,
       not_found: 404,
       not_pending: 409,
-      unreachable: 503,
     }
     return NextResponse.json({ status: d.status }, { status: map[d.status] ?? 502 })
+
   } catch (err) {
     console.error('inventory/gift (telegram) failed', err)
     return NextResponse.json({ status: 'error' }, { status: 500 })

@@ -243,7 +243,51 @@ export async function withdrawInventoryItem(
   })
 }
 
+export type QueueGiftResult = {
+  status: 'ok' | 'not_found' | 'not_pending'
+  giftCode?: string | null
+  error?: string
+}
+
+/**
+ * Запасной путь для «Подарить другу», когда бот недоступен (unreachable).
+ * Не делаем реальную Telegram-доставку здесь (её умеет только бот) — лишь
+ * помечаем pending-доставку: получатель (``meta.gift_to``) + флаг очереди
+ * (``meta.withdraw_requested``). Фоновый воркер бота заберёт и отправит
+ * РЕАЛЬНЫЙ подарок этому получателю. Владелец — из подписанной сессии.
+ */
+export async function queueGiftToFriend(
+  senderId: number,
+  deliveryKey: string,
+  recipientRaw: string,
+): Promise<QueueGiftResult> {
+  return withTransaction(async (client) => {
+    const d = await lockDelivery(client, deliveryKey)
+    if (!d) return { status: 'not_found', error: 'delivery_not_found' }
+    if (!ownerMatches(d, senderId)) {
+      return { status: 'not_found', error: 'not_owner' }
+    }
+    if (d.status !== 'pending') {
+      return { status: 'not_pending', giftCode: d.item_code }
+    }
+    const meta = {
+      ...(d.meta ?? {}),
+      withdraw_requested: true,
+      withdraw_channel: 'site',
+      // Получатель реального подарка (резолв username→id сделает воркер бота).
+      gift_to: recipientRaw.trim(),
+      gift_to_requested_at: new Date().toISOString(),
+    }
+    await client.query(
+      `UPDATE gift_transactions SET meta = $2 WHERE id = $1`,
+      [d.id, JSON.stringify(meta)],
+    )
+    return { status: 'ok', giftCode: d.item_code }
+  })
+}
+
 export type GiftTransferResult = {
+
   // ok — передан; recipient_* — кому ушёл (для подтверждения в UI).
   status:
     | 'ok'

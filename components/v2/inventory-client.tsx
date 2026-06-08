@@ -73,14 +73,15 @@ function GiftCard({
           window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
           return
         }
-        if (data.status === 'pending') {
+        if (data.status === 'pending' || data.status === 'queued') {
           setState('gifted')
-          setMsg('⏳ В очереди — отправлю другу чуть позже.')
+          setMsg('⏳ В очереди — подарок уйдёт другу чуть позже.')
           return
         }
         if (data.status === 'cancelled') {
           setState('gifted')
           setMsg(data.refunded ? '↩️ Не вышло — ешки возвращены.' : 'Отменено.')
+
           notifyBalanceChanged()
           window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
           return
