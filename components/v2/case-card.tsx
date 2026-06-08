@@ -1,6 +1,8 @@
 import { rarityToken, type Rarity } from '@/lib/rarity'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { chanceLabel, qtyLabel, type CaseView, type RewardView } from '@/lib/cases-ux'
+import { CaseOpener } from '@/components/v2/case-opener'
+
 
 /**
  * CaseCard (V3, поверхность №5) — витрина кейса с акцентом на ЦЕННОСТИ наград,
@@ -30,7 +32,16 @@ function RewardRow({ r }: { r: RewardView }) {
         borderColor: r.rarity === 'common' ? 'rgba(255,255,255,0.08)' : `${t.color}66`,
       }}
     >
-      <span aria-hidden="true">{r.isJackpot ? '💎' : r.rewardKind === 'currency' ? '💰' : '🎖️'}</span>
+      <span aria-hidden="true">
+        {r.isJackpot
+          ? '💎'
+          : r.rewardKind === 'currency'
+            ? '💰'
+            : r.rewardKind === 'tg_gift'
+              ? '🎁'
+              : '🎖️'}
+      </span>
+
       <span className="min-w-0 flex-1 truncate text-foreground">
         {r.label}
         {qty && <span className="ml-1 text-muted-foreground">{qty}</span>}
@@ -157,6 +168,23 @@ export function CaseCard({ caseView }: { caseView: CaseView }) {
         </div>
       )}
 
+      {/* Шансы реальных Telegram-наград — главный крючок кейса */}
+      {(c.giftChance > 0 || c.premiumChance > 0) && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {c.giftChance > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.08] px-2.5 py-1 text-[11px] font-semibold text-fuchsia-200">
+              🎁 Telegram Gift {chanceLabel(c.giftChance)}
+            </span>
+          )}
+          {c.premiumChance > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+              ⭐ Premium {chanceLabel(c.premiumChance)}
+            </span>
+          )}
+        </div>
+      )}
+
+
       {/* Шанс джекпота / топ-дропа — «ради чего крутить» */}
       {c.hasJackpot && c.topReward && (
         <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-2.5 py-1.5 text-xs">
@@ -192,6 +220,17 @@ export function CaseCard({ caseView }: { caseView: CaseView }) {
           )}
         </>
       )}
+
+      {/* Открытие кейса прямо с сайта (клиентский компонент). Экономика и RNG
+          считаются в боте через open_case — здесь только анимация и показ. */}
+      <CaseOpener
+        caseItemCode={c.itemCode}
+        costLabel={costLabel(c)}
+        rewards={c.rewardsView}
+      />
+
     </article>
   )
 }
+
+
