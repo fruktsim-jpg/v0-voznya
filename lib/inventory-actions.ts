@@ -243,7 +243,61 @@ export async function withdrawInventoryItem(
   })
 }
 
+export type ClaimLinkResult = {
+  status: 'ok' | 'not_found' | 'not_pending'
+  claimToken?: string
+  giftCode?: string | null
+  error?: string
+}
+
+/** Случайный URL-safe токен claim-ссылки (Telegram payload ≤ 64, наш ≤ 48). */
+function makeClaimToken(): string {
+  // 24 байта → 32 base64url-символа; берём [A-Za-z0-9_-], как ждёт бот.
+  const bytes = new Uint8Array(24)
+  crypto.getRandomValues(bytes)
+  let b64 = Buffer.from(bytes).toString('base64')
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/**
+ * Создаёт claim-ссылку «Подарить по ссылке» для тех, кто НЕ запускал бота.
+ * Помечает pending-доставку ``meta.claim_token`` (НЕ переназначает получателя —
+ * подарок ждёт, пока кто-то откроет ссылку и заберёт его). Возвращает токен;
+ * сам URL (https://t.me/<bot>?start=gift_<token>) собирает вызывающий код.
+ * Владелец — из подписанной сессии. Идемпотентно по FOR UPDATE.
+ */
+export async function createGiftClaimLink(
+  senderId: number,
+  deliveryKey: string,
+): Promise<ClaimLinkResult> {
+  return withTransaction(async (client) => {
+    const d = await lockDelivery(client, deliveryKey)
+    if (!d) return { status: 'not_found', error: 'delivery_not_found' }
+    if (!ownerMatches(d, senderId)) {
+      return { status: 'not_found', error: 'not_owner' }
+    }
+    if (d.status !== 'pending') {
+      return { status: 'not_pending', giftCode: d.item_code }
+    }
+    // Переиспользуем уже созданный токен (повторный клик не плодит ссылки).
+    const existing = (d.meta ?? {}).claim_token
+    const token = typeof existing === 'string' && existing ? existing : makeClaimToken()
+    const meta = {
+      ...(d.meta ?? {}),
+      claim_token: token,
+      claim_created_by: senderId,
+      claim_created_at: new Date().toISOString(),
+    }
+    await client.query(
+      `UPDATE gift_transactions SET meta = $2 WHERE id = $1`,
+      [d.id, JSON.stringify(meta)],
+    )
+    return { status: 'ok', claimToken: token, giftCode: d.item_code }
+  })
+}
+
 export type QueueGiftResult = {
+
   status: 'ok' | 'not_found' | 'not_pending'
   giftCode?: string | null
   error?: string

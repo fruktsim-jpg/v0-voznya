@@ -31,9 +31,9 @@ type ActionState =
   | 'transferred'
   | 'error'
 
-// Что раскрыто под карточкой: ввод для реального Telegram-подарка другу или
-// для внутренней передачи игроку Возни.
-type Panel = 'none' | 'gift' | 'transfer'
+// Что раскрыто под карточкой: реальный Telegram-подарок другу по @username,
+// внутренняя передача игроку Возни, или подарок по ссылке (кому угодно).
+type Panel = 'none' | 'gift' | 'transfer' | 'link'
 
 function GiftCard({
   item,
@@ -46,6 +46,8 @@ function GiftCard({
   const [msg, setMsg] = useState<string>('')
   const [panel, setPanel] = useState<Panel>('none')
   const [recipient, setRecipient] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+
   const t = rarityToken(item.rarity as Rarity)
   const busy =
     state === 'selling' ||
@@ -141,9 +143,51 @@ function GiftCard({
     }
   }
 
+  // «Подарить по ссылке» — создаёт claim-ссылку для кого угодно (даже если
+  // получатель ещё НЕ запускал бота): он откроет ссылку и заберёт подарок.
+  async function makeLink() {
+    if (busy || linkUrl) return
+    setState('gifting')
+    setMsg('')
+    try {
+      const res = await fetch('/api/inventory/gift-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryKey: item.deliveryKey }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.status === 'ok' && data.url) {
+        setState('idle')
+        setLinkUrl(data.url as string)
+        return
+      }
+      setState('error')
+      setMsg(
+        data.error === 'bot_username_not_configured'
+          ? 'Ссылки временно недоступны.'
+          : data.status === 'not_pending'
+            ? 'Предмет уже обработан.'
+            : 'Не получилось создать ссылку.',
+      )
+    } catch {
+      setState('error')
+      setMsg('Сеть недоступна.')
+    }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(linkUrl)
+      setMsg('🔗 Ссылка скопирована!')
+    } catch {
+      setMsg('Скопируй ссылку вручную.')
+    }
+  }
+
 
 
   async function sell() {
+
     if (busy) return
     setState('selling')
     setMsg('')
@@ -276,23 +320,69 @@ function GiftCard({
               • «Подарить другу» — РЕАЛЬНЫЙ Telegram-подарок по @username;
               • «Передать игроку» — внутренняя передача предмета в Возне. */}
           {panel === 'none' ? (
-            <div className="grid grid-cols-2 gap-1.5">
+            <>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => { setPanel('gift'); setRecipient('') }}
+                  disabled={busy}
+                  className="rounded-lg border border-emerald-400/40 bg-emerald-400/10 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                >
+                  🎁 Подарить другу
+                </button>
+                <button
+                  onClick={() => { setPanel('transfer'); setRecipient('') }}
+                  disabled={busy}
+                  className="rounded-lg border border-white/15 bg-white/5 py-2 text-xs font-bold text-foreground transition hover:bg-white/10 disabled:opacity-50"
+                >
+                  📦 Передать игроку
+                </button>
+              </div>
+              {/* Подарить по ссылке — работает даже если получатель НЕ запускал
+                  бота: он откроет ссылку, запустит бота и заберёт подарок. */}
               <button
-                onClick={() => { setPanel('gift'); setRecipient('') }}
+                onClick={() => { setPanel('link'); setLinkUrl(''); setMsg(''); makeLink() }}
                 disabled={busy}
-                className="rounded-lg border border-emerald-400/40 bg-emerald-400/10 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                className="rounded-lg border border-sky-400/40 bg-sky-400/10 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20 disabled:opacity-50"
               >
-                🎁 Подарить другу
+                🔗 Подарить по ссылке
               </button>
+            </>
+          ) : panel === 'link' ? (
+            <div className="flex flex-col gap-1.5">
+              <p className="px-0.5 text-[11px] text-muted-foreground">
+                Отправь ссылку кому угодно — даже если он не запускал бота. Он
+                откроет её, запустит Возню и заберёт подарок.
+              </p>
+              {linkUrl ? (
+                <div className="flex gap-1.5">
+                  <input
+                    readOnly
+                    value={linkUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-[11px] text-foreground outline-none"
+                  />
+                  <button
+                    onClick={copyLink}
+                    className="rounded-lg border border-sky-400/50 bg-sky-400/10 px-3 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-400/20"
+                  >
+                    Копировать
+                  </button>
+                </div>
+              ) : (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  {state === 'gifting' ? 'Создаю ссылку…' : ' '}
+                </p>
+              )}
               <button
-                onClick={() => { setPanel('transfer'); setRecipient('') }}
-                disabled={busy}
-                className="rounded-lg border border-white/15 bg-white/5 py-2 text-xs font-bold text-foreground transition hover:bg-white/10 disabled:opacity-50"
+                onClick={() => { setPanel('none'); setState('idle'); setMsg(''); setLinkUrl('') }}
+                className="self-start rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-white/10"
               >
-                📦 Передать игроку
+                ← назад
               </button>
+              {msg && <p className="text-center text-[11px] text-sky-300">{msg}</p>}
             </div>
           ) : (
+
             <div className="flex flex-col gap-1">
               <p className="px-0.5 text-[11px] text-muted-foreground">
                 {panel === 'gift'
