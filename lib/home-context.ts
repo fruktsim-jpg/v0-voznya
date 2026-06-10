@@ -2,286 +2,172 @@ import 'server-only'
 
 import type { CommunityEvent } from '@/lib/events'
 import type { Rarity } from '@/lib/rarity'
-import { mmrRank, MMR_RANKS, type MmrRank } from '@/lib/mmr'
+import { RARITY_ORDER } from '@/lib/rarity'
 import {
-  getPlayerProfile,
   getUserSummary,
   getTopRich,
+  getWeeklyTop,
   getCommunityStats,
   type RichUser,
+  type WeeklyEarner,
   type CommunityStats,
 } from '@/lib/queries'
 import { getCommunityFeed, getUserFeed } from '@/lib/feed'
 import {
   getActiveSeason,
   getSeasonProfile,
-  divisionProgress,
+  getSeasonLeaderboard,
+  type SeasonLeaderRow,
 } from '@/lib/season'
 import { getActiveCasesWithRewards } from '@/lib/cases'
 
 /**
- * Home aggregator (VOZNYA REDESIGN — Home Hub stage).
+ * Home aggregator (VOZNYA REDESIGN — Home = "VOZNYA Right Now").
  *
- * READ-ONLY. Composes EXISTING bot-DB read functions into one snapshot for the
- * Home command center and the shared identity/progression bar. It NEVER writes
- * — the bot owns `users` and all game tables. Every field here is DB-backed or
- * computed from DB-backed values; nothing is faked. Where a value is not
- * available in the schema (login streak, daily claims, cosmetics/title, second
- * currency), it is simply omitted — callers render an explicit future slot, not
- * a fabricated number.
+ * READ-ONLY. Composes EXISTING bot-DB read functions into a WORLD-FIRST snapshot.
+ * Home answers "what's happening in VOZNYA right now / what did I miss / what's
+ * hot / who's winning", NOT "who am I" — identity lives on Profile and in the
+ * persistent shell bar. The only personal data Home carries is a THIN current-
+ * state strip (division + MMR-ish standing + balance + leaderboard place); no
+ * progression detail, no personal goals, no achievements/collection.
  *
- * The identity/progression slice is the single source shared by:
- *   - the persistent shell bar (`/api/me/summary` → PlayerContextBar), and
- *   - the Home identity hero.
- * Built once here so the bar and hero can never drift.
+ * NEVER writes — the bot owns `users` and all game tables. Every field is
+ * DB-backed or derived from DB-backed values. Signals that require stored
+ * history the bot does not write (trend deltas, "you fell N places vs
+ * yesterday", "economy +X% today") are intentionally OMITTED, not faked. We use
+ * only honest CURRENT + TIME-WINDOWED + SINCE-LAST-VISIT signals.
  */
 
-// --- Shared identity / progression slice ------------------------------------
+// --- Thin personal strip (current-state only) -------------------------------
 
-export type IdentityDivision = {
-  name: string
-  emoji: string
-  minMmr: number
-}
-
-export type IdentitySeason = {
-  name: string
-  endsAt: string | null
-  seasonMmr: number
-  rank: number | null
-  division: IdentityDivision
-  nextDivision: IdentityDivision | null
-  /** 0..1 progress toward the next division. */
-  ratio: number
-  /** Season MMR remaining to the next division (0 at max). */
-  toNext: number
-}
-
-export type IdentityFamily = {
-  partnerId: number
-  partnerName: string
-  days: number
-}
-
-/**
- * The shared identity + progression slice. Serializable (passed to client
- * components and returned by `/api/me/summary`). `registered: false` means the
- * authenticated Telegram user has no game row yet.
- */
-export type IdentityProgression = {
+export type PlayerStrip = {
   userId: number
-  registered: boolean
   name: string | null
   photoUrl: string | null
   balance: number | null
   /** Leaderboard position by balance. */
   rank: number | null
-  mmr: number | null
-  mmrRank: MmrRank | null
-  /** Next MMR rank tier + MMR remaining to reach it (null at top tier). */
-  nextMmrRank: MmrRank | null
-  mmrToNextRank: number | null
-  reputation: number | null
-  streak: number
-  maxStreak: number
-  season: IdentitySeason | null
-  family: IdentityFamily | null
-}
-
-function nextMmrTier(mmr: number): { next: MmrRank | null; toNext: number | null } {
-  const current = mmrRank(mmr)
-  const idx = MMR_RANKS.findIndex((r) => r.name === current.name)
-  const next = idx >= 0 && idx < MMR_RANKS.length - 1 ? MMR_RANKS[idx + 1] : null
-  return {
-    next,
-    toNext: next ? Math.max(0, next.minMmr - mmr) : null,
-  }
+  /** Current season division (label + emoji) — current state, not progression. */
+  division: { name: string; emoji: string } | null
+  seasonMmr: number | null
+  seasonRank: number | null
 }
 
 /**
- * Season slice. Season tables can be absent on un-migrated DBs and the season
- * loaders throw in that case (unlike the feed loaders), so this is fully
- * guarded and degrades to null.
+ * Build the thin personal strip. Deliberately minimal: it is an anchor, not a
+ * profile. Degrades to `null` for guests / DB-unavailable. Season is guarded
+ * (season tables can be absent on un-migrated DBs) and simply omitted on error.
  */
-async function loadSeasonSlice(userId: number): Promise<IdentitySeason | null> {
+export async function getPlayerStrip(userId: number): Promise<PlayerStrip | null> {
+  let summary: Awaited<ReturnType<typeof getUserSummary>> | null = null
   try {
-    const [active, profile] = await Promise.all([
-      getActiveSeason(),
-      getSeasonProfile(userId),
-    ])
-    const progress = divisionProgress(profile.seasonMmr)
-    return {
-      name: active?.name ?? 'Сезон',
-      endsAt: active?.endsAt ?? null,
-      seasonMmr: profile.seasonMmr,
-      rank: profile.rank,
-      division: {
-        name: progress.current.name,
-        emoji: progress.current.emoji,
-        minMmr: progress.current.minMmr,
-      },
-      nextDivision: progress.next
-        ? {
-            name: progress.next.name,
-            emoji: progress.next.emoji,
-            minMmr: progress.next.minMmr,
-          }
-        : null,
-      ratio: progress.ratio,
-      toNext: progress.toNext,
-    }
+    summary = await getUserSummary(userId)
   } catch {
     return null
   }
-}
+  if (!summary.registered) return null
 
-/**
- * Build the shared identity/progression slice for a user. Degrades gracefully:
- * an unregistered or DB-unavailable user still yields a well-formed object with
- * `registered: false` and null progression, so the bar/hero can decide what to
- * render without throwing.
- */
-export async function getIdentityProgression(
-  userId: number,
-): Promise<IdentityProgression> {
-  let profile: Awaited<ReturnType<typeof getPlayerProfile>> = null
+  let division: { name: string; emoji: string } | null = null
+  let seasonMmr: number | null = null
+  let seasonRank: number | null = null
   try {
-    profile = await getPlayerProfile(userId)
+    const sp = await getSeasonProfile(userId)
+    seasonMmr = sp.seasonMmr
+    seasonRank = sp.rank
+    division = { name: sp.division.name, emoji: sp.division.emoji }
   } catch {
-    profile = null
+    // No season tables — strip still renders balance/rank.
   }
-
-  // Fall back to the lighter summary for name/photo/rank when there is no full
-  // profile yet (or the profile read failed).
-  if (!profile) {
-    let summary: Awaited<ReturnType<typeof getUserSummary>> | null = null
-    try {
-      summary = await getUserSummary(userId)
-    } catch {
-      summary = null
-    }
-    return {
-      userId,
-      registered: summary?.registered ?? false,
-      name: summary?.name ?? null,
-      photoUrl: summary?.photoUrl ?? null,
-      balance: summary?.balance ?? null,
-      rank: summary?.rank ?? null,
-      mmr: null,
-      mmrRank: null,
-      nextMmrRank: null,
-      mmrToNextRank: null,
-      reputation: null,
-      streak: 0,
-      maxStreak: 0,
-      season: null,
-      family: null,
-    }
-  }
-
-  const season = await loadSeasonSlice(userId)
-  const tier =
-    profile.mmr !== null ? nextMmrTier(profile.mmr) : { next: null, toNext: null }
 
   return {
     userId,
-    registered: true,
-    name: profile.firstName,
-    photoUrl: profile.photoUrl,
-    balance: profile.balance,
-    rank: profile.rankInTop,
-    mmr: profile.mmr,
-    mmrRank: profile.mmrRank,
-    nextMmrRank: tier.next,
-    mmrToNextRank: tier.toNext,
-    reputation: profile.reputation,
-    streak: profile.farmStreak,
-    maxStreak: profile.maxFarmStreak,
-    season,
-    family: profile.marriage
-      ? {
-          partnerId: profile.marriage.partnerId,
-          partnerName: profile.marriage.partnerName,
-          days: profile.marriage.days,
-        }
-      : null,
+    name: summary.name,
+    photoUrl: summary.photoUrl,
+    balance: summary.balance,
+    rank: summary.rank,
+    division,
+    seasonMmr,
+    seasonRank,
   }
 }
 
-// --- Next goals (computed, honest) ------------------------------------------
+// --- Hot Today (world highlights derived from the real feed) ----------------
 
-export type NextGoal = {
+export type HotHighlight = {
   id: string
-  icon: string
   label: string
-  /** Optional short progress hint, e.g. "+120 MMR". */
-  hint?: string
-  href: string
-  /** 0..1 when a real progress ratio exists. */
-  ratio?: number
+  actorName: string
+  actorId: number
+  value: number | null
+  rarity: Rarity
+  icon: string
+  occurredAt: string
+}
+
+export type HotToday = {
+  /** Single biggest payout event in the window (casino/treasure/case value). */
+  biggestWin: HotHighlight | null
+  /** Rarest drop in the window (highest rarity tier, tie-broken by value). */
+  rarestDrop: HotHighlight | null
+  /** Count of jackpots in the window — "the world is winning" proof. */
+  jackpots: number
+  /** Count of rare+ Telegram-gift drops in the window. */
+  giftDrops: number
+}
+
+function toHighlight(e: CommunityEvent, label: string): HotHighlight {
+  return {
+    id: e.id,
+    label,
+    actorName: e.actor.name,
+    actorId: e.actor.id,
+    value: e.value ?? null,
+    rarity: e.rarity,
+    icon: e.icon,
+    occurredAt: e.occurredAt,
+  }
 }
 
 /**
- * Compute motivational, DB-honest "what to do next" goals from the identity
- * slice. Every goal points at a real existing destination. No claimable
- * rewards, daily missions or login streaks are invented — those need bot-owned
- * writes and stay future slots.
+ * Derive "hot today" highlights from the real community feed. This is honest:
+ * it ranks events the feed already returned (timestamped, real), it does not
+ * invent superlatives. "Today" here means "within the fetched recent window" —
+ * we do not claim calendar-day semantics we cannot back.
  */
-function computeNextGoals(identity: IdentityProgression): NextGoal[] {
-  const goals: NextGoal[] = []
+function deriveHotToday(feed: CommunityEvent[]): HotToday {
+  let biggestWin: CommunityEvent | null = null
+  let rarestDrop: CommunityEvent | null = null
+  let jackpots = 0
+  let giftDrops = 0
 
-  // 1. Climb to the next season division (strongest progression hook).
-  if (identity.season?.nextDivision && identity.season.toNext > 0) {
-    goals.push({
-      id: 'division',
-      icon: identity.season.nextDivision.emoji,
-      label: `До дивизиона ${identity.season.nextDivision.name}`,
-      hint: `+${identity.season.toNext.toLocaleString('ru-RU')} MMR`,
-      href: '/season',
-      ratio: identity.season.ratio,
-    })
+  for (const e of feed) {
+    if (e.code === 'CASE_JACKPOT') jackpots++
+    if (e.code === 'CASE_GIFT_DROP' || e.code === 'GIFT_DELIVERED') giftDrops++
+
+    if (e.value != null && (biggestWin == null || e.value > (biggestWin.value ?? 0))) {
+      biggestWin = e
+    }
+
+    if (rarestDrop == null) {
+      rarestDrop = e
+    } else {
+      const a = RARITY_ORDER.indexOf(e.rarity)
+      const b = RARITY_ORDER.indexOf(rarestDrop.rarity)
+      if (a > b || (a === b && (e.value ?? 0) > (rarestDrop.value ?? 0))) {
+        rarestDrop = e
+      }
+    }
   }
 
-  // 2. Next MMR rank tier (lifetime progression).
-  if (
-    identity.mmr !== null &&
-    identity.nextMmrRank &&
-    identity.mmrToNextRank !== null &&
-    identity.mmrToNextRank > 0
-  ) {
-    goals.push({
-      id: 'mmr-rank',
-      icon: identity.nextMmrRank.emoji,
-      label: `До ранга «${identity.nextMmrRank.name}»`,
-      hint: `+${identity.mmrToNextRank.toLocaleString('ru-RU')} MMR`,
-      href: '/profile/me',
-    })
+  return {
+    biggestWin: biggestWin ? toHighlight(biggestWin, 'Крупнейший выигрыш') : null,
+    rarestDrop: rarestDrop ? toHighlight(rarestDrop, 'Редчайший дроп') : null,
+    jackpots,
+    giftDrops,
   }
-
-  // 3. Keep the farm streak alive (return-behavior hook).
-  if (identity.streak > 0) {
-    goals.push({
-      id: 'streak',
-      icon: '🔥',
-      label: 'Сохрани серию фарма',
-      hint: `${identity.streak} дн подряд`,
-      href: '/',
-    })
-  }
-
-  // 4. Always-available action: open a case.
-  goals.push({
-    id: 'case',
-    icon: '📦',
-    label: 'Открой кейс',
-    hint: 'новые артефакты',
-    href: '/cases',
-  })
-
-  return goals.slice(0, 4)
 }
 
-// --- Featured opportunity (curated, presentation-side) ----------------------
+// --- Featured opportunity (storefront pick over real cases) -----------------
 
 export type FeaturedOpportunity = {
   kind: 'case'
@@ -290,19 +176,11 @@ export type FeaturedOpportunity = {
   description: string | null
   openCostKind: string
   openCostAmount: number
-  /** Best real reward on this case, for the "chase" line. Null if none. */
   topReward: { name: string; rarity: Rarity; chance: number } | null
-  /** Whether this case carries a limited or jackpot reward. */
   hasChase: boolean
   href: string
 }
 
-/**
- * Curated "Featured Opportunity" pick. There is NO CMS/featured table, so this
- * is an honest presentation-side choice over the real active cases: prefer a
- * case that carries a jackpot or limited reward (the strongest chase), else the
- * highest open cost (the marquee case). Returns null when no cases are active.
- */
 async function pickFeaturedOpportunity(): Promise<FeaturedOpportunity | null> {
   let cases: Awaited<ReturnType<typeof getActiveCasesWithRewards>> = []
   try {
@@ -318,15 +196,6 @@ async function pickFeaturedOpportunity(): Promise<FeaturedOpportunity | null> {
   }
   const pick = [...cases].sort((a, b) => scoreOf(b) - scoreOf(a))[0]
 
-  // Best reward by rarity weight then by Stars/amount value, for the chase line.
-  const RARITY_ORDER: Rarity[] = [
-    'common',
-    'uncommon',
-    'rare',
-    'epic',
-    'legendary',
-    'mythic',
-  ]
   const named = pick.rewards.filter((r) => r.rewardItemName)
   const best = named.sort((a, b) => {
     const ra = RARITY_ORDER.indexOf((a.rewardItemRarity ?? 'common') as Rarity)
@@ -354,54 +223,97 @@ async function pickFeaturedOpportunity(): Promise<FeaturedOpportunity | null> {
   }
 }
 
+// --- Season race (spectator view of the world's season) ---------------------
+
+export type SeasonRace = {
+  name: string
+  endsAt: string | null
+  leaders: {
+    userId: number
+    name: string
+    seasonMmr: number
+    division: { name: string; emoji: string }
+  }[]
+}
+
+async function loadSeasonRace(): Promise<SeasonRace | null> {
+  try {
+    const [active, leaders] = await Promise.all([
+      getActiveSeason(),
+      getSeasonLeaderboard(5),
+    ])
+    if (!active && leaders.length === 0) return null
+    return {
+      name: active?.name ?? 'Сезон',
+      endsAt: active?.endsAt ?? null,
+      leaders: leaders.map((r: SeasonLeaderRow) => ({
+        userId: r.userId,
+        name: r.name?.trim() || (r.username ? `@${r.username}` : 'Игрок'),
+        seasonMmr: r.seasonMmr,
+        division: { name: r.division.name, emoji: r.division.emoji },
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+
 // --- Full Home context ------------------------------------------------------
 
 export type HomeContext = {
-  identity: IdentityProgression | null
-  goals: NextGoal[]
-  featured: FeaturedOpportunity | null
-  /** Personal recent activity (for "While you were away" diffing client-side). */
+  /** Thin current-state strip; null for guests. */
+  player: PlayerStrip | null
+  /** Community-wide live activity (the heartbeat). */
+  worldFeed: CommunityEvent[]
+  /** Personal recent activity, for the "while you were away" world+you re-entry. */
   personalFeed: CommunityEvent[]
-  /** Community-wide activity feed. */
-  communityFeed: CommunityEvent[]
-  leaders: RichUser[]
+  hotToday: HotToday
+  featured: FeaturedOpportunity | null
+  seasonRace: SeasonRace | null
+  /** Top by balance (status). */
+  richLeaders: RichUser[]
+  /** Top earners in the last 7 days (who's rising right now). */
+  weeklyMovers: WeeklyEarner[]
   stats: CommunityStats | null
 }
 
 /**
- * One-pass Home snapshot. `userId` is null for guests/unauthenticated visitors;
- * in that case identity/goals/personalFeed are empty and the page renders the
- * guest landing. All sub-loaders degrade independently so a single failure
- * never blanks the whole page.
+ * One-pass WORLD-FIRST Home snapshot. `userId` is null for guests; in that case
+ * `player` and `personalFeed` are empty and the page renders the guest landing.
+ * Every sub-loader degrades independently so a single failure never blanks Home.
  */
 export async function getHomeContext(
   userId: number | null,
 ): Promise<HomeContext> {
   const [
-    identity,
-    featured,
+    player,
+    worldFeed,
     personalFeed,
-    communityFeed,
-    leaders,
+    featured,
+    seasonRace,
+    richLeaders,
+    weeklyMovers,
     stats,
   ] = await Promise.all([
-    userId !== null ? getIdentityProgression(userId) : Promise.resolve(null),
-    pickFeaturedOpportunity(),
+    userId !== null ? getPlayerStrip(userId) : Promise.resolve(null),
+    getCommunityFeed(24),
     userId !== null ? getUserFeed(userId, 12) : Promise.resolve([]),
-    getCommunityFeed(16),
+    pickFeaturedOpportunity(),
+    loadSeasonRace(),
     getTopRich(5).catch(() => [] as RichUser[]),
+    getWeeklyTop(7, 5).catch(() => [] as WeeklyEarner[]),
     getCommunityStats().catch(() => null),
   ])
 
-  const goals = identity?.registered ? computeNextGoals(identity) : []
-
   return {
-    identity,
-    goals,
-    featured,
+    player,
+    worldFeed,
     personalFeed,
-    communityFeed,
-    leaders,
+    hotToday: deriveHotToday(worldFeed),
+    featured,
+    seasonRace,
+    richLeaders,
+    weeklyMovers,
     stats,
   }
 }

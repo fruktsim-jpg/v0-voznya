@@ -17,15 +17,17 @@ import { SiteFooter } from '@/components/voznya/site-footer'
 export const dynamic = 'force-dynamic'
 
 /**
- * Главная (VOZNYA REDESIGN — Home Hub).
+ * Главная (VOZNYA REDESIGN — «VOZNYA Right Now», world-first).
  *
- * Это первый экран, который должен ощущаться как живая экосистема, а не набор
- * страниц. Поведение зависит от того, кто пришёл:
+ * Home — это окно в живой мир VOZNYA, а НЕ профиль на главной. Он отвечает:
+ * что происходит в сообществе прямо сейчас, что я пропустил, что горячо, кто
+ * побеждает — идентичность и прогрессия живут в Профиле и в постоянном
+ * shell-баре. Поведение зависит от того, кто пришёл:
  *
- *  - Зарегистрированный игрок → Home Hub: командный центр живого мира
- *    (идентичность/прогрессия, «почему стоит зайти сегодня», статистика
- *    сообщества, сезон, «пока тебя не было», цели, возможность дня, лента,
- *    лидеры). Все данные — read-only из БД бота через `getHomeContext`.
+ *  - Зарегистрированный игрок → Home Hub (`components/home/home-hub.tsx`):
+ *    тонкий личный якорь + живая лента мира + «пока тебя не было» + что горячо +
+ *    гонка сезона/кто поднимается + масштаб сообщества + элита. Данные — только
+ *    чтение из БД бота через `getHomeContext`.
  *  - Гость / незарегистрированный → прежний лендинг-онбординг (Hero, быстрые
  *    входы, экосистема): его задача — показать продукт и завести внутрь.
  *
@@ -35,8 +37,8 @@ export default async function Page() {
   const session = await getSession()
   const ctx = await getHomeContext(session?.uid ?? null)
 
-  // Registered player → living-world command center.
-  if (ctx.identity?.registered) {
+  // Registered player → world-first living command center.
+  if (ctx.player) {
     return (
       <main className="relative min-h-svh overflow-x-hidden bg-background">
         <HomeHub ctx={ctx} />
@@ -46,7 +48,7 @@ export default async function Page() {
   }
 
   // Guest / not-yet-registered → onboarding landing (unchanged direction).
-  const feed = ctx.communityFeed.length > 0 ? ctx.communityFeed : await getCommunityFeed(8)
+  const feed = ctx.worldFeed.length > 0 ? ctx.worldFeed : await getCommunityFeed(8)
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Hero />

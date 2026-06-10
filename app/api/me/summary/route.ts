@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/get-session'
 import { getAdminSession } from '@/lib/auth/admin-session'
-import { getIdentityProgression } from '@/lib/home-context'
+import { getIdentityProgression } from '@/lib/identity'
 
 
 export const runtime = 'nodejs'

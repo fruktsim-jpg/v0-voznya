@@ -47,8 +47,8 @@ export function LeadersPreview({ leaders }: { leaders: RichUser[] }) {
     <section className="px-4 pt-6 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <div className="mb-4 flex items-end justify-between gap-3">
-          <SectionTitle eyebrow="Сообщество" size="md">
-            Лидеры
+          <SectionTitle eyebrow="Богатейшие" size="md">
+            Элита сообщества
           </SectionTitle>
           <Link
             href="/live#top-rich"
