@@ -3,6 +3,10 @@
 Сайт и админ-панель экосистемы «Возня» (Next.js App Router, Tailwind v4).
 Спутник Telegram-бота `voznya-bot`.
 
+Сводная документация по обеим кодовым базам находится в `../docs/`:
+`REPOSITORY_MAP.md`, `ARCHITECTURE.md`, `DATABASE.md`, `FEATURES.md`,
+`ADMIN.md`, `PROJECT_STATUS.md`, `DOCUMENTATION_DRIFT.md`.
+
 > Источник истины — код, а не документация. Этот README описывает фактическое
 > состояние. Завершённые планы и одноразовые отчёты — в `docs/archive/`, они
 > НЕ отражают актуальное состояние.
@@ -19,9 +23,12 @@
 
 - `/` — главная (дашборд сообщества: hero, live-статы, лента событий, топы).
 - `/live` — Live Center: статистика, топы, экономика, достижения, справочник.
-- `/cases` — витрина кейсов (содержимое, шансы, лучшие открытия). Открытие — в боте.
+- `/cases` — витрина кейсов (содержимое, шансы, лучшие открытия) и
+  авторизованное открытие через сайтовый API.
 - `/gifts` — коллекция Telegram Gifts. Покупка — в боте.
 - `/casino` — витрина азартной части (пульс, крупные выигрыши, топ игроков).
+- `/inventory` — инвентарь авторизованного игрока и действия с предметами.
+- `/season` — сезонный экран: прогресс, миссии, дневные награды, MMR.
 - `/profile/[id]`, `/profile/me` — публичный профиль игрока.
 - `/link` — привязка Telegram-аккаунта (OIDC).
 - `/admin/*` — админ-панель (RBAC): игроки, экономика, кейсы, подарки, доставки, audit.
@@ -32,6 +39,8 @@
 - `lib/queries.ts` — публичные выборки (профиль, топы, экономика, MMR, сообщения).
 - `lib/cases.ts`, `lib/gifts.ts`, `lib/casino.ts`, `lib/feed.ts` — витрины и лента.
 - `lib/auth/` — сессии, Telegram-логин, OIDC, RBAC (`admin-permissions.ts`).
+- `lib/inventory*.ts`, `lib/season.ts`, `lib/cases-open.ts`, `lib/shop-actions.ts` —
+  авторизованные игроковые действия и витрины.
 - `components/v2/` — текущая дизайн-система (Card, rarity, bottom-nav, event-feed и т.д.).
 - `components/live/`, `components/profile/`, `components/voznya/` — секции страниц.
 
@@ -51,3 +60,6 @@ pnpm start    # запуск собранного приложения
 `.env.example` (DATABASE_URL, TELEGRAM_BOT_TOKEN, секреты сессий/OIDC).
 
 Деплой: автоматический на Vercel при merge в `main`.
+
+Исторические планы и отчёты находятся в `docs/archive/` и не являются источником
+текущей архитектуры.
