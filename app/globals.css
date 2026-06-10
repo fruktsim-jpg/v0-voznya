@@ -149,3 +149,163 @@
     animation: none;
   }
 }
+
+/* ===========================================================================
+   Case Opening Experience (Stage 3) — premium, LIGHTWEIGHT motion system.
+   Rules: animate ONLY transform + opacity (compositor-friendly, no layout/
+   paint thrash on mobile), no canvas, no heavy particle systems. Every effect
+   below is GPU-cheap and degrades to nothing under prefers-reduced-motion.
+   =========================================================================== */
+
+/* Reveal: the won item rises + settles with a subtle overshoot. */
+@keyframes case-reveal-in {
+  0% {
+    transform: translateY(14px) scale(0.92);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-3px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.case-reveal-in {
+  animation: case-reveal-in 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Rarity glow breathing behind the revealed item (opacity only). */
+@keyframes case-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+.case-glow-pulse {
+  animation: case-glow-pulse 2.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Conic sheen sweep for high-tier reveals — single rotating element, cheap. */
+@keyframes case-sheen-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.case-sheen-spin {
+  animation: case-sheen-spin 6s linear infinite;
+  will-change: transform;
+}
+
+/* Confetti / spark shard burst (declarative, transform-only). Driven by CSS
+   custom props --dx/--dy/--rot set inline so it is data-light (no JS RAF). */
+@keyframes case-shard {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--dx, 0), var(--dy, 0))
+      rotate(var(--rot, 180deg)) scale(0.2);
+    opacity: 0;
+  }
+}
+.case-shard {
+  animation: case-shard 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Soft pulsing ring on the "open" CTA to invite the tap. Uses a pseudo-element
+   ring animating transform+opacity only (compositor-friendly) instead of an
+   animated box-shadow, so idle CTAs don't trigger continuous repaint. */
+@keyframes case-cta-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1.06);
+    opacity: 0;
+  }
+}
+.case-cta-pulse {
+  position: relative;
+}
+.case-cta-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid rgba(139, 92, 246, 0.5);
+  animation: case-cta-pulse 2s ease-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Reel deceleration is handled inline (transition), but we expose a subtle
+   shimmer on the center marker so the "stop zone" reads as the focal point. */
+@keyframes case-marker-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.case-marker-glow {
+  animation: case-marker-glow 1.1s ease-in-out infinite;
+}
+
+/* Skeleton/anticipation shimmer for the "rolling" state label. */
+@keyframes case-text-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.case-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--muted-foreground) 0%,
+    #ffffff 50%,
+    var(--muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: case-text-shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .case-reveal-in,
+  .case-glow-pulse,
+  .case-sheen-spin,
+  .case-shard,
+  .case-cta-pulse,
+  .case-cta-pulse::after,
+  .case-marker-glow,
+  .case-text-shimmer {
+    animation: none !important;
+  }
+  .case-cta-pulse::after {
+    display: none;
+  }
+  /* Keep the revealed item fully visible when motion is disabled. */
+  .case-reveal-in {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getActiveCasesWithRewards } from '@/lib/cases'
 import { buildCaseView } from '@/lib/cases-ux'
-import { CaseCard } from '@/components/v2/case-card'
+import { CasesHub } from '@/components/cases/cases-hub'
 import { ScreenHeader } from '@/components/v2/screen-header'
 
 export const dynamic = 'force-dynamic'
@@ -12,20 +12,33 @@ export const metadata = {
 }
 
 /**
- * Cases (App Redesign V1) — игровая поверхность как ПРИЛОЖЕНИЕ, не лендинг.
- * Тонкий title bar + плотная сетка компактных карточек (3+ кейса на экран).
- * Все детали (дроп-лист, описание, рулетка открытия) — в bottom-sheet карточки.
- * Экономика/RNG считаются в боте (open_case — единственный writer).
+ * Cases (Stage 3 — Opening Experience). The cases hub as a premium product: a
+ * featured hero, category filters and a value-first grid (each tile reads its
+ * rarity profile + chase reward at a glance). The full opening experience —
+ * anticipation, a decelerating reel, a rarity-scaled reveal, sound/haptics and
+ * gift fate — lives in the detail sheet (CasesHub → CaseDetailSheet).
+ *
+ * The economy/RNG is UNCHANGED: open_case (bot, shared DB) stays the single
+ * writer, reached via /api/cases/open. This page only reads catalog data and
+ * derives presentation (lib/cases, lib/cases-ux).
  */
 export default async function CasesPage() {
   const rawCases = await getActiveCasesWithRewards()
-  const cases = rawCases.map(buildCaseView).sort((a, b) => a.openCostAmount - b.openCostAmount)
+  const cases = rawCases.map(buildCaseView)
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <ScreenHeader icon="📦" title="Кейсы" />
+      <ScreenHeader
+        icon="📦"
+        title="Кейсы"
+        action={
+          <Link href="/inventory" className="text-sm font-medium text-primary hover:underline">
+            Инвентарь
+          </Link>
+        }
+      />
 
-      <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
         {cases.length === 0 ? (
           <div className="glass mx-auto mt-6 max-w-md rounded-2xl border border-border p-8 text-center">
             <div className="mb-2 text-3xl">📦</div>
@@ -37,11 +50,7 @@ export default async function CasesPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {cases.map((c) => (
-              <CaseCard key={c.itemCode} caseView={c} />
-            ))}
-          </div>
+          <CasesHub cases={cases} />
         )}
       </div>
     </main>

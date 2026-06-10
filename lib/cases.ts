@@ -32,6 +32,12 @@ export type ShowcaseCase = {
   openCostAmount: number
   consumesKey: boolean
   rewards: ShowcaseReward[]
+  // Scheduling / season metadata (Stage 3 — drives category derivation in the
+  // UX layer). READ-ONLY: these already exist on case_definitions; we surface
+  // them for presentation only. No new tables, no writes.
+  seasonCode: string | null
+  startsAt: string | null
+  endsAt: string | null
 }
 
 /**
@@ -54,11 +60,15 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
     open_cost_kind: string
     open_cost_amount: string
     consumes_key: boolean
+    season_code: string | null
+    starts_at: Date | string | null
+    ends_at: Date | string | null
   }[]
   try {
     cases = await query(
       `SELECT item_code, name, description, open_cost_kind,
-              open_cost_amount, consumes_key
+              open_cost_amount, consumes_key,
+              season_code, starts_at, ends_at
          FROM case_definitions
         WHERE is_active = true
           AND (starts_at IS NULL OR starts_at <= now())
@@ -140,6 +150,9 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
       openCostAmount: Number(c.open_cost_amount),
       consumesKey: c.consumes_key,
       rewards,
+      seasonCode: c.season_code ?? null,
+      startsAt: c.starts_at == null ? null : new Date(c.starts_at).toISOString(),
+      endsAt: c.ends_at == null ? null : new Date(c.ends_at).toISOString(),
     }
   })
 }

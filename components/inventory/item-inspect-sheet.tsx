@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Drawer } from 'vaul'
 import { rarityToken } from '@/lib/rarity'
 import { notifyBalanceChanged } from '@/lib/balance-events'
+import { sellGift, withdrawGift } from '@/lib/gift-delivery'
 import type { InventoryGiftItem } from '@/lib/inventory-list'
 import type { InvItem } from '@/lib/inventory-meta'
 import { COLLECTION_GLYPH } from '@/lib/inventory-meta'
@@ -237,71 +238,31 @@ function GiftActions({
     setConfirmSell(false)
     setState('selling')
     setMsg('')
-    try {
-      const res = await fetch('/api/inventory/sell', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryKey: item.deliveryKey }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.status === 'ok') {
-        setState('sold')
-        setMsg(`+${fmt(data.amount ?? item.sellAmount)} 🥚`)
-        notifyBalanceChanged()
-        window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
-        return
-      }
-      setState('error')
-      setMsg(
-        data.status === 'not_pending'
-          ? 'Предмет уже обработан.'
-          : data.status === 'no_value'
-            ? 'Стоимость неизвестна.'
-            : 'Не получилось продать.',
-      )
-    } catch {
-      setState('error')
-      setMsg('Сеть недоступна.')
+    const r = await sellGift(item.deliveryKey)
+    if (r.ok) {
+      setState('sold')
+      setMsg(`+${fmt(r.amount ?? item.sellAmount)} 🥚`)
+      window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
+      return
     }
+    setState('error')
+    setMsg(r.message)
   }
 
   async function withdraw() {
     if (busy) return
     setState('withdrawing')
     setMsg('')
-    try {
-      const res = await fetch('/api/inventory/withdraw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryKey: item.deliveryKey }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok || res.status === 202) {
-        if (data.status === 'delivered') {
-          setState('withdrawn')
-          setMsg(item.isPremium ? '⭐ Premium активирован!' : '✅ Подарок пришёл в Telegram!')
-          window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
-          return
-        }
-        if (data.status === 'cancelled') {
-          setState('withdrawn')
-          setMsg(data.refunded ? '↩️ Выдать не вышло — ешки возвращены.' : 'Отменено.')
-          notifyBalanceChanged()
-          window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
-          return
-        }
-        if (data.status === 'pending' || data.status === 'queued') {
-          setState('withdrawn')
-          setMsg('⏳ В очереди на выдачу — придёт в Telegram.')
-          return
-        }
-      }
-      setState('error')
-      setMsg(data.status === 'not_pending' ? 'Предмет уже обработан.' : 'Не получилось.')
-    } catch {
-      setState('error')
-      setMsg('Сеть недоступна.')
+    const r = await withdrawGift(item.deliveryKey, item.isPremium)
+    if (r.ok) {
+      setState('withdrawn')
+      setMsg(r.message)
+      // Refunded cancellations linger a touch longer before clearing the card.
+      window.setTimeout(() => onConsumed(item.deliveryKey), r.refunded ? 1500 : 1200)
+      return
     }
+    setState('error')
+    setMsg(r.message)
   }
 
   const done =

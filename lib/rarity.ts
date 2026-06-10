@@ -12,6 +12,49 @@ export type Rarity =
   | 'legendary'
   | 'mythic'
 
+/**
+ * Канонический порядок тиров (от частого к редкому). ЕДИНЫЙ источник правды —
+ * используется для сравнения/сортировки редкостей везде (кейсы, открытие,
+ * витрины). Не дублировать в других модулях, чтобы тиры не разъезжались.
+ */
+export const RARITY_ORDER: Rarity[] = [
+  'common',
+  'uncommon',
+  'rare',
+  'epic',
+  'legendary',
+  'mythic',
+]
+
+/** Нормализует строковую редкость в тир системы (fallback common). */
+export function normalizeRarity(r: string | null | undefined): Rarity {
+  const v = (r ?? '').toLowerCase()
+  return (RARITY_ORDER as string[]).includes(v) ? (v as Rarity) : 'common'
+}
+
+/** Возвращает более высокий из двух тиров. */
+export function maxRarity(a: Rarity, b: Rarity): Rarity {
+  return RARITY_ORDER.indexOf(a) >= RARITY_ORDER.indexOf(b) ? a : b
+}
+
+/**
+ * Псевдо-редкость для валютной награды по сумме (крупный выигрыш ценится выше).
+ * ЕДИНЫЙ источник правды: используется и в превью кейса (cases-ux), и в экране
+ * выпадения (case-open-ux), чтобы один и тот же выигрыш не показывался разными
+ * тирами до и после открытия.
+ */
+export function currencyRewardRarity(amount: number): Rarity {
+  return amount >= 10000
+    ? 'legendary'
+    : amount >= 3000
+      ? 'epic'
+      : amount >= 800
+        ? 'rare'
+        : amount >= 200
+          ? 'uncommon'
+          : 'common'
+}
+
 export type RarityToken = {
   label: string
   /** Базовый цвет тира (border / text accent). */

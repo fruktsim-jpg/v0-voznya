@@ -1,4 +1,10 @@
-import type { Rarity } from '@/lib/rarity'
+import {
+  currencyRewardRarity,
+  maxRarity,
+  normalizeRarity,
+  RARITY_ORDER,
+  type Rarity,
+} from '@/lib/rarity'
 import type { ShowcaseCase, ShowcaseReward } from '@/lib/cases'
 
 /**
@@ -6,15 +12,11 @@ import type { ShowcaseCase, ShowcaseReward } from '@/lib/cases'
  * ЭКОНОМИКИ и СТАТУСА, не отдельная игра: акцент на ЦЕННОСТИ наград, а не на
  * открытии. Чистые производные над существующими данными (case_definitions /
  * case_rewards), без новых таблиц. Никакого «казино-баннера».
+ *
+ * Порядок тиров, нормализация и валютная псевдо-редкость берутся из lib/rarity
+ * (единый источник правды) — не дублируем, чтобы превью кейса и экран открытия
+ * не разъезжались.
  */
-
-const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
-
-/** Нормализует строковую редкость предмета в тир системы (fallback common). */
-function normalizeRarity(r: string | null | undefined): Rarity {
-  const v = (r ?? '').toLowerCase()
-  return (RARITY_ORDER as string[]).includes(v) ? (v as Rarity) : 'common'
-}
 
 /**
  * Редкость награды для витрины. Предмет → его собственная редкость; валюта →
@@ -30,26 +32,11 @@ export function rewardRarity(r: ShowcaseReward): Rarity {
     // (джекпот) поднимется до legendary ниже; остальные гифты — минимум epic.
     base = 'epic'
   } else {
-    const amount = r.amount ?? 0
-    base =
-      amount >= 10000
-        ? 'legendary'
-        : amount >= 3000
-          ? 'epic'
-          : amount >= 800
-            ? 'rare'
-            : amount >= 200
-              ? 'uncommon'
-              : 'common'
+    base = currencyRewardRarity(r.amount ?? 0)
   }
   if (r.isJackpot) base = maxRarity(base, 'legendary')
   else if (r.limited) base = maxRarity(base, 'epic')
   return base
-}
-
-
-function maxRarity(a: Rarity, b: Rarity): Rarity {
-  return RARITY_ORDER.indexOf(a) >= RARITY_ORDER.indexOf(b) ? a : b
 }
 
 export type RewardView = ShowcaseReward & { rarity: Rarity; label: string }
@@ -69,6 +56,29 @@ export function qtyLabel(r: ShowcaseReward): string {
   if (r.minQty === r.maxQty) return r.minQty > 1 ? `×${r.minQty}` : ''
   return `×${r.minQty}–${r.maxQty}`
 }
+
+/**
+ * Категория кейса для хаба (Stage 3). Производная ТОЛЬКО из существующих
+ * данных — новых колонок в БД нет. Эвристика:
+ *   - premium  — есть награда Telegram Premium;
+ *   - event    — задано окно (starts_at/ends_at) → ограниченное событие;
+ *   - seasonal — задан season_code (но без жёсткого окна);
+ *   - free     — открытие бесплатно или по ключу;
+ *   - standard — всё остальное (за ешки).
+ * Featured (главный кейс хаба) выбирается отдельно в layoutCases().
+ */
+export type CaseCategory = 'premium' | 'event' | 'seasonal' | 'free' | 'standard'
+
+export const CASE_CATEGORY_META: Record<CaseCategory, { label: string; glyph: string }> = {
+  premium: { label: 'Premium', glyph: '⭐' },
+  event: { label: 'Событие', glyph: '⚡' },
+  seasonal: { label: 'Сезонные', glyph: '🍂' },
+  free: { label: 'Бесплатные', glyph: '🎈' },
+  standard: { label: 'Кейсы', glyph: '📦' },
+}
+
+/** Доля каждого тира в кейсе (по суммарному шансу). Для полосы распределения. */
+export type RaritySlice = { rarity: Rarity; chance: number }
 
 export type CaseView = ShowcaseCase & {
   rewardsView: RewardView[]
@@ -95,6 +105,22 @@ export type CaseView = ShowcaseCase & {
    * Чисто визуальный каркас будущей рулетки (никакого RNG/исхода).
    */
   rarityStrip: Rarity[]
+
+  // --- Stage 3 derivations (presentation only) ---
+  /** Производная категория для хаба. */
+  category: CaseCategory
+  /** Ограничен ли кейс по времени (есть ends_at в будущем). */
+  isLimited: boolean
+  /** Премиальный кейс (содержит Telegram Premium). */
+  isPremiumCase: boolean
+  /** Сколько наград в дроп-листе. */
+  rewardCount: number
+  /** Распределение редкостей по суммарному шансу (для полосы и детального экрана). */
+  rarityDistribution: RaritySlice[]
+  /** Человеческая «ради чего крутить» строка ценности. */
+  valueProp: string | null
+  /** Осталось времени до закрытия окна (мс), либо null. */
+  endsInMs: number | null
 }
 
 /** Обогащает кейс производными для витрины (ценность важнее открытия). */
@@ -130,6 +156,44 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
   // Каркас будущей рулетки: плашка на каждую награду, от редкого к частому.
   const rarityStrip = best.map((r) => r.rarity)
 
+  // --- Stage 3 derivations ---
+  const isPremiumCase = premiumChance > 0
+  const now = Date.now()
+  const endsAtMs = c.endsAt ? new Date(c.endsAt).getTime() : null
+  const startsAtMs = c.startsAt ? new Date(c.startsAt).getTime() : null
+  const endsInMs = endsAtMs != null && endsAtMs > now ? endsAtMs - now : null
+  const hasWindow = endsAtMs != null || (startsAtMs != null && startsAtMs > 0)
+  const isLimited = endsInMs != null
+  const isFree =
+    c.openCostKind === 'free' || (c.openCostKind !== 'currency' && !c.openCostAmount)
+
+  const category: CaseCategory = isPremiumCase
+    ? 'premium'
+    : isLimited || hasWindow
+      ? 'event'
+      : c.seasonCode
+        ? 'seasonal'
+        : isFree && !c.consumesKey
+          ? 'free'
+          : 'standard'
+
+  // Распределение редкостей по суммарному шансу — для полосы и детального экрана.
+  const distMap = new Map<Rarity, number>()
+  for (const r of rewardsView) {
+    distMap.set(r.rarity, (distMap.get(r.rarity) ?? 0) + r.chance)
+  }
+  const rarityDistribution: RaritySlice[] = RARITY_ORDER.filter((r) => distMap.has(r))
+    .map((rarity) => ({ rarity, chance: distMap.get(rarity) ?? 0 }))
+    .sort((a, b) => RARITY_ORDER.indexOf(b.rarity) - RARITY_ORDER.indexOf(a.rarity))
+
+  // «Ради чего крутить»: топ-награда + её шанс, если она ощутимо редкая.
+  let valueProp: string | null = null
+  if (topReward && RARITY_ORDER.indexOf(topReward.rarity) >= RARITY_ORDER.indexOf('rare')) {
+    valueProp = `${topReward.label} · ${chanceLabel(topReward.chance)}`
+  } else if (topReward) {
+    valueProp = topReward.label
+  }
+
   return {
     ...c,
     rewardsView,
@@ -142,7 +206,67 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
     giftChance,
     premiumChance,
     rarityStrip,
+    category,
+    isLimited,
+    isPremiumCase,
+    rewardCount: rewardsView.length,
+    rarityDistribution,
+    valueProp,
+    endsInMs,
   }
+}
+
+/**
+ * Раскладка кейсов для хаба (Stage 3). Выбирает FEATURED-кейс (самый ценный/
+ * редкий) и группирует остальные по категориям в стабильном порядке. Чистая
+ * сортировка/группировка над производными — без сетевых запросов и записи.
+ */
+export type CaseGroup = { category: CaseCategory; cases: CaseView[] }
+
+const CATEGORY_ORDER: CaseCategory[] = ['premium', 'event', 'seasonal', 'standard', 'free']
+
+export function layoutCases(cases: CaseView[]): {
+  featured: CaseView | null
+  groups: CaseGroup[]
+} {
+  if (cases.length === 0) return { featured: null, groups: [] }
+
+  // Featured = высший тир, затем наличие джекпота, затем шанс джекпота. Так на
+  // верх хаба попадает самый «вкусный» кейс — якорь внимания.
+  const ranked = [...cases].sort((a, b) => {
+    const tier = RARITY_ORDER.indexOf(b.topRarity) - RARITY_ORDER.indexOf(a.topRarity)
+    if (tier !== 0) return tier
+    if (a.hasJackpot !== b.hasJackpot) return a.hasJackpot ? -1 : 1
+    return b.jackpotChance - a.jackpotChance
+  })
+  const featured = ranked[0] ?? null
+
+  const rest = cases.filter((c) => c.itemCode !== featured?.itemCode)
+  const byCat = new Map<CaseCategory, CaseView[]>()
+  for (const c of rest) {
+    const list = byCat.get(c.category) ?? []
+    list.push(c)
+    byCat.set(c.category, list)
+  }
+
+  const groups: CaseGroup[] = CATEGORY_ORDER.filter((cat) => byCat.has(cat)).map((category) => ({
+    category,
+    cases: (byCat.get(category) ?? []).sort((a, b) => a.openCostAmount - b.openCostAmount),
+  }))
+
+  return { featured, groups }
+}
+
+/** Короткая подпись «осталось …» для ограниченных кейсов. */
+export function timeLeftLabel(ms: number | null): string | null {
+  if (ms == null || ms <= 0) return null
+  const totalMin = Math.floor(ms / 60000)
+  const days = Math.floor(totalMin / 1440)
+  const hours = Math.floor((totalMin % 1440) / 60)
+  const mins = totalMin % 60
+  if (days >= 1) return `${days} дн ${hours} ч`
+  if (hours >= 1) return `${hours} ч ${mins} мин`
+  return `${mins} мин`
 }
 
 
