@@ -18,6 +18,11 @@ type MiniAppAuthBootstrapProps = {
   nextPath: string
 }
 
+type DebugStep = {
+  step: string
+  detail: string
+}
+
 function safeNextPath(value: string): string {
   if (!value.startsWith('/')) return '/'
   if (value.startsWith('//')) return '/'
@@ -27,6 +32,12 @@ function safeNextPath(value: string): string {
 export function MiniAppAuthBootstrap({ nextPath }: MiniAppAuthBootstrapProps) {
   const target = useMemo(() => safeNextPath(nextPath), [nextPath])
   const [status, setStatus] = useState<'loading' | 'failed'>('loading')
+  const [debug, setDebug] = useState<DebugStep[]>([])
+
+  function addDebug(step: string, detail: string) {
+    setDebug((items) => [...items, { step, detail }])
+    console.info(`[miniapp-auth] ${step}: ${detail}`)
+  }
 
   useEffect(() => {
     const webApp = (window as TelegramWebAppWindow).Telegram?.WebApp
@@ -34,6 +45,8 @@ export function MiniAppAuthBootstrap({ nextPath }: MiniAppAuthBootstrapProps) {
     webApp?.expand?.()
 
     const initData = webApp?.initData || ''
+    addDebug('webapp.detect', webApp ? 'Telegram.WebApp present' : 'Telegram.WebApp missing')
+    addDebug('initData.present', initData ? `yes length=${initData.length}` : 'no')
     if (!initData) {
       setStatus('failed')
       return
@@ -41,39 +54,71 @@ export function MiniAppAuthBootstrap({ nextPath }: MiniAppAuthBootstrapProps) {
 
     const attemptKey = `${AUTH_ATTEMPT_KEY}:${target}`
     if (sessionStorage.getItem(attemptKey) === '1') {
+      addDebug('attempt.guard', `already attempted for ${target}`)
       setStatus('failed')
       return
     }
     sessionStorage.setItem(attemptKey, '1')
+    addDebug('attempt.start', target)
 
     let cancelled = false
 
     fetch('/api/auth/me', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : { authenticated: false }))
+      .then((response) => {
+        addDebug('auth.me.response', `status=${response.status}`)
+        return response.ok ? response.json() : { authenticated: false }
+      })
       .then((current) => {
         if (cancelled) return null
+        addDebug('auth.me.state', current?.authenticated ? 'authenticated' : 'not authenticated')
         if (current?.authenticated) {
           sessionStorage.removeItem(attemptKey)
           window.location.replace(target)
           return null
         }
+        addDebug('webapp.request', 'POST /api/auth/telegram-webapp')
         return fetch('/api/auth/telegram-webapp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ initData }),
         })
       })
-      .then((response) => {
+      .then(async (response) => {
         if (cancelled || !response) return
+        let payload: unknown = null
+        try {
+          payload = await response.json()
+        } catch {
+          payload = null
+        }
+        addDebug(
+          'webapp.response',
+          `status=${response.status} body=${JSON.stringify(payload)}`,
+        )
         if (response.ok) {
           sessionStorage.removeItem(attemptKey)
-          window.location.replace(target)
+          addDebug('cookie.check', 'GET /api/auth/me after Set-Cookie')
+          const cookieCheck = await fetch('/api/auth/me', { cache: 'no-store' })
+          const cookiePayload = cookieCheck.ok ? await cookieCheck.json() : null
+          addDebug(
+            'cookie.visible',
+            `status=${cookieCheck.status} authenticated=${Boolean(cookiePayload?.authenticated)}`,
+          )
+          if (cookiePayload?.authenticated) {
+            addDebug('redirect', target)
+            window.location.replace(target)
+            return
+          }
+          setStatus('failed')
           return
         }
         setStatus('failed')
       })
       .catch(() => {
-        if (!cancelled) setStatus('failed')
+        if (!cancelled) {
+          addDebug('exception', 'fetch failed')
+          setStatus('failed')
+        }
       })
 
     return () => {
@@ -95,6 +140,16 @@ export function MiniAppAuthBootstrap({ nextPath }: MiniAppAuthBootstrapProps) {
             ? 'Проверяем Mini App и открываем нужный раздел Возни.'
             : 'Открой раздел из Telegram ещё раз или войди через кнопку на сайте.'}
         </p>
+        {status === 'failed' && debug.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-border bg-background/70 p-3 text-left text-[11px] text-muted-foreground">
+            <div className="mb-1 font-semibold text-foreground">Mini App debug</div>
+            {debug.map((item, index) => (
+              <div key={`${item.step}-${index}`} className="break-words">
+                <span className="font-mono text-foreground">{item.step}</span>: {item.detail}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   )

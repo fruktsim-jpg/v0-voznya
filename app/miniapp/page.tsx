@@ -1,3 +1,4 @@
+import Script from 'next/script'
 import { MiniAppAuthBootstrap } from '@/components/auth/miniapp-auth-bootstrap'
 
 export const dynamic = 'force-dynamic'
@@ -13,5 +14,10 @@ function safeNextPath(value: string | undefined): string {
 
 export default async function MiniAppPage({ searchParams }: MiniAppPageProps) {
   const params = await searchParams
-  return <MiniAppAuthBootstrap nextPath={safeNextPath(params.next)} />
+  return (
+    <>
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+      <MiniAppAuthBootstrap nextPath={safeNextPath(params.next)} />
+    </>
+  )
 }
