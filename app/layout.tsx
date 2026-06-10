@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { SiteHeader } from '@/components/voznya/site-header'
-import { BottomNav } from '@/components/v2/bottom-nav'
+import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
 import './globals.css'
 
@@ -65,12 +64,9 @@ export default function RootLayout({
   return (
     <html lang="ru" className="bg-background">
       <body className={`${geist.className} font-sans antialiased`}>
-        <SiteHeader botId={getPublicBotId()} oidcEnabled={isOidcEnabled()} />
-
-        {/* Отступ снизу на мобиле, чтобы контент не прятался под BottomNav. */}
-        <div className="pb-16 sm:pb-0">{children}</div>
-
-        <BottomNav />
+        <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>
+          {children}
+        </AppShell>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
 

@@ -38,6 +38,13 @@ export const RARITY_STYLES: Record<string, RarityStyle> = {
     label: 'Легендарный',
     order: 5,
   },
+  // Top tier — mirrors the canonical 6-tier scale in lib/rarity.ts. Was missing
+  // here, so mythic items fell back to "common" styling (P5 data gap).
+  mythic: {
+    className: 'border-yellow-300/70 bg-yellow-300/10',
+    label: 'Мифический',
+    order: 6,
+  },
 }
 
 const FALLBACK_RARITY: RarityStyle = {
@@ -59,6 +66,11 @@ export const TYPE_EMOJI: Record<string, string> = {
   avatar: '👤',
   collectible: '💎',
   event: '🎉',
+  // Case + key items can land in the inventory (e.g. earned/gifted cases and
+  // their keys). Give them their own glyphs instead of the 📦 fallback so the
+  // inventory reads them as first-class objects.
+  case: '📦',
+  key: '🔑',
 }
 
 export function typeEmoji(type: string): string {

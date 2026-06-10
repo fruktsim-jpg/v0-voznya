@@ -105,6 +105,22 @@
     }
   }
 
+  /* PlayerContextBar (Stage 1) — when present, a 3rem (h-12) bar sits below the
+     fixed header. The shell adds `has-context-bar` to <body> only while the bar
+     is shown (registered players), so the shared top-padding utilities grow by
+     exactly that height. Guests/unregistered keep the original layout. */
+  body.has-context-bar .pt-header {
+    padding-top: calc(env(safe-area-inset-top) + 4.5rem + 3rem);
+  }
+  body.has-context-bar .pt-hero-safe {
+    padding-top: calc(env(safe-area-inset-top) + 6rem + 3rem);
+  }
+  @media (min-width: 640px) {
+    body.has-context-bar .pt-hero-safe {
+      padding-top: calc(env(safe-area-inset-top) + 8rem + 3rem);
+    }
+  }
+
   .text-gradient {
     background: linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 50%, #a855f7 100%);
     -webkit-background-clip: text;
