@@ -7,26 +7,34 @@ import { Avatar } from '@/components/ds/avatar'
 import { onBalanceChanged } from '@/lib/balance-events'
 
 /**
- * PlayerContextBar (Redesign V2, Stage 1) — постоянный «якорь прогрессии»:
- * аватар + имя + баланс ешек + место в топе. То, чего не хватало (Redesign
- * Master Plan §1.2 P3): ценные числа всегда под рукой, без захода в профиль.
+ * PlayerContextBar (VOZNYA REDESIGN — Home Hub) — the persistent, compact twin
+ * of the Home identity hero. It is the always-visible "anchor of progression":
+ * avatar + name + division + MMR rank + balance + leaderboard place.
  *
- * Источник данных — СУЩЕСТВУЮЩИЙ read-only `/api/me/summary` (тот же, что у
- * UserMenu). Никаких новых контрактов и никакой записи: бот владеет `users`.
- * Обновляется в реальном времени по событию onBalanceChanged (кейс/продажа/
- * покупка) — баланс меняется без F5.
+ * SHARED IDENTITY SYSTEM: this bar and the Home hero render from the SAME
+ * read-only slice — `/api/me/summary` now returns the identity/progression
+ * object built by `getIdentityProgression` (the same source Home uses). So the
+ * bar and hero can never drift: one data source, one visual language (division
+ * color, MMR format, streak). No new contracts, no writes — the bot owns `users`.
+ * Updates live via `onBalanceChanged` (case/sell/buy) without an F5.
  *
- * Позиционирование: фиксированная полоса прямо под шапкой (h-14 = 3.5rem +
- * safe-area). Чтобы не ломать верхние отступы 34 страниц, при появлении бара
- * вешаем на <body> класс `has-context-bar`; общие утилиты `.pt-header` и
- * `.pt-hero-safe` в globals.css увеличивают отступ ТОЛЬКО при этом классе.
- * Поэтому гости и незарегистрированные видят прежний макет без изменений.
- *
- * Видимость:
- *  - скрыт в админке (свой shell);
- *  - скрыт для гостей и незарегистрированных (для них — лендинг/онбординг);
- *  - поля keys / mmr / division зарезервированы под Stage 6.
+ * Visibility: hidden in admin (own shell) and for guests/unregistered (they get
+ * the onboarding landing). Body class `has-context-bar` compensates top padding
+ * only while shown (see globals.css), so guests keep the original layout.
  */
+type Division = { name: string; emoji: string; minMmr: number }
+type MmrRank = { minMmr: number; emoji: string; name: string }
+type Season = {
+  name: string
+  endsAt: string | null
+  seasonMmr: number
+  rank: number | null
+  division: Division
+  nextDivision: Division | null
+  ratio: number
+  toNext: number
+}
+
 type Summary =
   | { authenticated: false }
   | {
@@ -38,6 +46,11 @@ type Summary =
       rank: number | null
       photoUrl?: string | null
       isAdmin?: boolean
+      mmr?: number | null
+      mmrRank?: MmrRank | null
+      reputation?: number | null
+      streak?: number
+      season?: Season | null
     }
 
 function formatEsh(n: number): string {
@@ -87,6 +100,8 @@ export function PlayerContextBar() {
 
   const displayName = d.name?.trim() || 'Игрок'
   const profileHref = `/profile/${d.userId}`
+  const season = d.season ?? null
+  const progressPct = season ? Math.round(season.ratio * 100) : 0
 
   return (
     <div className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+3.5rem)] z-40 border-b border-border bg-background/80 backdrop-blur-md">
@@ -102,7 +117,40 @@ export function PlayerContextBar() {
           </span>
         </Link>
 
+        {/* Division + progress (shared progression language with the hero). */}
+        {season && (
+          <Link
+            href="/season"
+            className="hidden min-w-0 items-center gap-2 sm:flex"
+            aria-label={`Дивизион: ${season.division.name}`}
+          >
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+              <span aria-hidden>{season.division.emoji}</span>
+              {season.division.name}
+            </span>
+            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-white/[0.08]">
+              <span
+                className="block h-full rounded-full"
+                style={{
+                  width: `${progressPct}%`,
+                  background: 'linear-gradient(90deg, #4B69FF, #8847FF)',
+                }}
+              />
+            </span>
+          </Link>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
+          {d.mmrRank && typeof d.mmr === 'number' && (
+            <Link
+              href={profileHref}
+              className="hidden items-center gap-1 rounded-full border border-border bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground sm:inline-flex"
+              aria-label={`Ранг: ${d.mmrRank.name}`}
+            >
+              <span aria-hidden>{d.mmrRank.emoji}</span>
+              <span className="font-mono tabular-nums">{formatEsh(d.mmr)}</span>
+            </Link>
+          )}
           {d.rank !== null && (
             <Link
               href="/live#top-rich"

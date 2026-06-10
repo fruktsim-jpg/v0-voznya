@@ -6,6 +6,9 @@ import { CommunityActivity } from '@/components/v2/community-activity'
 import { TopMembers } from '@/components/v2/top-members'
 
 import { getCommunityFeed } from '@/lib/feed'
+import { getSession } from '@/lib/auth/get-session'
+import { getHomeContext } from '@/lib/home-context'
+import { HomeHub } from '@/components/home/home-hub'
 
 import { Platforms } from '@/components/voznya/platforms'
 import { BotEcosystem } from '@/components/voznya/bot-ecosystem'
@@ -14,14 +17,36 @@ import { SiteFooter } from '@/components/voznya/site-footer'
 export const dynamic = 'force-dynamic'
 
 /**
- * Главная (App Redesign V1) — дашборд, а не лендинг. Сразу после Hero — быстрые
- * входы (QuickActions) в основные экраны приложения, затем живая статистика и
- * лента сообщества. Маркетинговые блоки (About, FinalCta, StickyCta) убраны:
- * человек уже внутри, его не надо «продавать». Экосистема (площадки + бот) —
- * один компактный блок внизу для тех, кто пришёл впервые.
+ * Главная (VOZNYA REDESIGN — Home Hub).
+ *
+ * Это первый экран, который должен ощущаться как живая экосистема, а не набор
+ * страниц. Поведение зависит от того, кто пришёл:
+ *
+ *  - Зарегистрированный игрок → Home Hub: командный центр живого мира
+ *    (идентичность/прогрессия, «почему стоит зайти сегодня», статистика
+ *    сообщества, сезон, «пока тебя не было», цели, возможность дня, лента,
+ *    лидеры). Все данные — read-only из БД бота через `getHomeContext`.
+ *  - Гость / незарегистрированный → прежний лендинг-онбординг (Hero, быстрые
+ *    входы, экосистема): его задача — показать продукт и завести внутрь.
+ *
+ * READ-ONLY: страница ничего не пишет в игровые таблицы — бот владеет записью.
  */
 export default async function Page() {
-  const feed = await getCommunityFeed(8)
+  const session = await getSession()
+  const ctx = await getHomeContext(session?.uid ?? null)
+
+  // Registered player → living-world command center.
+  if (ctx.identity?.registered) {
+    return (
+      <main className="relative min-h-svh overflow-x-hidden bg-background">
+        <HomeHub ctx={ctx} />
+        <SiteFooter />
+      </main>
+    )
+  }
+
+  // Guest / not-yet-registered → onboarding landing (unchanged direction).
+  const feed = ctx.communityFeed.length > 0 ? ctx.communityFeed : await getCommunityFeed(8)
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Hero />
