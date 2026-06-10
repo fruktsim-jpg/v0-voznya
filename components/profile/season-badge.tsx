@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { getSeasonProfile, divisionProgress, TITLE_LABELS } from '@/lib/season'
+import { getSeasonProfile, TITLE_LABELS } from '@/lib/season'
 
 /**
- * Сезонный блок профиля игрока (website-first). Показывает дивизион, сезонный
- * MMR, место и титулы. Безопасен к деплоям без сезонной схемы: при ошибке БД
+ * Сезонный блок профиля игрока (website-first). Показывает дивизион и титулы.
+ * Безопасен к деплоям без сезонной схемы: при ошибке БД
  * (нет таблиц/колонок до миграции 0033) — тихо ничего не рендерит.
  */
 export async function SeasonBadge({ userId }: { userId: number }) {
@@ -16,8 +16,6 @@ export async function SeasonBadge({ userId }: { userId: number }) {
 
   // Нет сезонного прогресса — не засоряем профиль пустым блоком.
   if (profile.seasonMmr <= 0 && profile.titles.length === 0) return null
-
-  const progress = divisionProgress(profile.seasonMmr)
 
   return (
     <Link
@@ -34,30 +32,13 @@ export async function SeasonBadge({ userId }: { userId: number }) {
             <span>{profile.division.name}</span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xl font-bold text-primary">
-            {profile.seasonMmr.toLocaleString('ru-RU')}
+        {profile.rank && (
+          <div className="text-right">
+            <div className="text-xl font-bold text-primary">#{profile.rank}</div>
+            <div className="text-xs text-muted-foreground">в сезоне</div>
           </div>
-          <div className="text-xs text-muted-foreground">
-            MMR{profile.rank ? ` · #${profile.rank}` : ''}
-          </div>
-        </div>
+        )}
       </div>
-
-      {progress.next && (
-        <div className="mt-4">
-          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>До {progress.next.name}</span>
-            <span>{progress.toNext.toLocaleString('ru-RU')} MMR</span>
-          </div>
-          <div className="h-2 rounded bg-white/[0.06]">
-            <div
-              className="h-2 rounded bg-primary"
-              style={{ width: `${Math.round(progress.ratio * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       {profile.titles.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-1.5">
