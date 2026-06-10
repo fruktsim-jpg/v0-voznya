@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
 import './globals.css'
@@ -68,6 +69,7 @@ export default function RootLayout({
           {children}
         </AppShell>
         {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && <SpeedInsights />}
       </body>
 
     </html>
