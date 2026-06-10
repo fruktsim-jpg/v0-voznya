@@ -94,16 +94,15 @@ export function verifyLoginWidget(
 }
 
 /**
- * Verify Telegram **Mini App** `initData` (architecture prep — NOT wired yet).
+ * Verify Telegram **Mini App** `initData`.
  *
  * Algorithm (per Telegram WebApp docs):
  *   secret_key = HMAC_SHA256("WebAppData", bot_token)
  *   hash       = HMAC_SHA256(data_check_string, secret_key)
  *
- * When the Mini App stage lands, call this from a new
- * `/api/auth/telegram-webapp` route and reuse the same session layer. Kept here
- * so the verification logic lives in one place and the auth slice does not need
- * to be rewritten later.
+ * Called by `/api/auth/telegram-webapp`, which reuses the normal signed session
+ * cookie. Kept here so Login Widget and Mini App verification live in one auth
+ * slice without creating a separate session system.
  */
 export function verifyWebAppInitData(
   initData: string,
