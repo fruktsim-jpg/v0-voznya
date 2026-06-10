@@ -23,23 +23,43 @@ export const SPACE = {
   '2xl': '3rem', // 48
 } as const
 
-/** Радиусы. `--radius` (0.875rem) — каноничный lg. */
+/** Радиусы — «тактическая» шкала Figma (карточки 12–16px, не перекруглённые). */
 export const RADIUS = {
-  sm: 'rounded-lg', // 8
-  md: 'rounded-xl', // 12
-  lg: 'rounded-2xl', // 14 (var --radius)
-  xl: 'rounded-3xl', // 18
+  sm: 'rounded-md', // 10 — кнопки/инпуты
+  md: 'rounded-lg', // 14 — карточки (var --radius)
+  lg: 'rounded-xl', // 16 — крупные панели
+  xl: 'rounded-2xl', // 16+ — листы/модалки
   pill: 'rounded-full',
 } as const
 
-/** Типографическая шкала. Geist (latin+cyrillic) грузится в layout. */
+/**
+ * Мульти-акцентная палитра (Figma reference). Монохром-фиолет заменён системой
+ * акцентов по контексту: прогрессия, престиж, социалка, награды, экономика,
+ * опасность. Значения — CSS-переменные из `app/globals.css`. Использовать как
+ * inline-цвет (`style={{ color: ACCENT.gold }}`) или Tailwind (`text-accent-gold`).
+ */
+export const ACCENT = {
+  indigo: 'var(--accent-indigo)', // #4B69FF — MMR / прогрессия / основное действие
+  violet: 'var(--accent-violet)', // #8847FF — престиж / премиум / бренд
+  pink: 'var(--accent-pink)', // #EC4899 — социалка / подарки / комьюнити
+  gold: 'var(--accent-gold)', // #FFD700 — легендарка / награды / валюта
+  teal: 'var(--accent-teal)', // #14B8A6 — экономика / позитив / live
+  red: 'var(--accent-red)', // #EB4B4B — мифик / джекпот / опасность
+} as const
+
+/** Типографическая шкала. Inter (latin+cyrillic) грузится в layout. */
 export const TYPE_SCALE = {
-  display: 'text-3xl font-bold tracking-tight sm:text-4xl',
+  /** Заголовок экрана: тяжёлый, плотный, КАПСОМ (VAULTS / ARMORY). */
+  display: 'section-title text-3xl sm:text-4xl',
+  /** Заголовок секции в том же языке, помельче. */
+  sectionTitle: 'section-title text-xl sm:text-2xl',
   h1: 'text-2xl font-bold tracking-tight',
-  h2: 'text-xl font-semibold',
+  h2: 'text-xl font-bold tracking-tight',
   h3: 'text-lg font-semibold',
   body: 'text-sm',
   caption: 'text-xs text-muted-foreground',
+  /** Надзаголовок-«бровь»: КАПС, разрядка, приглушённый (LIVE FEED / FEATURED). */
+  eyebrow: 'label-eyebrow',
   micro: 'text-[10px] uppercase tracking-wide text-muted-foreground',
   /** Моноширинный — для чисел/серийников/шансов/ID. */
   mono: 'font-mono tabular-nums',

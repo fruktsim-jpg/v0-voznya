@@ -4,31 +4,42 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #09090b;
+  --background: #070709;
   --foreground: #ffffff;
   --card: rgba(255, 255, 255, 0.04);
   --card-foreground: #ffffff;
-  --popover: #111114;
+  --popover: #101114;
   --popover-foreground: #ffffff;
-  --primary: #8b5cf6;
+  --primary: #8847ff;
   --primary-foreground: #ffffff;
   --secondary: rgba(255, 255, 255, 0.06);
   --secondary-foreground: #ffffff;
   --muted: rgba(255, 255, 255, 0.04);
-  --muted-foreground: #b4b4c2;
-  --accent: #a855f7;
+  --muted-foreground: #8b93a7;
+  --accent: #4b69ff;
   --accent-foreground: #ffffff;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.1);
-  --ring: #8b5cf6;
+  --ring: #8847ff;
   --radius: 0.875rem;
+
+  /* VOZNYA REDESIGN — multi-accent system (Figma reference). The platform is no
+     longer monochrome-violet: distinct accents create real hierarchy across
+     contexts (progression, status, economy, social, alerts). Use via the
+     --color-accent-* theme tokens or directly. */
+  --accent-indigo: #4b69ff; /* MMR / progression / primary action */
+  --accent-violet: #8847ff; /* prestige / premium / brand */
+  --accent-pink: #ec4899; /* social / gifts / community */
+  --accent-gold: #ffd700; /* legendary / rewards / currency */
+  --accent-teal: #14b8a6; /* economy / positive / live */
+  --accent-red: #eb4b4b; /* mythic / jackpot / danger */
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Geist Mono Fallback', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -48,10 +59,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Multi-accent palette as Tailwind colors (text-accent-gold, bg-accent-pink…). */
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-teal: var(--accent-teal);
+  --color-accent-red: var(--accent-red);
+  /* Tighter, more "tactical" radius scale (Figma cards 12–16px). */
+  --radius-sm: 0.375rem; /* 6  — chips, small controls */
+  --radius-md: 0.625rem; /* 10 — buttons, inputs */
+  --radius-lg: 0.875rem; /* 14 — cards (canonical --radius) */
+  --radius-xl: 1rem; /* 16 — large panels / sheets top */
 }
 
 @layer base {
@@ -122,10 +141,27 @@
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 50%, #a855f7 100%);
+    background: linear-gradient(135deg, #b79bff 0%, #8847ff 50%, #4b69ff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+
+  /* VOZNYA REDESIGN type treatment (Figma): screen/section titles are heavy,
+     tight and uppercase ("VAULTS", "ARMORY", "GLOBAL RANKING"). These utilities
+     are the single source for that look so every screen reads as one product. */
+  .section-title {
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .label-eyebrow {
+    font-size: 0.6875rem; /* 11px */
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
   }
 }
 
@@ -245,7 +281,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1.5px solid rgba(139, 92, 246, 0.5);
+  border: 1.5px solid rgba(136, 71, 255, 0.5);
   animation: case-cta-pulse 2s ease-out infinite;
   pointer-events: none;
   will-change: transform, opacity;

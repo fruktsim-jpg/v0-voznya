@@ -18,6 +18,8 @@ export { Chip, ChipGroup } from './chip'
 export { Sheet } from './sheet'
 export { Modal } from './modal'
 export { ItemArt } from './item-art'
+export { SectionTitle } from './section-title'
+export { CurrencyDisplay } from './currency-display'
 
 // --- Проверенные примитивы V2 (ре-экспорт, файлы не переносим) ---
 export { Card, type CardVariant } from '@/components/v2/card'
@@ -31,6 +33,7 @@ export { PageHero } from '@/components/v2/page-hero'
 export {
   SPACE,
   RADIUS,
+  ACCENT,
   TYPE_SCALE,
   ELEVATION,
   MOTION,

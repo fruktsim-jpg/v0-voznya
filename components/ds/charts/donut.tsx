@@ -10,7 +10,7 @@ export function Donut({
   data,
   nameKey = 'name',
   valueKey = 'value',
-  colors = ['#8b5cf6', '#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'],
+  colors = ['#8847FF', '#4B69FF', '#EC4899', '#14B8A6', '#FFD700', '#EB4B4B'],
   size = 180,
   format,
 }: {

@@ -76,60 +76,72 @@ export type RarityToken = {
   gradient: string
 }
 
+/**
+ * Палитра редкостей — точные цвета Counter-Strike (визуальный референс Figma,
+ * VOZNYA REDESIGN). Это якорь «престижа/коллекции» всей платформы: тиры читаются
+ * мгновенно и одинаково в кейсах, инвентаре, подарках, событиях и профиле.
+ *
+ *   common    #B0C3D9  стально-серый   (Consumer)
+ *   uncommon  #5E98D9  светло-синий    (Industrial)
+ *   rare      #4B69FF  синий           (Mil-Spec)
+ *   epic      #8847FF  фиолетовый      (Restricted)
+ *   legendary #FFD700  золотой         (особый / премиум)
+ *   mythic    #EB4B4B  красный         (Covert / вершина)
+ */
 export const RARITY_TOKENS: Record<Rarity, RarityToken> = {
   common: {
     label: 'Обычное',
-    color: '#9ca3af',
+    color: '#B0C3D9',
     glow: '',
-    textClass: 'text-[#9ca3af]',
+    textClass: 'text-[#B0C3D9]',
     borderClass: 'border-white/10',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(156,163,175,0.20), transparent 70%)',
-    gradient: 'linear-gradient(135deg, rgba(156,163,175,0.25) 0%, rgba(156,163,175,0.08) 100%)',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(176,195,217,0.18), transparent 70%)',
+    gradient: 'linear-gradient(135deg, rgba(176,195,217,0.22) 0%, rgba(176,195,217,0.06) 100%)',
   },
   uncommon: {
     label: 'Необычное',
-    color: '#22c55e',
-    glow: '0 0 16px -4px rgba(34,197,94,0.45)',
-    textClass: 'text-[#22c55e]',
-    borderClass: 'border-[#22c55e]/40',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(34,197,94,0.28), transparent 70%)',
-    gradient: 'linear-gradient(135deg, rgba(34,197,94,0.35) 0%, rgba(34,197,94,0.10) 100%)',
+    color: '#5E98D9',
+    glow: '0 0 16px -4px rgba(94,152,217,0.50)',
+    textClass: 'text-[#5E98D9]',
+    borderClass: 'border-[#5E98D9]/45',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(94,152,217,0.28), transparent 70%)',
+    gradient: 'linear-gradient(135deg, rgba(94,152,217,0.35) 0%, rgba(94,152,217,0.10) 100%)',
   },
   rare: {
     label: 'Редкое',
-    color: '#3b82f6',
-    glow: '0 0 18px -4px rgba(59,130,246,0.5)',
-    textClass: 'text-[#3b82f6]',
-    borderClass: 'border-[#3b82f6]/45',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(59,130,246,0.30), transparent 70%)',
-    gradient: 'linear-gradient(135deg, rgba(59,130,246,0.38) 0%, rgba(59,130,246,0.10) 100%)',
+    color: '#4B69FF',
+    glow: '0 0 18px -4px rgba(75,105,255,0.55)',
+    textClass: 'text-[#4B69FF]',
+    borderClass: 'border-[#4B69FF]/50',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(75,105,255,0.30), transparent 70%)',
+    gradient: 'linear-gradient(135deg, rgba(75,105,255,0.40) 0%, rgba(75,105,255,0.10) 100%)',
   },
   epic: {
     label: 'Эпическое',
-    color: '#8b5cf6',
-    glow: '0 0 22px -3px rgba(139,92,246,0.55)',
-    textClass: 'text-[#a855f7]',
-    borderClass: 'border-[#8b5cf6]/55',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(139,92,246,0.34), transparent 70%)',
-    gradient: 'linear-gradient(135deg, rgba(168,85,247,0.42) 0%, rgba(139,92,246,0.12) 100%)',
+    color: '#8847FF',
+    glow: '0 0 22px -3px rgba(136,71,255,0.60)',
+    textClass: 'text-[#9D6BFF]',
+    borderClass: 'border-[#8847FF]/55',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(136,71,255,0.34), transparent 70%)',
+    gradient: 'linear-gradient(135deg, rgba(136,71,255,0.45) 0%, rgba(136,71,255,0.12) 100%)',
   },
   legendary: {
     label: 'Легендарное',
-    color: '#f59e0b',
-    glow: '0 0 28px -2px rgba(245,158,11,0.6)',
-    textClass: 'text-[#f59e0b]',
-    borderClass: 'border-[#f59e0b]/60',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(245,158,11,0.36), transparent 70%)',
-    gradient: 'linear-gradient(135deg, rgba(245,158,11,0.45) 0%, rgba(245,158,11,0.12) 100%)',
+    color: '#FFD700',
+    glow: '0 0 28px -2px rgba(255,215,0,0.55)',
+    textClass: 'text-[#FFD700]',
+    borderClass: 'border-[#FFD700]/55',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(255,215,0,0.32), transparent 70%)',
+    gradient: 'linear-gradient(135deg, rgba(255,215,0,0.42) 0%, rgba(255,215,0,0.10) 100%)',
   },
   mythic: {
     label: 'Мифическое',
-    color: '#f5d142',
-    glow: '0 0 34px -1px rgba(245,209,66,0.7)',
-    textClass: 'text-[#f5d142]',
-    borderClass: 'border-[#f5d142]/70',
-    capsule: 'radial-gradient(circle at 50% 35%, rgba(245,209,66,0.40), transparent 70%)',
-    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 40%, #f59e0b 100%)',
+    color: '#EB4B4B',
+    glow: '0 0 34px -1px rgba(235,75,75,0.65)',
+    textClass: 'text-[#EB4B4B]',
+    borderClass: 'border-[#EB4B4B]/65',
+    capsule: 'radial-gradient(circle at 50% 35%, rgba(235,75,75,0.36), transparent 70%)',
+    gradient: 'linear-gradient(135deg, #8847FF 0%, #EB4B4B 55%, #FFD700 100%)',
   },
 }
 
@@ -137,6 +149,9 @@ export function rarityToken(rarity: Rarity | null | undefined): RarityToken {
   return RARITY_TOKENS[rarity ?? 'common']
 }
 
-/** Гра­диент для топ-тиров (mythic / telegram gift). */
+/**
+ * Премиум-градиент вершины (mythic / Telegram Gift / джекпот): фиолетовый →
+ * красный → золото. Самый «дорогой» акцент платформы.
+ */
 export const MYTHIC_GRADIENT =
-  'linear-gradient(135deg, #8b5cf6 0%, #a855f7 40%, #f59e0b 100%)'
+  'linear-gradient(135deg, #8847FF 0%, #EB4B4B 55%, #FFD700 100%)'

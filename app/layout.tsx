@@ -1,13 +1,18 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
 import './globals.css'
 
-
-
-const geist = Geist({ subsets: ['latin', 'cyrillic'] })
+// VOZNYA REDESIGN — Inter (latin+cyrillic) matches the Figma visual reference:
+// tight, high-contrast UI type. Exposed as the CSS var --font-sans (see
+// globals.css @theme) so every surface inherits it without per-component wiring.
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 const SITE_URL = 'https://voznya.nl'
 const DESCRIPTION = 'Общение, знакомства, концерты, сходки и новые друзья по всей стране.'
@@ -33,7 +38,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#09090b',
+  themeColor: '#070709',
   // iOS Safari: required so env(safe-area-inset-*) resolves to real values
   // (notch / Dynamic Island / home-indicator). Without it every inset is 0
   // and the fixed header collides with the status bar.
@@ -62,8 +67,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className="bg-background">
-      <body className={`${geist.className} font-sans antialiased`}>
+    <html lang="ru" className={`${inter.variable} bg-background`}>
+      <body className="font-sans antialiased">
         <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>
           {children}
         </AppShell>
