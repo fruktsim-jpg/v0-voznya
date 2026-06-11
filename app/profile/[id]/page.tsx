@@ -1,8 +1,10 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPlayerProfile } from '@/lib/queries'
+import { getPrestigeSummary } from '@/lib/prestige-summary'
 import { getUserFeed } from '@/lib/feed'
 import { PlayerCard } from '@/components/profile/player-card'
+import { PrestigeBanner } from '@/components/profile/prestige-banner'
 import { SeasonBadge } from '@/components/profile/season-badge'
 import { NotRegistered } from '@/components/auth/not-registered'
 
@@ -90,9 +92,16 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   // в каноничный PlayerCard, не переписывая его. Деградирует к пустому списку.
   const activity = await getUserFeed(userId, 20)
 
+  // Phase D — Profile as a trophy case: percentile standings + crown jewel +
+  // mastery. Read-only aggregation; degrades to an empty-but-valid summary.
+  const prestige = await getPrestigeSummary(profile)
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pt-header">
       <SeasonBadge userId={userId} />
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <PrestigeBanner summary={prestige} />
+      </div>
       <PlayerCard
         profile={profile}
         isOwner={isOwner}

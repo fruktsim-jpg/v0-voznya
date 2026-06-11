@@ -20,28 +20,8 @@ import { RankBadge, TitleBadge } from '@/components/prestige'
 import { Glyph, VoznyaCoin } from '@/components/ds/icon'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
 import { ActivityCard } from '@/components/v2/activity-card'
-import { CollectibleTile } from '@/components/v2/collectible'
-import type { Rarity } from '@/lib/rarity'
 import type { PlayerProfile } from '@/lib/queries'
 import type { CommunityEvent } from '@/lib/events'
-
-/** Псевдо-редкость достижения по награде (для витрины «Чем крут»). */
-function achievementShowcaseRarity(reward: number): Rarity {
-  if (reward >= 5000) return 'legendary'
-  if (reward >= 2000) return 'epic'
-  if (reward >= 500) return 'rare'
-  if (reward >= 100) return 'uncommon'
-  return 'common'
-}
-
-const RARITY_PRESTIGE: Record<string, number> = {
-  mythic: 6,
-  legendary: 5,
-  epic: 4,
-  rare: 3,
-  uncommon: 2,
-  common: 1,
-}
 
 /**
  * Элитный статус по месту в общем топе (по ешкам, profile.rankInTop).
@@ -181,51 +161,13 @@ export function PlayerCard({
     return { ...category, isSecretCat, achievements: items }
   }).filter((cat) => cat.achievements.length > 0)
 
-  // ----------------------------------------------------------------------
-  // SHOWCASE («Чем крут») — компактная витрина: только ЛУЧШЕЕ. Максимум 3
-  // плитки. Идея перенесена из ProfileV2, но НЕ дублирует статус-блоки выше
-  // (MMR/титул/место/репутация/брак остаются главными). Берём: редчайшее
-  // достижение (по награде) + самый редкий предмет инвентаря + уникальный титул.
-  // Скрывается целиком, если хвастаться нечем.
-  // ----------------------------------------------------------------------
-  const showcase: { icon: string; title: string; subtitle: string; rarity: Rarity }[] = []
-
-  const topAchievement = [...profile.achievements].sort((a, b) => b.reward - a.reward)[0]
-  if (topAchievement) {
-    showcase.push({
-      icon: topAchievement.emoji,
-      title: topAchievement.name,
-      subtitle: 'Достижение',
-      rarity: achievementShowcaseRarity(topAchievement.reward),
-    })
-  }
-
-  const rarestItem = (profile.inventory?.list ?? [])
-    .filter((i) => (RARITY_PRESTIGE[i.rarity] ?? 1) >= 3) // rare и выше
-    .sort((a, b) => (RARITY_PRESTIGE[b.rarity] ?? 1) - (RARITY_PRESTIGE[a.rarity] ?? 1))[0]
-  if (rarestItem) {
-    showcase.push({
-      icon: '🎖️',
-      title: rarestItem.name,
-      subtitle: 'Коллекция',
-      rarity: (rarestItem.rarity as Rarity) ?? 'rare',
-    })
-  }
-
-  if (profile.cosmetics.title) {
-    showcase.push({
-      icon: profile.cosmetics.title.emoji ?? '🏷️',
-      title: profile.cosmetics.title.name,
-      subtitle: 'Уникальный титул',
-      rarity: 'legendary',
-    })
-  }
-
-  const showcaseItems = showcase.slice(0, 3)
+  // NOTE: the "best of" showcase (rarest item / top achievement / title) now
+  // lives in the structural PrestigeBanner that opens the profile (Phase D —
+  // profile as a trophy case), so it is intentionally not duplicated here.
 
   return (
 
-    <div className="mx-auto max-w-4xl px-4 pt-header pb-10 sm:px-6">
+    <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
       <ProfileBreadcrumb playerName={profile.firstName} />
 
 
@@ -499,36 +441,6 @@ export function PlayerCard({
           </div>
         )}
       </motion.div>
-
-      {/* ============================================================== */}
-      {/* ВИТРИНА «Чем крут» — только лучшее (≤3). Перенос идеи Showcase  */}
-      {/* из ProfileV2. Ниже статус-блоков, чтобы НЕ ослаблять MMR/титул/ */}
-      {/* место/репутацию/брак. Скрыта, если хвастаться нечем.            */}
-      {/* ============================================================== */}
-      {showcaseItems.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.14 }}
-          className="mt-3 sm:mt-6"
-        >
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
-            <span className="text-lg sm:text-xl">✨</span> Чем крут
-          </h2>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-            {showcaseItems.map((s, i) => (
-              <CollectibleTile
-                key={`${s.title}-${i}`}
-                icon={s.icon}
-                title={s.title}
-                subtitle={s.subtitle}
-                rarity={s.rarity}
-                size="sm"
-              />
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* ============================================================== */}
       {/* УРОВЕНЬ 3 — Игровая статистика (дуэли/ферма/клады/казино/...)  */}
