@@ -12,6 +12,9 @@ import {
 } from '@/lib/case-open-ux'
 import { notifyBalanceChanged } from '@/lib/balance-events'
 import { useCaseFx } from '@/hooks/use-case-fx'
+import { useCelebration } from '@/components/celebration/celebration-host'
+import { tierFromRarity } from '@/lib/celebration'
+import { isHighTier } from '@/lib/case-open-ux'
 import { CaseRoulette, buildReel } from '@/components/cases/case-roulette'
 import { RewardReveal } from '@/components/cases/reward-reveal'
 import { GiftChoice } from '@/components/cases/gift-choice'
@@ -36,6 +39,7 @@ type Phase = 'idle' | 'spinning' | 'revealed' | 'error'
 export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   const c = caseView
   const { fx, reducedMotion } = useCaseFx()
+  const { celebrate } = useCelebration()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [won, setWon] = useState<WonReward | null>(null)
@@ -145,6 +149,22 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
         setWon(w)
         setPhase('revealed')
         fx.reveal(w.rarity, w.isJackpot || w.isPremium)
+
+        // A3: only BIG drops earn a full-screen MOMENT (epic+ / jackpot /
+        // premium). Common/rare keep the calm inline reveal — anti-fatigue.
+        const special = w.isJackpot || w.isPremium
+        if (special || isHighTier(w.rarity)) {
+          celebrate({
+            kind: 'drop',
+            tier: tierFromRarity(w.rarity, special),
+            title: w.title,
+            subtitle: special ? 'Редчайший дроп!' : 'Отличная награда',
+            glyph: w.icon,
+            rarity: w.rarity,
+            shareable: true,
+            flavor: w.qty > 1 ? `×${w.qty}` : undefined,
+          })
+        }
         busy.current = false
       }, revealDelay)
       timers.current.push(id)
@@ -153,7 +173,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
       setPhase('error')
       busy.current = false
     }
-  }, [c.itemCode, pool, fx, reducedMotion])
+  }, [c.itemCode, pool, fx, reducedMotion, celebrate])
 
   // ---- REVEAL ----
   if (phase === 'revealed' && won) {

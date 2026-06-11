@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { SiteHeader } from '@/components/voznya/site-header'
 import { PlayerContextBar } from '@/components/shell/player-context-bar'
 import { GlobalNav } from '@/components/shell/global-nav'
+import { PlatformProviders } from '@/components/shell/platform-providers'
 
 /**
  * AppShell (Redesign V2, Stage 1) — единая «обёртка» Мини-аппа: фиксированная
@@ -34,7 +35,9 @@ export function AppShell({
       <PlayerContextBar />
 
       {/* Отступ снизу на мобиле, чтобы контент не прятался под GlobalNav. */}
-      <div className="pb-16 sm:pb-0">{children}</div>
+      <PlatformProviders>
+        <div className="pb-16 sm:pb-0">{children}</div>
+      </PlatformProviders>
 
       <GlobalNav />
     </>

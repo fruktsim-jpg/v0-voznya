@@ -345,3 +345,89 @@
     transform: none;
   }
 }
+
+/* ===========================================================================
+   PHASE A — Platform Motion System (A1). Promotes the case-only motion language
+   to PLATFORM-WIDE primitives. Same rules: transform/opacity only, GPU-cheap,
+   reduced-motion safe. Consumed by Skeleton, Celebration, and DS wrappers.
+   =========================================================================== */
+
+/* Premium skeleton shimmer — a sweep of light across a placeholder so loading
+   feels intentional, not broken. Animates background-position (cheap). */
+@keyframes ds-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.ds-skeleton {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: ds-skeleton-shimmer 1.4s linear infinite;
+}
+
+/* Celebration backdrop fade-in (A3 reuses A1). Opacity only. */
+@keyframes ds-celebrate-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ds-celebrate-backdrop {
+  animation: ds-celebrate-backdrop 240ms ease-out both;
+}
+
+/* Celebration card entrance — rise + overshoot settle (shares the reveal curve
+   so a celebration feels like the case reveal, platform-wide). */
+@keyframes ds-celebrate-in {
+  0% {
+    transform: translateY(24px) scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-4px) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.ds-celebrate-in {
+  animation: ds-celebrate-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* A slow conic prestige sweep for ceremony surfaces (rank-up / mythic). One
+   rotating element — cheap. */
+@keyframes ds-prestige-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ds-prestige-sweep {
+  animation: ds-prestige-sweep 7s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton,
+  .ds-celebrate-backdrop,
+  .ds-celebrate-in,
+  .ds-prestige-sweep {
+    animation: none !important;
+  }
+  .ds-celebrate-in {
+    opacity: 1;
+    transform: none;
+  }
+}

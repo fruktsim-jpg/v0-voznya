@@ -21,6 +21,12 @@ export { ItemArt } from './item-art'
 export { SectionTitle } from './section-title'
 export { CurrencyDisplay } from './currency-display'
 
+// --- A1 Motion System ---
+export { Reveal, StaggerList, StaggerItem } from './motion'
+export { AnimatedCounter } from './animated-counter'
+export { Skeleton, SkeletonCard, SkeletonRow } from './skeleton'
+export { Toaster, toast } from './toast'
+
 // --- Проверенные примитивы V2 (ре-экспорт, файлы не переносим) ---
 export { Card, type CardVariant } from '@/components/v2/card'
 export { RarityBadge } from '@/components/v2/rarity-badge'
@@ -42,3 +48,14 @@ export {
   RARITY_TOKENS,
   type Rarity,
 } from '@/lib/ds/tokens'
+
+// --- A1 Motion tokens ---
+export {
+  DURATION,
+  EASE,
+  SPRING,
+  MOTION_CLASS,
+  VARIANTS,
+  sec,
+  type MotionDuration,
+} from '@/lib/ds/motion'

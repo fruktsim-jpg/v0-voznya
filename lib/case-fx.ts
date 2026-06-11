@@ -31,6 +31,18 @@ export type CaseSoundCue =
   | 'reveal_legendary'
   | 'reveal_mythic'
   | 'jackpot' // jackpot / premium fanfare
+  // --- PHASE A (A2) platform-wide cues (beyond cases) ---
+  | 'ui_tap' // generic button / nav tap (very subtle)
+  | 'achievement' // achievement unlocked
+  | 'rankup' // MMR rank up
+  | 'division' // new season division reached
+  | 'season' // season milestone / end
+  | 'purchase' // purchase / gift sent
+  | 'notify' // important notification (soft)
+  | 'celebrate' // generic celebration sting (A3 fallback)
+
+/** All platform cues are part of CaseSoundCue now; alias for clarity in app code. */
+export type SoundCue = CaseSoundCue
 
 import type { Rarity } from '@/lib/rarity'
 
