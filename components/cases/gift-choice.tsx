@@ -32,7 +32,7 @@ export function GiftChoice({ won }: { won: WonReward }) {
     const r = await sellGift(deliveryKey)
     if (r.ok) {
       setState('sold')
-      setMsg(`Продано +${fmt(r.amount ?? won.sellAmount ?? 0)} 🥚`)
+      setMsg(`Продано +${fmt(r.amount ?? won.sellAmount ?? 0)} ешек`)
     } else {
       setState('error')
       setMsg(r.message)

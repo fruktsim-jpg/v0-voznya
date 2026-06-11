@@ -3,6 +3,7 @@
 import { rarityToken } from '@/lib/rarity'
 import type { InvItem } from '@/lib/inventory-meta'
 import { ItemArt } from '@/components/ds/item-art'
+import { VoznyaCoin } from '@/components/ds/icon'
 
 /**
  * ItemCard (Stage 2) — the single grid tile for every owned object. ItemArt is
@@ -62,7 +63,9 @@ export function ItemCard({
           {item.isPremium ? 'Telegram Premium' : t.label}
         </p>
         {item.value > 0 ? (
-          <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{fmt(item.value)} 🥚</p>
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="type-economy">{fmt(item.value)}</span> <VoznyaCoin tone="muted" />
+          </p>
         ) : (
           <p className="mt-0.5 text-[11px] text-muted-foreground">{item.typeLabel}</p>
         )}

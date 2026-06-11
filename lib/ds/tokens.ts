@@ -47,13 +47,19 @@ export const ACCENT = {
   red: 'var(--accent-red)', // #EB4B4B — мифик / джекпот / опасность
 } as const
 
-/** Типографическая шкала. Inter (latin+cyrillic) грузится в layout. */
+/**
+ * Типографическая шкала — VOZNYA TYPE SYSTEM (PHASE B — B2). Пять ролей на трёх
+ * шрифтах (Unbounded дисплей / Inter UI / JetBrains Mono числа). Контраст между
+ * регистрами — намеренный (аудит A4.5: «Inter везде» = дженерик). CSS-утилиты
+ * (.type-display/.section-title/.type-stat/.type-prestige/.type-economy) живут в
+ * globals.css; здесь — готовые классы для компонентов.
+ */
 export const TYPE_SCALE = {
-  /** Заголовок экрана: тяжёлый, плотный, КАПСОМ (VAULTS / ARMORY). */
-  display: 'section-title text-3xl sm:text-4xl',
-  /** Заголовок секции в том же языке, помельче. */
+  /** 1. DISPLAY — заголовок экрана / геро-число (Unbounded, тяжёлый, плотный). */
+  display: 'type-display text-3xl sm:text-4xl',
+  /** 2. SECTION — заголовок секции, КАПС (Unbounded). */
   sectionTitle: 'section-title text-xl sm:text-2xl',
-  h1: 'text-2xl font-bold tracking-tight',
+  h1: 'type-display text-2xl tracking-tight',
   h2: 'text-xl font-bold tracking-tight',
   h3: 'text-lg font-semibold',
   body: 'text-sm',
@@ -61,7 +67,13 @@ export const TYPE_SCALE = {
   /** Надзаголовок-«бровь»: КАПС, разрядка, приглушённый (LIVE FEED / FEATURED). */
   eyebrow: 'label-eyebrow',
   micro: 'text-[10px] uppercase tracking-wide text-muted-foreground',
-  /** Моноширинный — для чисел/серийников/шансов/ID. */
+  /** 3. STAT — крупные числа (баланс/MMR/счётчики): моно, tabular-nums. */
+  stat: 'type-stat',
+  /** 4. PRESTIGE — имена рангов/дивизионов/титулов (Unbounded, средний вес). */
+  prestige: 'type-prestige',
+  /** 5. ECONOMY — суммы валюты: моно, плотнее (пара с монетой ешки, B3). */
+  economy: 'type-economy',
+  /** Моноширинный — для серийников/шансов/ID. */
   mono: 'font-mono tabular-nums',
 } as const
 

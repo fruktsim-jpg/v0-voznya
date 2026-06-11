@@ -17,6 +17,7 @@ import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
 import { InventoryShowcase } from '@/components/profile/inventory-showcase'
 import { RankBadge, TitleBadge } from '@/components/prestige'
+import { Glyph, VoznyaCoin } from '@/components/ds/icon'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
 import { ActivityCard } from '@/components/v2/activity-card'
 import { CollectibleTile } from '@/components/v2/collectible'
@@ -296,7 +297,7 @@ export function PlayerCard({
                     elite ? elite.accent : 'text-primary-foreground'
                   } bg-background/90 border ${elite ? elite.ring : 'border-primary'}`}
                 >
-                  {profile.rankInTop === 1 ? '👑' : profile.rankInTop}
+                  {profile.rankInTop === 1 ? <Glyph name="crown" className="text-accent-gold" /> : profile.rankInTop}
                 </div>
               )}
             </div>
@@ -305,7 +306,7 @@ export function PlayerCard({
           {/* Identity */}
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{profile.firstName}</h1>
+              <h1 className="type-display text-2xl text-foreground sm:text-3xl">{profile.firstName}</h1>
 
               {isOwner && (
                 <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
@@ -383,11 +384,11 @@ export function PlayerCard({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span className="text-sm">🏆</span> Влияние · MMR
+                  <Glyph name="trophy" className="text-accent-gold" /> Влияние · MMR
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1">
                   <span
-                    className="text-3xl font-bold leading-none sm:text-5xl"
+                    className="type-stat text-3xl leading-none sm:text-5xl"
                     style={{ color: mmrTier ? mmrTier.color : undefined }}
                   >
                     {profile.mmr.toLocaleString('ru-RU')}
@@ -399,7 +400,7 @@ export function PlayerCard({
               </div>
               {profile.ranks.byMmr && (
                 <div className="shrink-0 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-center">
-                  <div className="text-lg font-bold text-primary sm:text-2xl">
+                  <div className="type-stat text-lg text-primary sm:text-2xl">
                     #{profile.ranks.byMmr}
                   </div>
                   <div className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
@@ -459,7 +460,7 @@ export function PlayerCard({
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rose-300/80">
               <span className="text-base">❤️</span> Уважение
             </div>
-            <div className="mt-2 text-2xl font-bold text-rose-200 sm:text-3xl">
+            <div className="mt-2 type-stat text-2xl text-rose-200 sm:text-3xl">
               {profile.reputation.toLocaleString('ru-RU')}
             </div>
             <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
@@ -471,9 +472,9 @@ export function PlayerCard({
         {/* Ешки — богатство (amber/gold) */}
         <div className="glass rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/[0.08] to-transparent p-4 sm:p-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-300/80">
-            <span className="text-base">🥚</span> Богатство
+            <VoznyaCoin tone="gold" /> Богатство
           </div>
-          <div className="mt-2 text-2xl font-bold text-amber-200 sm:text-3xl">
+          <div className="mt-2 type-economy text-2xl text-amber-200 sm:text-3xl">
             {formatCurrency(profile.balance)}
           </div>
           <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
@@ -488,7 +489,7 @@ export function PlayerCard({
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-sky-300/80">
               <span className="text-base">💬</span> Голос
             </div>
-            <div className="mt-2 text-2xl font-bold text-sky-200 sm:text-3xl">
+            <div className="mt-2 type-stat text-2xl text-sky-200 sm:text-3xl">
               {profile.messages.toLocaleString('ru-RU')}
             </div>
             <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">

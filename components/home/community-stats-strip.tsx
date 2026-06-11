@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import type { CommunityStats } from '@/lib/queries'
+import { Glyph, VoznyaCoin } from '@/components/ds/icon'
 
 /**
  * Community Stats strip (VOZNYA REDESIGN — Home Hub, zone 3).
@@ -7,17 +9,19 @@ import type { CommunityStats } from '@/lib/queries'
  * before the live feed. Answers part of "What's happening in the community?"
  * with proof-of-scale numbers. Every metric is a real aggregate from
  * `getCommunityStats` — NO fabricated "online now" or invented activity counts.
+ *
+ * B3: emoji icons → owned glyph/coin set (the ешка stat shows the minted coin).
  */
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
 export function CommunityStatsStrip({ stats }: { stats: CommunityStats }) {
-  const items: { icon: string; value: number; label: string }[] = [
-    { icon: '👥', value: stats.users, label: 'игроков' },
-    { icon: '🥚', value: stats.eshInCirculation, label: 'ешек в обороте' },
-    { icon: '🏆', value: stats.achievements, label: 'достижений' },
-    { icon: '⚔️', value: stats.duels, label: 'дуэлей' },
-    { icon: '🪙', value: stats.treasuresFound, label: 'кладов' },
-    { icon: '💍', value: stats.marriages, label: 'семей' },
+  const items: { icon: ReactNode; value: number; label: string; tint: string }[] = [
+    { icon: <Glyph name="profile" />, value: stats.users, label: 'игроков', tint: 'var(--accent-indigo)' },
+    { icon: <VoznyaCoin tone="gold" />, value: stats.eshInCirculation, label: 'ешек в обороте', tint: 'var(--accent-gold)' },
+    { icon: <Glyph name="trophy" />, value: stats.achievements, label: 'достижений', tint: 'var(--accent-gold)' },
+    { icon: <Glyph name="shield" />, value: stats.duels, label: 'дуэлей', tint: 'var(--accent-red)' },
+    { icon: <Glyph name="vault" />, value: stats.treasuresFound, label: 'кладов', tint: 'var(--accent-teal)' },
+    { icon: <Glyph name="spark" />, value: stats.marriages, label: 'семей', tint: 'var(--accent-pink)' },
   ]
 
   return (
@@ -29,10 +33,10 @@ export function CommunityStatsStrip({ stats }: { stats: CommunityStats }) {
               key={it.label}
               className="glass rounded-2xl border border-border px-3 py-3 text-center"
             >
-              <div className="text-lg" aria-hidden>
+              <div className="flex justify-center text-lg" style={{ color: it.tint }} aria-hidden>
                 {it.icon}
               </div>
-              <div className="mt-0.5 font-mono text-sm font-bold tabular-nums text-foreground sm:text-base">
+              <div className="mt-0.5 type-stat text-sm text-foreground sm:text-base">
                 {fmt(it.value)}
               </div>
               <div className="text-[10px] leading-tight text-muted-foreground sm:text-xs">

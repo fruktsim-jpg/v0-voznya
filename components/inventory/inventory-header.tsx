@@ -3,6 +3,7 @@
 import { rarityToken } from '@/lib/rarity'
 import type { InventorySummary } from '@/lib/inventory-meta'
 import { ItemArt } from '@/components/ds/item-art'
+import { VoznyaCoin } from '@/components/ds/icon'
 
 /**
  * InventoryHeader (Stage 2) — premium summary band. Compact, high-density,
@@ -91,8 +92,8 @@ export function InventoryHeader({
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Ценность коллекции
           </p>
-          <p className="font-mono text-3xl font-bold tabular-nums text-foreground">
-            {fmt(summary.totalValue)} <span className="text-xl text-muted-foreground">🥚</span>
+          <p className="type-economy flex items-center gap-1.5 text-3xl text-foreground">
+            {fmt(summary.totalValue)} <VoznyaCoin tone="gold" className="text-[0.7em]" />
           </p>
         </div>
         <span

@@ -15,9 +15,9 @@ export function caseCostLabel(c: CaseView): string {
   return 'бесплатно'
 }
 
-/** Short cost ("1 200 🥚" / "ключ" / "free") for tight tiles. */
+/** Short cost ("1 200 еш" / "ключ" / "free") for tight tiles. */
 export function caseCostShort(c: CaseView): string {
-  if (c.openCostKind === 'currency' && c.openCostAmount > 0) return `${fmt(c.openCostAmount)} 🥚`
+  if (c.openCostKind === 'currency' && c.openCostAmount > 0) return `${fmt(c.openCostAmount)} еш`
   if (c.consumesKey) return 'ключ'
   return 'бесплатно'
 }

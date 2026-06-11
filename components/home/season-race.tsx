@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { SectionTitle } from '@/components/ds/section-title'
+import { VoznyaCoin, PrestigeSigil, Glyph } from '@/components/ds/icon'
+import { prestigeForDivision } from '@/lib/ds/prestige'
 import type { SeasonRace as SeasonRaceData } from '@/lib/home-context'
 import type { WeeklyEarner } from '@/lib/queries'
 
@@ -15,7 +17,8 @@ import type { WeeklyEarner } from '@/lib/queries'
  * a fabricated trend. Self-hides cleanly when neither season nor movers exist.
  */
 const fmt = (n: number) => n.toLocaleString('ru-RU')
-const MEDAL = ['🥇', '🥈', '🥉']
+// Podium tint for the top-3 ordinals — owned styling instead of medal emoji.
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 function countdown(endsAt: string | null): { label: string; urgent: boolean } | null {
   if (!endsAt) return null
@@ -50,13 +53,13 @@ export function SeasonRace({
                 </SectionTitle>
                 {cd && (
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                       cd.urgent
                         ? 'bg-[#EB4B4B]/15 text-[#ff8a8a]'
                         : 'bg-white/[0.06] text-foreground'
                     }`}
                   >
-                    ⏳ {cd.label}
+                    <Glyph name="season" /> {cd.label}
                   </span>
                 )}
               </div>
@@ -70,18 +73,18 @@ export function SeasonRace({
                     >
                       <span className="w-6 shrink-0 text-center">
                         {i < 3 ? (
-                          <span aria-hidden>{MEDAL[i]}</span>
+                          <span className="type-stat text-sm font-bold" style={{ color: PODIUM[i] }}>
+                            {i + 1}
+                          </span>
                         ) : (
-                          <span className="font-bold text-muted-foreground">{i + 1}</span>
+                          <span className="type-stat font-bold text-muted-foreground">{i + 1}</span>
                         )}
                       </span>
-                      <span aria-hidden className="text-lg">
-                        {l.division.emoji}
-                      </span>
+                      <PrestigeSigil tier={prestigeForDivision(l.division.name)} size="1.15em" className="shrink-0" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {l.name}
                       </span>
-                      <span className="shrink-0 font-mono text-sm text-muted-foreground">
+                      <span className="shrink-0 type-stat text-sm text-muted-foreground">
                         {fmt(l.seasonMmr)} MMR
                       </span>
                     </Link>
@@ -117,8 +120,8 @@ export function SeasonRace({
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {m.name}
                       </span>
-                      <span className="shrink-0 font-mono text-sm font-semibold text-[#22c55e]">
-                        +{fmt(m.earned)} 🥚
+                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[#22c55e]">
+                        +<span className="type-economy">{fmt(m.earned)}</span> <VoznyaCoin tone="inherit" />
                       </span>
                     </Link>
                   </li>

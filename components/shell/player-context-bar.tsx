@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ds/avatar'
 import { prestigeForDivision, prestigeForMmrRank } from '@/lib/ds/prestige'
+import { Glyph, PrestigeSigil, VoznyaCoin } from '@/components/ds/icon'
 import { onBalanceChanged } from '@/lib/balance-events'
 
 /**
@@ -104,8 +105,22 @@ export function PlayerContextBar() {
   const season = d.season ?? null
   const progressPct = season ? Math.round(season.ratio * 100) : 0
 
+  // B4 (prestige consumption): the persistent HUD itself reacts to the player's
+  // MMR tier world — a faint tier-colored wash + accent border so the bar that
+  // follows them everywhere is "dressed" in their standing, not neutral chrome.
+  const tier = d.mmrRank ? prestigeForMmrRank(d.mmrRank.name) : null
+  const tierHigh = tier ? tier.index >= 2 : false
+
   return (
-    <div className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+3.5rem)] z-40 border-b border-border bg-background/80 backdrop-blur-md">
+    <div
+      className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+3.5rem)] z-40 border-b bg-background/80 backdrop-blur-md"
+      style={{
+        borderColor: tierHigh ? `${tier!.color}40` : undefined,
+        background: tierHigh
+          ? `linear-gradient(90deg, ${tier!.color}12, transparent 45%)`
+          : undefined,
+      }}
+    >
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link
           href={profileHref}
@@ -131,7 +146,7 @@ export function PlayerContextBar() {
               className="inline-flex items-center gap-1 text-xs font-semibold"
               style={{ color: prestigeForDivision(season.division.name).color }}
             >
-              <span aria-hidden>{season.division.emoji}</span>
+              <PrestigeSigil tier={prestigeForDivision(season.division.name)} size="0.95em" />
               {season.division.name}
             </span>
             <span className="h-1.5 w-16 overflow-hidden rounded-full bg-white/[0.08]">
@@ -158,7 +173,7 @@ export function PlayerContextBar() {
               }}
               aria-label={`Ранг: ${d.mmrRank.name}`}
             >
-              <span aria-hidden>{d.mmrRank.emoji}</span>
+              <PrestigeSigil tier={prestigeForMmrRank(d.mmrRank.name)} size="0.95em" />
               <span className="font-mono tabular-nums">{formatEsh(d.mmr)}</span>
             </Link>
           )}
@@ -168,7 +183,7 @@ export function PlayerContextBar() {
               className="inline-flex items-center gap-1 rounded-full border border-border bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
               aria-label={`Место в топе: ${d.rank}`}
             >
-              <span aria-hidden="true">🏆</span>
+              <Glyph name="trophy" className="text-accent-gold" />
               <span className="font-mono tabular-nums">#{d.rank}</span>
             </Link>
           )}
@@ -179,7 +194,7 @@ export function PlayerContextBar() {
               aria-label={`Баланс: ${formatEsh(d.balance)} ешек`}
             >
               <span className="font-mono tabular-nums">{formatEsh(d.balance)}</span>
-              <span aria-hidden="true">🥚</span>
+              <VoznyaCoin tone="gold" />
             </Link>
           )}
         </div>

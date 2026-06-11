@@ -1,16 +1,35 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Unbounded, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
 import './globals.css'
 
-// VOZNYA REDESIGN — Inter (latin+cyrillic) matches the Figma visual reference:
-// tight, high-contrast UI type. Exposed as the CSS var --font-sans (see
-// globals.css @theme) so every surface inherits it without per-component wiring.
+// VOZNYA TYPOGRAPHY SYSTEM (PHASE B — B2). Three tonal registers instead of
+// "Inter for everything" (the generic-website tell from the A4.5 audit):
+//   • Inter        → UI / workhorse: body, labels, dense data (--font-inter)
+//   • Unbounded    → DISPLAY / brand voice: screen titles, hero numbers,
+//                    prestige/ceremony. Geometric, high-personality, full
+//                    Cyrillic. Used sparingly for impact (--font-display)
+//   • JetBrains Mono → NUMERIC / mono: balance, MMR, odds, serials, IDs —
+//                    numbers read as "stats" (--font-mono-real). Cyrillic-capable.
+// All exposed as CSS vars (see globals.css @theme) so surfaces inherit them.
 const inter = Inter({
   subsets: ['latin', 'cyrillic'],
   variable: '--font-inter',
+  display: 'swap',
+})
+
+const unbounded = Unbounded({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-display',
+  weight: ['600', '700', '800', '900'],
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-mono-real',
   display: 'swap',
 })
 
@@ -67,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={`${inter.variable} bg-background`}>
+    <html lang="ru" className={`${inter.variable} ${unbounded.variable} ${jetbrainsMono.variable} bg-background`}>
       <body className="font-sans antialiased">
         <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>
           {children}

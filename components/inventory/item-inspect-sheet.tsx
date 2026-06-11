@@ -10,6 +10,7 @@ import type { InvItem } from '@/lib/inventory-meta'
 import { COLLECTION_GLYPH } from '@/lib/inventory-meta'
 import { Sheet } from '@/components/ds/sheet'
 import { ItemArt } from '@/components/ds/item-art'
+import { VoznyaCoin } from '@/components/ds/icon'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { Badge } from '@/components/ds/badge'
 
@@ -241,7 +242,7 @@ function GiftActions({
     const r = await sellGift(item.deliveryKey)
     if (r.ok) {
       setState('sold')
-      setMsg(`+${fmt(r.amount ?? item.sellAmount)} 🥚`)
+      setMsg(`+${fmt(r.amount ?? item.sellAmount)} ешек`)
       window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
       return
     }
@@ -563,9 +564,17 @@ export function ItemInspectSheet({
       {/* Ownership metadata */}
       <div className="mb-4 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-1.5">
         <MetaRow label="Тип" value={item.typeLabel} />
-        {item.value > 0 && <MetaRow label="Ценность" value={`${fmt(item.value)} 🥚`} />}
+        {item.value > 0 && (
+          <MetaRow
+            label="Ценность"
+            value={<span className="inline-flex items-center gap-1"><span className="type-economy">{fmt(item.value)}</span> <VoznyaCoin tone="muted" /></span>}
+          />
+        )}
         {item.actionable && item.raw.kind === 'gift' && (
-          <MetaRow label="Продажа" value={`${fmt(item.raw.sellAmount)} 🥚`} />
+          <MetaRow
+            label="Продажа"
+            value={<span className="inline-flex items-center gap-1"><span className="type-economy">{fmt(item.raw.sellAmount)}</span> <VoznyaCoin tone="muted" /></span>}
+          />
         )}
         <MetaRow label="Источник" value={sourceLabel} />
         {acquired && <MetaRow label="Получено" value={acquired} />}

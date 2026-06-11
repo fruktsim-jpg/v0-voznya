@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { SectionTitle } from '@/components/ds/section-title'
+import { VoznyaCoin } from '@/components/ds/icon'
 import type { RichUser } from '@/lib/queries'
 
 /**
@@ -76,8 +77,8 @@ export function LeadersPreview({ leaders }: { leaders: RichUser[] }) {
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {u.name}
               </span>
-              <span className="shrink-0 font-mono text-sm text-muted-foreground">
-                {fmt(u.balance)} 🥚
+              <span className="inline-flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+                <span className="type-economy">{fmt(u.balance)}</span> <VoznyaCoin tone="muted" />
               </span>
             </Link>
           ))}

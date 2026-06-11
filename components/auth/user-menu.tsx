@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TelegramLoginButton } from '@/components/auth/telegram-login-button'
 import { onBalanceChanged } from '@/lib/balance-events'
+import { VoznyaCoin } from '@/components/ds/icon'
 
 type Summary =
   | { authenticated: false }
@@ -163,7 +164,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
             мобиле): игрок не должен заходить в профиль, чтобы узнать баланс. */}
         {data.registered && data.balance !== null && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
-            {formatEsh(data.balance)} 🥚
+            <span className="type-economy">{formatEsh(data.balance)}</span> <VoznyaCoin tone="gold" />
           </span>
         )}
       </button>
@@ -187,7 +188,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
               <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
               {data.registered && (data.balance !== null || data.rank !== null) && (
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {data.balance !== null && <>{formatEsh(data.balance)} 🥚</>}
+                  {data.balance !== null && <><span className="type-economy">{formatEsh(data.balance)}</span> <VoznyaCoin tone="muted" /></>}
                   {data.balance !== null && data.rank !== null && <> · </>}
                   {data.rank !== null && <>#{data.rank} в топе</>}
                 </p>

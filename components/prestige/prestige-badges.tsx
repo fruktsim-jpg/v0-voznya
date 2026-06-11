@@ -1,14 +1,19 @@
 /**
  * Prestige badges (A4) — RankBadge / DivisionBadge / TitleBadge.
  *
- * These REPLACE the platform's flat "emoji + text" prestige pills (where a 🥉
- * Bronze looked identical to a 👑 Архидрун). Each badge resolves its rank to a
+ * These REPLACE the platform's flat "emoji + text" prestige pills (where a
+ * Bronze pill looked identical to an Архидрун one). Each badge resolves its rank to a
  * TIER WORLD (lib/ds/prestige.ts) and renders that world's color, gradient,
  * glow, and material — so the tier is legible before the label is read.
  *
  * Three sizes; high tiers gain a subtle gradient fill + glow + (lg) a living
  * sheen. Reduced-motion safe. Presentation only — they NEVER compute a rank,
  * they only style one passed in (rank truth stays in mmr.ts / season.ts).
+ *
+ * B1 (icon system): the leading glyph is now the owned PrestigeSigil — an SVG
+ * emblem whose SHAPE escalates with the tier — instead of the OS emoji. The
+ * `emoji` prop is still accepted for back-compat but no longer rendered, so
+ * every caller across the app upgrades to the sigil with zero call-site churn.
  */
 
 import type { ReactNode } from 'react'
@@ -18,6 +23,7 @@ import {
   prestigeForTitleIndex,
   type PrestigeTier,
 } from '@/lib/ds/prestige'
+import { PrestigeSigil } from '@/components/ds/icon'
 
 type Size = 'sm' | 'md' | 'lg'
 
@@ -30,14 +36,12 @@ const SIZE_CLASS: Record<Size, string> = {
 /** Shared tier-styled pill. The visual heart of all three badges. */
 function PrestigeBadgeBase({
   t,
-  emoji,
   label,
   sub,
   size = 'md',
   title,
 }: {
   t: PrestigeTier
-  emoji: string
   label: string
   sub?: ReactNode
   size?: Size
@@ -67,10 +71,8 @@ function PrestigeBadgeBase({
           style={{ background: t.gradient }}
         />
       )}
-      <span aria-hidden="true" className="relative">
-        {emoji}
-      </span>
-      <span className="relative whitespace-nowrap">{label}</span>
+      <PrestigeSigil tier={t} withAura={size === 'lg' && high} className="relative shrink-0" />
+      <span className="type-prestige relative whitespace-nowrap">{label}</span>
       {sub != null && (
         <span className="relative opacity-75" style={{ color: apex ? '#fff' : undefined }}>
           {sub}
@@ -80,47 +82,44 @@ function PrestigeBadgeBase({
   )
 }
 
-/** MMR (lifetime) rank badge. */
+/** MMR (lifetime) rank badge. `emoji` is accepted for back-compat (unused). */
 export function RankBadge({
-  emoji,
   name,
   size = 'md',
   sub,
 }: {
-  emoji: string
+  emoji?: string
   name: string
   size?: Size
   sub?: ReactNode
 }) {
   const t = prestigeForMmrRank(name)
-  return <PrestigeBadgeBase t={t} emoji={emoji} label={name} sub={sub} size={size} title={`Ранг: ${name}`} />
+  return <PrestigeBadgeBase t={t} label={name} sub={sub} size={size} title={`Ранг: ${name}`} />
 }
 
-/** Season division badge. */
+/** Season division badge. `emoji` is accepted for back-compat (unused). */
 export function DivisionBadge({
-  emoji,
   name,
   size = 'md',
   sub,
 }: {
-  emoji: string
+  emoji?: string
   name: string
   size?: Size
   sub?: ReactNode
 }) {
   const t = prestigeForDivision(name)
-  return <PrestigeBadgeBase t={t} emoji={emoji} label={name} sub={sub} size={size} title={`Дивизион: ${name}`} />
+  return <PrestigeBadgeBase t={t} label={name} sub={sub} size={size} title={`Дивизион: ${name}`} />
 }
 
-/** Earnings title badge — tier scaled by ladder position. */
+/** Earnings title badge — tier scaled by ladder position. `emoji` back-compat. */
 export function TitleBadge({
-  emoji,
   name,
   index,
   total,
   size = 'md',
 }: {
-  emoji: string
+  emoji?: string
   name: string
   /** Position in the earnings-title ladder (0-based). */
   index: number
@@ -129,5 +128,5 @@ export function TitleBadge({
   size?: Size
 }) {
   const t = prestigeForTitleIndex(index, total)
-  return <PrestigeBadgeBase t={t} emoji={emoji} label={name} size={size} title={`Титул: ${name}`} />
+  return <PrestigeBadgeBase t={t} label={name} size={size} title={`Титул: ${name}`} />
 }

@@ -39,7 +39,8 @@
 
 @theme inline {
   --font-sans: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'Geist Mono Fallback', monospace;
+  --font-display: var(--font-display), 'Unbounded', var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-mono-real), 'JetBrains Mono', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -81,7 +82,11 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    /* B5: the WorldBackdrop (fixed, z -10) is the base atmosphere; body stays
+       transparent so it shows through. Fallback color matches --background for
+       no-JS / pre-hydration paint. */
+    background-color: var(--background);
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -147,14 +152,47 @@
     -webkit-text-fill-color: transparent;
   }
 
-  /* VOZNYA REDESIGN type treatment (Figma): screen/section titles are heavy,
-     tight and uppercase ("VAULTS", "ARMORY", "GLOBAL RANKING"). These utilities
-     are the single source for that look so every screen reads as one product. */
+  /* VOZNYA TYPOGRAPHY SYSTEM (PHASE B — B2). Five roles, three faces. The point
+     is tonal CONTRAST between registers (the A4.5 audit found "Inter for
+     everything" = generic). Faces: Unbounded (--font-display) = brand voice,
+     Inter (--font-sans) = workhorse, JetBrains Mono (--font-mono) = numerics.
+
+       1. DISPLAY   .type-display   screen titles / hero — Unbounded, heavy, tight
+       2. SECTION   .section-title  section headers — Unbounded, uppercase
+       3. STAT      .type-stat      big numbers (balance/MMR/counts) — mono, tnum
+       4. PRESTIGE  .type-prestige  rank/division/title names — Unbounded, mid
+       5. ECONOMY   .type-economy   currency amounts — mono, slightly heavier
+     Plus .label-eyebrow (caps brow). Single source so every screen reads as one
+     product. */
+  .type-display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+  }
   .section-title {
-    font-weight: 900;
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.01em;
     text-transform: uppercase;
     line-height: 1;
+  }
+  .type-prestige {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .type-stat {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .type-economy {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
   .label-eyebrow {
     font-size: 0.6875rem; /* 11px */
@@ -165,8 +203,8 @@
   }
 }
 
-/* Живая лента открытий кейсов (DropTicker). Прокрутка вверх на -50%: список
-   отрисован дважды, поэтому цикл бесшовный. Уважает prefers-reduced-motion. */
+/* Живаѝ лента открытий кейѝов (DropTicker). Прокрутка вверх на -50%: ѝпиѝок
+   отриѝован дважды, поѝтому цикл беѝшовный. Уважает prefers-reduced-motion. */
 @keyframes drop-ticker {
   from {
     transform: translateY(0);
@@ -487,4 +525,75 @@
   .ds-apex-shift {
     animation: none !important;
   }
+}
+
+/* ============================================================================
+   VOZNYA WORLD LAYER (PHASE B - B5)
+   The app must feel like a place, not a document. A fixed, behind-everything
+   atmosphere gives depth + slow ambient life while idle. Everything here is
+   GPU-cheap (transform/opacity only), sits at z -10, and is fully disabled
+   under prefers-reduced-motion (static gradients remain; only motion stops).
+   ============================================================================ */
+.world-layer {
+  position: fixed;
+  inset: -10%;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+  /* Deep vertical depth: near-black top settling into a faint violet abyss. */
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(136, 71, 255, 0.10), transparent 60%),
+    radial-gradient(100% 70% at 50% 110%, rgba(75, 105, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, #070709 0%, #08080c 50%, #060608 100%);
+}
+/* Drifting nebula blooms = parallax-free ambient motion. */
+.world-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.world-orb--violet {
+  width: 46vmax; height: 46vmax;
+  left: -10vmax; top: -8vmax;
+  background: radial-gradient(circle at 30% 30%, rgba(136, 71, 255, 0.45), transparent 65%);
+  animation: world-drift-a 38s ease-in-out infinite alternate;
+}
+.world-orb--indigo {
+  width: 40vmax; height: 40vmax;
+  right: -12vmax; bottom: -10vmax;
+  background: radial-gradient(circle at 60% 60%, rgba(75, 105, 255, 0.40), transparent 65%);
+  animation: world-drift-b 46s ease-in-out infinite alternate;
+}
+.world-orb--teal {
+  width: 28vmax; height: 28vmax;
+  right: 20vmax; top: 18vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.20), transparent 65%);
+  animation: world-drift-a 52s ease-in-out infinite alternate-reverse;
+}
+@keyframes world-drift-a {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(6vmax, 4vmax, 0) scale(1.12); }
+}
+@keyframes world-drift-b {
+  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+  100% { transform: translate3d(-5vmax, -6vmax, 0) scale(1); }
+}
+/* Fine grain + vignette = filmic depth, kills banding on the dark gradient. */
+.world-grain {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+.world-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-orb { animation: none !important; }
 }

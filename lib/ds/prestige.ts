@@ -3,8 +3,8 @@
  *
  * THE missing layer. Before A4, "prestige" was three disconnected ladders —
  * MMR rank (lib/mmr.ts), season division (lib/season.ts), earnings title
- * (lib/voznya-bot.ts) — each rendered as the SAME flat emoji+text pill. A 🥉
- * Bronze looked identical to a 👑 Архидрун. That is the opposite of status.
+ * (lib/voznya-bot.ts) — each rendered as the SAME flat emoji+text pill. A low
+ * Bronze looked identical to a top Архидрун. That is the opposite of status.
  *
  * A4 unifies them onto ONE ordered scale of TIER WORLDS. Each tier is a distinct
  * visual environment — color, gradient, glow, frame, aura, material, motion —

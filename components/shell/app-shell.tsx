@@ -3,6 +3,7 @@ import { SiteHeader } from '@/components/voznya/site-header'
 import { PlayerContextBar } from '@/components/shell/player-context-bar'
 import { GlobalNav } from '@/components/shell/global-nav'
 import { PlatformProviders } from '@/components/shell/platform-providers'
+import { WorldBackdrop } from '@/components/shell/world-backdrop'
 
 /**
  * AppShell (Redesign V2, Stage 1) — единая «обёртка» Мини-аппа: фиксированная
@@ -31,6 +32,7 @@ export function AppShell({
 }) {
   return (
     <>
+      <WorldBackdrop />
       <SiteHeader botId={botId} oidcEnabled={oidcEnabled} />
       <PlayerContextBar />
 

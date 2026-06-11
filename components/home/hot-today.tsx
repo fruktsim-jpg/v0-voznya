@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { SectionTitle } from '@/components/ds/section-title'
+import { VoznyaCoin } from '@/components/ds/icon'
 import { rarityToken } from '@/lib/rarity'
 import type { FeaturedOpportunity, HotToday as HotTodayData } from '@/lib/home-context'
 
@@ -18,9 +20,13 @@ import type { FeaturedOpportunity, HotToday as HotTodayData } from '@/lib/home-c
  */
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
-function costLabel(kind: string, amount: number): string {
+function costLabel(kind: string, amount: number): ReactNode {
   if (kind === 'key' || kind === 'free' || amount === 0) return 'по ключу'
-  return `${fmt(amount)} 🥚`
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="type-economy">{fmt(amount)}</span> <VoznyaCoin tone="gold" />
+    </span>
+  )
 }
 
 export function HotToday({
@@ -120,7 +126,11 @@ export function HotToday({
                 actorId={hot.biggestWin.actorId}
                 primary={
                   hot.biggestWin.value != null
-                    ? `+${fmt(hot.biggestWin.value)} 🥚`
+                    ? (
+                      <span className="inline-flex items-center gap-1">
+                        +<span className="type-economy">{fmt(hot.biggestWin.value)}</span> <VoznyaCoin tone="gold" />
+                      </span>
+                    )
                     : hot.biggestWin.actorName
                 }
                 secondary={hot.biggestWin.actorName}
@@ -175,7 +185,7 @@ function Highlight({
   icon: string
   rarity: Parameters<typeof rarityToken>[0]
   actorId: number
-  primary: string
+  primary: ReactNode
   secondary: string
 }) {
   const token = rarityToken(rarity)

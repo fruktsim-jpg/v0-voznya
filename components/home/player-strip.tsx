@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Avatar } from '@/components/ds/avatar'
 import { DivisionBadge } from '@/components/prestige'
+import { VoznyaCoin } from '@/components/ds/icon'
 import type { PlayerStrip as PlayerStripData } from '@/lib/home-context'
 
 /**
@@ -72,8 +73,8 @@ export function PlayerStrip({ player }: { player: PlayerStripData }) {
                 className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/25"
                 aria-label={`Баланс: ${fmt(player.balance)} ешек`}
               >
-                <span className="font-mono">{fmt(player.balance)}</span>
-                <span aria-hidden>🥚</span>
+                <span className="type-economy">{fmt(player.balance)}</span>
+                <VoznyaCoin tone="gold" />
               </Link>
             )}
           </div>

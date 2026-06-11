@@ -1,13 +1,16 @@
 import { cn } from '@/lib/utils'
+import { VoznyaCoin } from '@/components/ds/coin'
 
 /**
  * CurrencyDisplay (DS) — отображение баланса игрока в шапке/контексте.
  *
- * VOZNYA REDESIGN: визуальный референс Figma показывает ДВЕ валюты (🪙 + 💎).
- * У Возни сейчас одна реальная валюта — ешки (🥚). Мы закладываем второй слот
- * («самоцветы» 💎) как ЧИСТО ВИЗУАЛЬНЫЙ задел на будущее (премиум-валюта/
- * монетизация) — он НЕ подключён к экономике и рендерится только когда явно
- * передан `gems`. Никакой бизнес-логики здесь нет, это presentational-слой.
+ * VOZNYA REDESIGN: визуальный референс Figma показывает ДВЕ валюты. У Возни
+ * сейчас одна реальная валюта — ешки. Мы закладываем второй слот («самоцветы»)
+ * как ЧИСТО ВИЗУАЛЬНЫЙ задел на будущее (премиум-валюта/монетизация) — он НЕ
+ * подключён к экономике и рендерится только когда явно передан `gems`.
+ *
+ * B3 (currency identity): ешка — это теперь чеканная монета `VoznyaCoin`
+ * (owned SVG), а не emoji. Никакой бизнес-логики здесь нет, presentational.
  *
  * Server component.
  */
@@ -39,8 +42,8 @@ export function CurrencyDisplay({
         )}
         aria-label={`Баланс: ${fmt(esh)} ешек`}
       >
-        <span aria-hidden>🥚</span>
-        <span className="font-mono">{fmt(esh)}</span>
+        <VoznyaCoin tone="gold" />
+        <span className="type-economy">{fmt(esh)}</span>
       </span>
       {typeof gems === 'number' ? (
         <span
@@ -51,7 +54,7 @@ export function CurrencyDisplay({
           aria-label={`Самоцветы: ${fmt(gems)}`}
         >
           <span aria-hidden>💎</span>
-          <span className="font-mono">{fmt(gems)}</span>
+          <span className="type-economy">{fmt(gems)}</span>
         </span>
       ) : null}
     </div>

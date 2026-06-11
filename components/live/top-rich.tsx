@@ -3,12 +3,14 @@
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { titleForEarned, TITLES } from '@/lib/voznya-bot'
-import { formatCurrency } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
 import { TitleBadge } from '@/components/prestige'
+import { CoinAmount } from '@/components/ds/icon'
+import { prestigeForTitleIndex } from '@/lib/ds/prestige'
 import type { RichUser } from '@/lib/queries'
 
-const MEDALS = ['🥇', '🥈', '🥉']
+// Podium tint for the top-3 ordinals — owned styling instead of medal emoji.
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 export function TopRich() {
   const { data, error } = useApi<RichUser[]>('/api/top-rich?limit=10', 30_000)
@@ -16,7 +18,7 @@ export function TopRich() {
   return (
     <section id="top-rich" className="px-6 py-10 sm:py-14">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="type-display text-center text-2xl sm:text-4xl">
           <span className="text-gradient">Топ</span> богачей
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Самые богатые участники по балансу ешек</p>
@@ -36,6 +38,11 @@ export function TopRich() {
             {data.map((u, i) => {
               const top3 = u.rank <= 3
               const title = titleForEarned(u.totalEarned)
+              // B4: the row is dressed in the player's TITLE tier world.
+              const tier = prestigeForTitleIndex(
+                Math.max(0, TITLES.findIndex((x) => x.name === title.name)),
+                TITLES.length,
+              )
               return (
                 <motion.div
                   key={u.rank}
@@ -43,12 +50,19 @@ export function TopRich() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '-30px' }}
                   transition={{ duration: 0.4, delay: i * 0.04 }}
-                  className={`glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4 ${
-                    top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
-                  }`}
+                  className="glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4"
+                  style={{
+                    borderColor: `${tier.color}${top3 ? '66' : '2e'}`,
+                    background: top3 ? `linear-gradient(100deg, ${tier.color}14, transparent 60%)` : undefined,
+                  }}
                 >
-                  <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
-                    {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
+                  <div className="flex w-9 shrink-0 justify-center">
+                    <span
+                      className="type-stat text-lg font-bold sm:text-xl"
+                      style={{ color: top3 ? PODIUM[u.rank - 1] : 'var(--muted-foreground)' }}
+                    >
+                      {u.rank}
+                    </span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
@@ -62,9 +76,7 @@ export function TopRich() {
                       />
                     </div>
                   </div>
-                  <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
-                    {formatCurrency(u.balance)}
-                  </div>
+                  <CoinAmount value={u.balance} size="md" className="shrink-0 text-foreground" />
                 </motion.div>
               )
             })}
