@@ -4,6 +4,8 @@ import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { roleLabel } from '@/lib/admin-format'
+import { mmrRank } from '@/lib/mmr'
+import { RankBadge } from '@/components/prestige'
 import {
   loadPlayerDiagnostics,
   loadPlayerActivity,
@@ -232,6 +234,11 @@ export default async function PlayerPage({
                 <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
                   {roleLabel(p.role)}
                 </span>
+              )}
+              {/* A4: operator reads the player's prestige WORLD at a glance,
+                  not a raw MMR integer buried in the edit form. */}
+              {mmr !== null && (
+                <RankBadge emoji={mmrRank(mmr).emoji} name={mmrRank(mmr).name} size="sm" sub={<span className="font-mono">{mmr.toLocaleString('ru-RU')}</span>} />
               )}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">

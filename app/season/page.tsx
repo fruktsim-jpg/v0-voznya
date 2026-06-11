@@ -9,6 +9,8 @@ import {
   divisionProgress,
   TITLE_LABELS,
 } from '@/lib/season'
+import { prestigeForDivision } from '@/lib/ds/prestige'
+import { DivisionBadge } from '@/components/prestige'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,62 +64,87 @@ export default async function SeasonPage() {
         )}
       </header>
 
-      {/* Личный блок */}
+      {/* Личный блок — окрашен в тир-мир дивизиона игрока (A4). */}
       {myProfile && myProgress && (
         <section className="mb-8">
-          <div className="glass rounded-3xl border border-primary/25 bg-primary/[0.05] p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Твой сезон
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-foreground">
-                  <span>{myProfile.division.emoji}</span>
-                  <span>{myProfile.division.name}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">
-                  {myProfile.seasonMmr.toLocaleString('ru-RU')}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  MMR{myProfile.rank ? ` · #${myProfile.rank}` : ''}
-                </div>
-              </div>
-            </div>
-
-            {myProgress.next ? (
-              <div className="mt-4">
-                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>До {myProgress.next.name}</span>
-                  <span>{myProgress.toNext.toLocaleString('ru-RU')} MMR</span>
-                </div>
-                <div className="h-2 rounded bg-white/[0.06]">
-                  <div
-                    className="h-2 rounded bg-primary"
-                    style={{ width: `${Math.round(myProgress.ratio * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 text-sm text-primary">
-                Максимальный дивизион достигнут 🏅
-              </div>
-            )}
-
-            {myProfile.titles.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {myProfile.titles.map((code) => (
+          {(() => {
+            const myTier = prestigeForDivision(myProfile.division.name)
+            return (
+              <div
+                className="glass relative overflow-hidden rounded-3xl border p-5"
+                style={{
+                  borderColor: `${myTier.color}40`,
+                  background: myTier.index >= 2 ? myTier.gradient : `${myTier.color}0d`,
+                  boxShadow: myTier.index >= 4 ? myTier.glow || undefined : undefined,
+                }}
+              >
+                {myTier.index >= 3 && (
                   <span
-                    key={code}
-                    className="rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2.5 py-1 text-xs font-medium text-amber-200"
-                  >
-                    {TITLE_LABELS[code] ?? code}
-                  </span>
-                ))}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl"
+                    style={{ background: myTier.aura }}
+                  />
+                )}
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Твой сезон
+                    </div>
+                    <div className="mt-1.5">
+                      <DivisionBadge
+                        emoji={myProfile.division.emoji}
+                        name={myProfile.division.name}
+                        size="lg"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold" style={{ color: myTier.color }}>
+                      {myProfile.seasonMmr.toLocaleString('ru-RU')}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      MMR{myProfile.rank ? ` · #${myProfile.rank}` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                {myProgress.next ? (
+                  <div className="relative mt-4">
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>До {myProgress.next.name}</span>
+                      <span>{myProgress.toNext.toLocaleString('ru-RU')} MMR</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded bg-white/[0.06]">
+                      <div
+                        className="h-2 rounded"
+                        style={{
+                          width: `${Math.round(myProgress.ratio * 100)}%`,
+                          background: `linear-gradient(90deg, ${myTier.color2}, ${myTier.color})`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative mt-4 text-sm font-semibold" style={{ color: myTier.color }}>
+                    Максимальный дивизион достигнут 🏅
+                  </div>
+                )}
+
+                {myProfile.titles.length > 0 && (
+                  <div className="relative mt-4 flex flex-wrap gap-1.5">
+                    {myProfile.titles.map((code) => (
+                      <span
+                        key={code}
+                        className="rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2.5 py-1 text-xs font-medium text-amber-200"
+                      >
+                        {TITLE_LABELS[code] ?? code}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()}
         </section>
       )}
 
@@ -137,27 +164,45 @@ export default async function SeasonPage() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {DIVISIONS.map((d) => {
             const isMine = myProfile?.division.name === d.name
+            const t = prestigeForDivision(d.name)
             return (
               <div
                 key={d.name}
-                className={`rounded-2xl border p-3 text-center ${
-                  isMine
-                    ? 'border-primary/40 bg-primary/[0.08]'
-                    : 'border-border bg-white/[0.02]'
-                }`}
+                className="relative overflow-hidden rounded-2xl border p-3 text-center transition"
+                style={{
+                  borderColor: isMine ? t.color : `${t.color}40`,
+                  background: t.index >= 2 ? t.gradient : `${t.color}0d`,
+                  boxShadow: isMine && t.glow ? t.glow : undefined,
+                }}
               >
-                <div className="text-2xl">{d.emoji}</div>
-                <div className="mt-1 text-sm font-semibold text-foreground">
+                {/* Tier-world aura for high divisions. */}
+                {t.index >= 3 && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl"
+                    style={{ background: t.aura }}
+                  />
+                )}
+                <div className="relative text-2xl">{d.emoji}</div>
+                <div className="relative mt-1 text-sm font-bold" style={{ color: t.color }}>
                   {d.name}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="relative text-[11px] text-muted-foreground">
                   {d.minMmr.toLocaleString('ru-RU')}+ MMR
                 </div>
-                <div className="mt-1 text-[11px] text-amber-200">
+                <div className="relative mt-1 text-[11px] text-amber-200">
                   {d.rewardEshki > 0
                     ? `+${d.rewardEshki.toLocaleString('ru-RU')} ешек`
                     : '—'}
                 </div>
+                {isMine && (
+                  <div
+                    className="relative mt-1.5 text-[10px] font-bold uppercase tracking-wide"
+                    style={{ color: t.color }}
+                  >
+                    ★ Твой дивизион
+                  </div>
+                )}
               </div>
             )
           })}

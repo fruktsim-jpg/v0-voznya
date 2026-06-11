@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
+import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, TITLES } from '@/lib/voznya-bot'
 import { MMR_RANKS } from '@/lib/mmr'
 
 import { formatCurrency, formatDays, formatAchievements, formatMessages } from '@/lib/pluralize'
@@ -16,6 +16,8 @@ import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
 import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
 import { InventoryShowcase } from '@/components/profile/inventory-showcase'
+import { RankBadge, TitleBadge } from '@/components/prestige'
+import { prestigeForMmrRank } from '@/lib/ds/prestige'
 import { ActivityCard } from '@/components/v2/activity-card'
 import { CollectibleTile } from '@/components/v2/collectible'
 import type { Rarity } from '@/lib/rarity'
@@ -160,6 +162,10 @@ export function PlayerCard({
   const mmrToNext =
     profile.mmr !== null && nextMmrRank ? Math.max(0, nextMmrRank.minMmr - profile.mmr) : 0
 
+  // A4 prestige: the MMR rank's TIER WORLD drives the hero block's color/glow,
+  // so Архидрун's block feels nothing like Залётный's. Null-safe (stone fallback).
+  const mmrTier = profile.mmrRank ? prestigeForMmrRank(profile.mmrRank.name) : null
+
   // Unlocked achievement codes
   const unlockedCodes = new Set(profile.achievements.map((a) => a.code))
 
@@ -254,32 +260,46 @@ export function PlayerCard({
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
           {/* Avatar — реальное Telegram-фото, если есть (photoUrl); иначе
               эмодзи титула. Элитная рамка/медаль топ-игроков сохраняется
-              поверх в любом случае. */}
-          <div
-            className={`relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl ${
-              elite ? elite.avatar : 'from-primary/20 to-accent/20'
-            } ${elite ? 'ring-2 ring-inset ' + elite.ring : ''}`}
-          >
-            {profile.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.photoUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+              поверх в любом случае. A4: тир-мир по MMR добавляет ауру/свечение —
+              высокий ранг сияет ещё до чтения подписи. */}
+          <div className="relative shrink-0">
+            {mmrTier && mmrTier.index >= 2 && (
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute -inset-2 rounded-3xl blur-lg ${mmrTier.animated ? 'ds-prestige-aura' : ''}`}
+                style={{ background: mmrTier.aura }}
               />
-            ) : (
-              title.emoji
             )}
-            {profile.rankInTop && profile.rankInTop <= 10 && (
-
-              <div
-                className={`absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shadow-md ${
-                  elite ? elite.accent : 'text-primary-foreground'
-                } bg-background/90 border ${elite ? elite.ring : 'border-primary'}`}
-              >
-                {profile.rankInTop === 1 ? '👑' : profile.rankInTop}
-              </div>
-            )}
+            <div
+              className={`relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-lg shadow-primary/20 sm:h-24 sm:w-24 sm:text-5xl ${
+                elite ? elite.avatar : 'from-primary/20 to-accent/20'
+              } ${elite ? 'ring-2 ring-inset ' + elite.ring : ''}`}
+              style={
+                !elite && mmrTier
+                  ? { boxShadow: mmrTier.index >= 3 ? mmrTier.glow || undefined : undefined }
+                  : undefined
+              }
+            >
+              {profile.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.photoUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                title.emoji
+              )}
+              {profile.rankInTop && profile.rankInTop <= 10 && (
+                <div
+                  className={`absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shadow-md ${
+                    elite ? elite.accent : 'text-primary-foreground'
+                  } bg-background/90 border ${elite ? elite.ring : 'border-primary'}`}
+                >
+                  {profile.rankInTop === 1 ? '👑' : profile.rankInTop}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Identity */}
@@ -308,18 +328,19 @@ export function PlayerCard({
             )}
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-2.5">
-              {/* Титул (по заработку) */}
-              <Link
-                href="/live#titles"
-                className="rounded-full bg-gradient-to-r from-primary/20 to-accent/20 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:from-primary/30 hover:to-accent/30 sm:text-sm"
-              >
-                {title.emoji} {title.name}
+              {/* Титул (по заработку) — тир-мир по позиции в лестнице титулов */}
+              <Link href="/live#titles" className="transition-transform hover:-translate-y-0.5">
+                <TitleBadge
+                  emoji={title.emoji}
+                  name={title.name}
+                  index={Math.max(0, TITLES.findIndex((x) => x.name === title.name))}
+                  total={TITLES.length}
+                  size="lg"
+                />
               </Link>
-              {/* Ранг MMR (путь по миру) */}
+              {/* Ранг MMR (путь по миру) — тир-мир по рангу */}
               {profile.mmrRank && (
-                <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-foreground sm:text-sm">
-                  {profile.mmrRank.emoji} {profile.mmrRank.name}
-                </span>
+                <RankBadge emoji={profile.mmrRank.emoji} name={profile.mmrRank.name} size="lg" />
               )}
               {profile.ranks.byMmr && (
                 <span className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground sm:text-sm">
@@ -341,20 +362,38 @@ export function PlayerCard({
           transition={{ delay: 0.08 }}
           className="mt-3 sm:mt-6"
         >
-          <div className="glass relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.07] to-transparent p-5 sm:rounded-3xl sm:p-7">
+          <div
+            className="glass relative overflow-hidden rounded-2xl border p-5 sm:rounded-3xl sm:p-7"
+            style={{
+              borderColor: mmrTier ? `${mmrTier.color}55` : undefined,
+              background: mmrTier
+                ? `linear-gradient(135deg, ${mmrTier.color}14, transparent 70%)`
+                : undefined,
+              boxShadow: mmrTier && mmrTier.index >= 3 ? mmrTier.glow || undefined : undefined,
+            }}
+          >
+            {/* Tier-world aura wash for high tiers (diamond+). */}
+            {mmrTier && mmrTier.index >= 4 && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl"
+                style={{ background: mmrTier.aura }}
+              />
+            )}
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span className="text-sm">🏆</span> Влияние · MMR
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1">
-                  <span className="text-3xl font-bold leading-none text-primary sm:text-5xl">
+                  <span
+                    className="text-3xl font-bold leading-none sm:text-5xl"
+                    style={{ color: mmrTier ? mmrTier.color : undefined }}
+                  >
                     {profile.mmr.toLocaleString('ru-RU')}
                   </span>
                   {profile.mmrRank && (
-                    <span className="text-base font-semibold text-foreground sm:text-lg">
-                      {profile.mmrRank.emoji} {profile.mmrRank.name}
-                    </span>
+                    <RankBadge emoji={profile.mmrRank.emoji} name={profile.mmrRank.name} size="md" />
                   )}
                 </div>
               </div>
@@ -386,7 +425,12 @@ export function PlayerCard({
                     initial={{ width: 0 }}
                     animate={{ width: `${mmrProgressPercent}%` }}
                     transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary"
+                    className="h-full rounded-full"
+                    style={{
+                      background: mmrTier
+                        ? `linear-gradient(90deg, ${mmrTier.color}99, ${mmrTier.color})`
+                        : 'linear-gradient(90deg, hsl(var(--primary)/0.6), hsl(var(--primary)))',
+                    }}
                   />
                 </div>
               </div>

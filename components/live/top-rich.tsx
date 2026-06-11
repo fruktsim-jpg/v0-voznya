@@ -2,9 +2,10 @@
 
 import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
-import { titleForEarned } from '@/lib/voznya-bot'
+import { titleForEarned, TITLES } from '@/lib/voznya-bot'
 import { formatCurrency } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
+import { TitleBadge } from '@/components/prestige'
 import type { RichUser } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -51,8 +52,14 @@ export function TopRich() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
-                    <div className="truncate text-xs text-muted-foreground">
-                      {title.emoji} {title.name}
+                    <div className="mt-1">
+                      <TitleBadge
+                        emoji={title.emoji}
+                        name={title.name}
+                        index={Math.max(0, TITLES.findIndex((x) => x.name === title.name))}
+                        total={TITLES.length}
+                        size="sm"
+                      />
                     </div>
                   </div>
                   <div className="shrink-0 text-sm font-bold text-primary sm:text-base">

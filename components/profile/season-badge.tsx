@@ -1,10 +1,15 @@
 import Link from 'next/link'
 import { getSeasonProfile, TITLE_LABELS } from '@/lib/season'
+import { prestigeForDivision } from '@/lib/ds/prestige'
+import { DivisionBadge } from '@/components/prestige'
 
 /**
  * Сезонный блок профиля игрока (website-first). Показывает дивизион и титулы.
  * Безопасен к деплоям без сезонной схемы: при ошибке БД
  * (нет таблиц/колонок до миграции 0033) — тихо ничего не рендерит.
+ *
+ * A4: блок окрашен в ТИР-МИР дивизиона — Bronze и Diamond больше не выглядят
+ * одинаково; рамка/фон/заголовок несут цвет дивизиона.
  */
 export async function SeasonBadge({ userId }: { userId: number }) {
   let profile
@@ -17,24 +22,32 @@ export async function SeasonBadge({ userId }: { userId: number }) {
   // Нет сезонного прогресса — не засоряем профиль пустым блоком.
   if (profile.seasonMmr <= 0 && profile.titles.length === 0) return null
 
+  const t = prestigeForDivision(profile.division.name)
+
   return (
     <Link
       href="/season"
-      className="block rounded-3xl border border-primary/25 bg-primary/[0.05] p-5 transition hover:border-primary/40"
+      className="block overflow-hidden rounded-3xl border p-5 transition hover:opacity-95"
+      style={{
+        borderColor: `${t.color}40`,
+        background: t.index >= 2 ? t.gradient : `${t.color}0d`,
+        boxShadow: t.index >= 4 ? t.glow || undefined : undefined,
+      }}
     >
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wide text-muted-foreground">
             Сезон
           </div>
-          <div className="mt-1 flex items-center gap-2 text-xl font-bold text-foreground">
-            <span>{profile.division.emoji}</span>
-            <span>{profile.division.name}</span>
+          <div className="mt-1.5">
+            <DivisionBadge emoji={profile.division.emoji} name={profile.division.name} size="lg" />
           </div>
         </div>
         {profile.rank && (
           <div className="text-right">
-            <div className="text-xl font-bold text-primary">#{profile.rank}</div>
+            <div className="text-xl font-bold" style={{ color: t.color }}>
+              #{profile.rank}
+            </div>
             <div className="text-xs text-muted-foreground">в сезоне</div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Avatar } from '@/components/ds/avatar'
+import { DivisionBadge } from '@/components/prestige'
 import type { PlayerStrip as PlayerStripData } from '@/lib/home-context'
 
 /**
@@ -40,16 +41,19 @@ export function PlayerStrip({ player }: { player: PlayerStripData }) {
             {player.division && (
               <Link
                 href="/season"
-                className="hidden items-center gap-1 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-foreground transition hover:bg-white/10 sm:inline-flex"
+                className="hidden transition hover:-translate-y-0.5 sm:inline-flex"
                 aria-label={`Дивизион: ${player.division.name}`}
               >
-                <span aria-hidden>{player.division.emoji}</span>
-                {player.division.name}
-                {player.seasonRank !== null && (
-                  <span className="font-mono text-muted-foreground">
-                    #{player.seasonRank}
-                  </span>
-                )}
+                <DivisionBadge
+                  emoji={player.division.emoji}
+                  name={player.division.name}
+                  size="sm"
+                  sub={
+                    player.seasonRank !== null ? (
+                      <span className="font-mono">#{player.seasonRank}</span>
+                    ) : undefined
+                  }
+                />
               </Link>
             )}
             {player.rank !== null && (

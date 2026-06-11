@@ -6,6 +6,7 @@ import {
   getDivisionCounts,
   getSeasonLeaderboard,
 } from '@/lib/season'
+import { prestigeForDivision } from '@/lib/ds/prestige'
 import { SeasonManager } from './season-manager'
 
 export const dynamic = 'force-dynamic'
@@ -76,27 +77,33 @@ export default async function AdminSeasonPage() {
         </h2>
         <div className="glass rounded-2xl border border-border p-4">
           <div className="space-y-2">
-            {divisions.map((d) => (
-              <div key={d.division.name} className="text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-foreground">
-                    {d.division.emoji} {d.division.name}
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      ({d.division.minMmr}+ MMR)
+            {divisions.map((d) => {
+              const t = prestigeForDivision(d.division.name)
+              return (
+                <div key={d.division.name} className="text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold" style={{ color: t.color }}>
+                      {d.division.emoji} {d.division.name}
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({d.division.minMmr}+ MMR)
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    {d.players} игроков
-                  </span>
+                    <span className="text-muted-foreground">
+                      {d.players} игроков
+                    </span>
+                  </div>
+                  <div className="mt-0.5 h-2 overflow-hidden rounded bg-white/[0.05]">
+                    <div
+                      className="h-2 rounded"
+                      style={{
+                        width: `${(d.players / maxDiv) * 100}%`,
+                        background: `linear-gradient(90deg, ${t.color2}, ${t.color})`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-0.5 h-2 rounded bg-white/[0.05]">
-                  <div
-                    className="h-2 rounded bg-primary/70"
-                    style={{ width: `${(d.players / maxDiv) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

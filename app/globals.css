@@ -431,3 +431,60 @@
     transform: none;
   }
 }
+
+/* ===========================================================================
+   PHASE A — Prestige System (A4). Tier WORLDS: each prestige tier is a distinct
+   visual environment. High tiers (platinum+) earn living motion; low tiers stay
+   matte (unproven). All transform/opacity only, reduced-motion safe.
+   =========================================================================== */
+
+/* Rotating conic sheen for a prestige frame ring (platinum+). One element. */
+@keyframes ds-prestige-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ds-prestige-ring {
+  animation: ds-prestige-ring-spin 8s linear infinite;
+  will-change: transform;
+}
+
+/* Aura breathing behind a high-tier subject (avatar/medallion). Opacity only. */
+@keyframes ds-prestige-aura {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+.ds-prestige-aura {
+  animation: ds-prestige-aura 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Apex-only: slow hue drift on the mythic gradient so the top world feels
+   alive and unreachable. Animates background-position (cheap). */
+@keyframes ds-apex-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+.ds-apex-shift {
+  background-size: 200% 200%;
+  animation: ds-apex-shift 6s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-prestige-ring,
+  .ds-prestige-aura,
+  .ds-apex-shift {
+    animation: none !important;
+  }
+}

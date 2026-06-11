@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ds/avatar'
+import { prestigeForDivision, prestigeForMmrRank } from '@/lib/ds/prestige'
 import { onBalanceChanged } from '@/lib/balance-events'
 
 /**
@@ -117,14 +118,19 @@ export function PlayerContextBar() {
           </span>
         </Link>
 
-        {/* Division + progress (shared progression language with the hero). */}
+        {/* Division + progress (shared progression language with the hero).
+            A4: division TIER WORLD colors the label + bar, so the bar that
+            follows the player everywhere reflects their real standing. */}
         {season && (
           <Link
             href="/season"
             className="hidden min-w-0 items-center gap-2 sm:flex"
             aria-label={`Дивизион: ${season.division.name}`}
           >
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+            <span
+              className="inline-flex items-center gap-1 text-xs font-semibold"
+              style={{ color: prestigeForDivision(season.division.name).color }}
+            >
               <span aria-hidden>{season.division.emoji}</span>
               {season.division.name}
             </span>
@@ -133,7 +139,7 @@ export function PlayerContextBar() {
                 className="block h-full rounded-full"
                 style={{
                   width: `${progressPct}%`,
-                  background: 'linear-gradient(90deg, #4B69FF, #8847FF)',
+                  background: `linear-gradient(90deg, ${prestigeForDivision(season.division.name).color2}, ${prestigeForDivision(season.division.name).color})`,
                 }}
               />
             </span>
@@ -144,7 +150,12 @@ export function PlayerContextBar() {
           {d.mmrRank && typeof d.mmr === 'number' && (
             <Link
               href={profileHref}
-              className="hidden items-center gap-1 rounded-full border border-border bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground sm:inline-flex"
+              className="hidden items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:opacity-90 sm:inline-flex"
+              style={{
+                borderColor: `${prestigeForMmrRank(d.mmrRank.name).color}66`,
+                color: prestigeForMmrRank(d.mmrRank.name).color,
+                background: `${prestigeForMmrRank(d.mmrRank.name).color}12`,
+              }}
               aria-label={`Ранг: ${d.mmrRank.name}`}
             >
               <span aria-hidden>{d.mmrRank.emoji}</span>
