@@ -21,6 +21,10 @@ export type ShowcaseReward = {
   chance: number
   // For tg_gift rewards — the gift's Stars cost (real value), else null.
   starCost: number | null
+  // Real global supply remaining for limited rewards: max_global_supply −
+  // granted_count. null when the reward is unlimited (no cap). Powers honest
+  // "осталось N" scarcity — never a fabricated number.
+  remaining: number | null
 }
 
 
@@ -94,6 +98,7 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
     max_global_supply: number | null
     is_jackpot: boolean
     star_cost: number | null
+    granted_count: number | null
   }[] = []
   try {
     rewardRows = await query(
@@ -102,7 +107,7 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
               i.rarity AS reward_item_rarity,
               g.star_cost AS star_cost,
               r.amount, r.weight, r.min_qty, r.max_qty,
-              r.max_global_supply, r.is_jackpot
+              r.max_global_supply, r.granted_count, r.is_jackpot
          FROM case_rewards r
          LEFT JOIN inventory_items i ON i.code = r.reward_item_code
          LEFT JOIN gift_catalog g ON g.code = r.reward_item_code
@@ -140,6 +145,10 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
       limited: r.max_global_supply != null,
       chance: (r.weight / total) * 100,
       starCost: r.star_cost == null ? null : Number(r.star_cost),
+      remaining:
+        r.max_global_supply == null
+          ? null
+          : Math.max(0, Number(r.max_global_supply) - Number(r.granted_count ?? 0)),
     }))
 
     return {
@@ -155,4 +164,99 @@ export async function getActiveCasesWithRewards(): Promise<ShowcaseCase[]> {
       endsAt: c.ends_at == null ? null : new Date(c.ends_at).toISOString(),
     }
   })
+}
+
+// ----------------------------------------------------------------------------
+// Social proof + popularity — read-only over the case_openings ledger (the same
+// append-only table getCommunityFeed() reads). PUBLIC-SAFE columns only: who won
+// what, when, and how rare — NEVER spend/RTP/profit (those stay in admin). No
+// new tables, degrades to empty like every other loader.
+// ----------------------------------------------------------------------------
+
+/** One recent case win, for the storefront "недавно выиграли" social-proof ticker. */
+export type RecentCaseWin = {
+  id: string
+  caseItemCode: string
+  actorName: string
+  rewardName: string
+  rewardKind: string
+  rarity: string
+  // Stars value for tg_gift, else the eshki amount, else null. Display only.
+  value: number | null
+  createdAt: string
+}
+
+/**
+ * Latest notable case wins across all cases (newest first). "Notable" =
+ * item/gift drops or jackpots — we skip plain currency so the ticker shows
+ * desirable wins, not "выиграл 50 ешек". Real names from users, real rarity
+ * from the rolled reward. Degrades to [] on any failure.
+ */
+export async function getRecentCaseWins(limit = 12): Promise<RecentCaseWin[]> {
+  try {
+    const rows = await query<{
+      id: string
+      case_item_code: string
+      actor_name: string
+      reward_name: string | null
+      reward_kind: string
+      rarity: string
+      value: string | null
+      created_at: string
+    }>(
+      `SELECT co.id::text AS id,
+              co.case_item_code,
+              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+              COALESCE(ii.name, gc.name, co.reward_item_code) AS reward_name,
+              co.reward_kind,
+              CASE
+                WHEN co.reward_kind = 'tg_gift' THEN 'mythic'
+                WHEN cr.is_jackpot THEN 'legendary'
+                ELSE COALESCE(ii.rarity, 'common')
+              END AS rarity,
+              CASE WHEN co.reward_kind = 'tg_gift' THEN gc.star_cost
+                   ELSE co.amount END AS value,
+              co.created_at
+         FROM case_openings co
+         JOIN users u ON u.user_id = co.user_id
+         LEFT JOIN case_rewards cr ON cr.id = co.reward_id
+         LEFT JOIN inventory_items ii ON ii.code = co.reward_item_code
+         LEFT JOIN gift_catalog gc ON gc.code = co.reward_item_code
+        WHERE co.reward_kind IN ('item', 'tg_gift')
+           OR cr.is_jackpot
+        ORDER BY co.created_at DESC
+        LIMIT $1`,
+      [limit],
+    )
+    return rows.map((r) => ({
+      id: r.id,
+      caseItemCode: r.case_item_code,
+      actorName: r.actor_name,
+      rewardName: r.reward_name ?? 'награда',
+      rewardKind: r.reward_kind,
+      rarity: r.rarity,
+      value: r.value == null ? null : Number(r.value),
+      createdAt: new Date(r.created_at).toISOString(),
+    }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Total open count per case (all-time). Real popularity signal from the same
+ * ledger. Returns a Map keyed by case_item_code; empty Map on failure. No spend
+ * or profit data — just "how many times opened".
+ */
+export async function getCaseOpenCounts(): Promise<Map<string, number>> {
+  try {
+    const rows = await query<{ case_item_code: string; opens: string }>(
+      `SELECT case_item_code, COUNT(*)::text AS opens
+         FROM case_openings
+        GROUP BY case_item_code`,
+    )
+    return new Map(rows.map((r) => [r.case_item_code, Number(r.opens)]))
+  } catch {
+    return new Map()
+  }
 }

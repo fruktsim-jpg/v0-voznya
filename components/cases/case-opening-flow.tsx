@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CaseView } from '@/lib/cases-ux'
+import { Glyph } from '@/components/ds/icon/glyph'
 import {
   failureMessage,
   kindIcon,
@@ -196,6 +197,16 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
           </div>
         )}
 
+        {/* AFTER-opening: the itch. If the case still holds a bigger dream than
+            what dropped, nudge toward chasing it; "Ещё" is the primary action. */}
+        {c.topReward && won && c.topReward.label !== won.title && (
+          <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
+            <Glyph name="spark" className="h-3 w-3 text-accent-indigo" />
+            в кейсе всё ещё ждёт{' '}
+            <span className="font-semibold text-foreground">{c.topReward.label}</span>
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           <a
             href="/inventory"
@@ -205,8 +216,9 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
           </a>
           <button
             onClick={open}
-            className="rounded-xl border border-primary/50 bg-primary/10 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20 active:scale-[0.98]"
+            className="case-cta-pulse flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-primary/20 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/30 active:scale-[0.98]"
           >
+            <Glyph name="refresh" className="h-4 w-4" />
             Ещё · {costLabel}
           </button>
         </div>

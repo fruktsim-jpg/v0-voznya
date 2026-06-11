@@ -1,36 +1,34 @@
 'use client'
 
 import { rarityToken } from '@/lib/rarity'
-import type { CaseView } from '@/lib/cases-ux'
+import { rewardGlyph, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
-import { RarityDistribution } from '@/components/cases/rarity-distribution'
-import {
-  caseCostShort,
-  caseIndicators,
-  INDICATOR_CLASS,
-} from '@/components/cases/case-meta'
+import { Glyph } from '@/components/ds/icon/glyph'
+import { IndicatorChips } from '@/components/cases/indicator-chips'
+import { caseCostShort } from '@/components/cases/case-meta'
 
 /**
- * CaseTile (Stage 3) — the dense hub card. Reads, in one glance: artwork +
- * top-tier accent, name, cost, what you're chasing (value prop), the rarity
- * PROFILE (distribution bar) and limited/premium indicators. Tapping opens the
- * case detail experience (the brief's "understand why a case matters" screen) —
- * opening itself happens there, so the calm grid never reflows.
+ * CaseTile — a DESIRE card, not a spec sheet. It leads with the DREAM: the
+ * case's single most valuable reward rendered as a rarity-colored art capsule
+ * (not a generic box), so you immediately see what you could win. Scarcity
+ * ("осталось N") and popularity ("открыли N раз") are real, from the data layer.
+ * Tapping opens the detail/opening experience (the reel never lives in the grid).
  *
- * Client component (tap handler + active scale). Presentation only — no data
- * access, no opening logic here.
+ * Client component (tap + active scale). Presentation only — no data access.
  */
 export function CaseTile({
   caseView,
+  opens,
   onOpenDetail,
 }: {
   caseView: CaseView
+  opens?: number
   onOpenDetail: (c: CaseView) => void
 }) {
   const c = caseView
   const t = rarityToken(c.topRarity)
   const accent = c.topRarity !== 'common'
-  const indicators = caseIndicators(c).slice(0, 2)
+  const top = c.topReward
 
   return (
     <button
@@ -53,31 +51,40 @@ export function CaseTile({
       )}
 
       <div className="relative flex items-start gap-3">
-        <ItemArt glyph="📦" rarity={c.topRarity} size="md" />
+        {/* The DREAM: the actual top reward as rarity art, not a generic box. */}
+        <ItemArt
+          glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />}
+          rarity={c.topRarity}
+          size="md"
+        />
         <div className="min-w-0 flex-1">
           <h3 className="line-clamp-1 text-sm font-bold text-foreground">{c.name}</h3>
-          <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
-            {c.valueProp ?? `${c.rewardCount} наград · до ${t.label.toLowerCase()}`}
-          </p>
-          {/* Indicators */}
-          {indicators.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {indicators.map((ind) => (
-                <span
-                  key={ind.key}
-                  className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${INDICATOR_CLASS[ind.tone]}`}
-                >
-                  <span aria-hidden="true">{ind.glyph}</span>
-                  {ind.label}
-                </span>
-              ))}
-            </div>
+          {/* «Ты можешь выиграть …» — ведём мечтой, а не числом наград. */}
+          {top ? (
+            <p className="mt-0.5 line-clamp-1 text-[11px]">
+              <span className="text-muted-foreground">можно выиграть </span>
+              <span className="font-semibold" style={{ color: accent ? t.color : undefined }}>
+                {top.label}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+              {c.rewardCount} наград
+            </p>
           )}
+          <div className="mt-1.5">
+            <IndicatorChips caseView={c} max={2} />
+          </div>
         </div>
       </div>
 
-      {/* Rarity profile bar */}
-      <RarityDistribution slices={c.rarityDistribution} height={6} className="relative" />
+      {/* Popularity — real social proof from the openings ledger. */}
+      {opens != null && opens > 0 && (
+        <p className="relative flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Glyph name="users" className="h-3 w-3" />
+          открыли {opens.toLocaleString('ru-RU')} раз
+        </p>
+      )}
 
       {/* Cost CTA */}
       <span

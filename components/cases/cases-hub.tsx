@@ -3,29 +3,39 @@
 import { useMemo, useState } from 'react'
 import { layoutCases, CASE_CATEGORY_META, type CaseView, type CaseCategory } from '@/lib/cases-ux'
 import { Chip, ChipGroup } from '@/components/ds/chip'
+import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { FeaturedCard } from '@/components/cases/featured-card'
 import { CaseTile } from '@/components/cases/case-tile'
 import { CaseDetailSheet } from '@/components/cases/case-detail-sheet'
+import { RecentWins } from '@/components/cases/recent-wins'
+import type { RecentCaseWin } from '@/lib/cases'
 
 /**
- * CasesHub (Stage 3) — the orchestrator for the cases experience. A calm,
- * premium hub: a featured hero, category filters and a dense grid of cases that
- * communicate VALUE at a glance (rarity profile, chase reward, indicators).
- * Tapping any case opens the detail sheet, where the full opening experience
- * lives — so the grid never reflows mid-spin.
+ * CasesHub — the storefront orchestrator. The emotional acquisition loop:
+ * social proof (recent wins) → the dream (featured hero) → the catalog of
+ * desire (tiles showing what you can win + real scarcity/popularity). Tapping
+ * any case opens the detail/opening experience; the reel never lives in the grid.
  *
  * Client component: holds only view state (active category + selected case).
  * All economy / RNG stays server-side (open_case via /api/cases/open). The
- * derivations (featured, groups, categories) come from lib/cases-ux — no fetch.
+ * derivations come from lib/cases-ux; recent wins + open counts are real data
+ * passed in from the server page.
  */
-export function CasesHub({ cases }: { cases: CaseView[] }) {
+export function CasesHub({
+  cases,
+  recentWins = [],
+  openCounts = {},
+}: {
+  cases: CaseView[]
+  recentWins?: RecentCaseWin[]
+  openCounts?: Record<string, number>
+}) {
   const [category, setCategory] = useState<CaseCategory | 'all'>('all')
   const [selected, setSelected] = useState<CaseView | null>(null)
   const [open, setOpen] = useState(false)
 
   const { featured, groups } = useMemo(() => layoutCases(cases), [cases])
 
-  // Categories present (for the filter chips), in the layout's stable order.
   const categories = useMemo(() => groups.map((g) => g.category), [groups])
 
   const visibleGroups = useMemo(
@@ -40,10 +50,17 @@ export function CasesHub({ cases }: { cases: CaseView[] }) {
 
   return (
     <div className="space-y-5">
-      {/* Featured hero — only on the unfiltered view (it's the anchor). */}
+      {/* Featured hero — the dream, only on the unfiltered view (it's the anchor). */}
       {featured && category === 'all' && (
-        <FeaturedCard caseView={featured} onOpenDetail={openDetail} />
+        <FeaturedCard
+          caseView={featured}
+          opens={openCounts[featured.itemCode]}
+          onOpenDetail={openDetail}
+        />
       )}
+
+      {/* Social proof — real recent wins, only on the unfiltered view. */}
+      {category === 'all' && <RecentWins wins={recentWins} />}
 
       {/* Category filters */}
       {categories.length > 1 && (
@@ -56,7 +73,7 @@ export function CasesHub({ cases }: { cases: CaseView[] }) {
               key={cat}
               active={category === cat}
               onClick={() => setCategory(cat)}
-              icon={CASE_CATEGORY_META[cat].glyph}
+              icon={<Glyph name={CASE_CATEGORY_META[cat].glyph as GlyphName} className="h-3.5 w-3.5" />}
             >
               {CASE_CATEGORY_META[cat].label}
             </Chip>
@@ -69,14 +86,19 @@ export function CasesHub({ cases }: { cases: CaseView[] }) {
         <section key={g.category}>
           {(category === 'all' || visibleGroups.length > 1) && (
             <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-sm font-bold text-foreground">
-              <span aria-hidden="true">{CASE_CATEGORY_META[g.category].glyph}</span>
+              <Glyph name={CASE_CATEGORY_META[g.category].glyph as GlyphName} className="h-4 w-4 text-accent-indigo" />
               {CASE_CATEGORY_META[g.category].label}
               <span className="text-muted-foreground">({g.cases.length})</span>
             </h2>
           )}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {g.cases.map((c) => (
-              <CaseTile key={c.itemCode} caseView={c} onOpenDetail={openDetail} />
+              <CaseTile
+                key={c.itemCode}
+                caseView={c}
+                opens={openCounts[c.itemCode]}
+                onOpenDetail={openDetail}
+              />
             ))}
           </div>
         </section>

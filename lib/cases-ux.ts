@@ -6,6 +6,7 @@ import {
   type Rarity,
 } from '@/lib/rarity'
 import type { ShowcaseCase, ShowcaseReward } from '@/lib/cases'
+import type { GlyphName } from '@/components/ds/icon/glyph'
 
 /**
  * Cases UX helpers (VOZNYA EXPERIENCE V3 — поверхность №5). Кейсы — часть
@@ -69,12 +70,28 @@ export function qtyLabel(r: ShowcaseReward): string {
  */
 export type CaseCategory = 'premium' | 'event' | 'seasonal' | 'free' | 'standard'
 
+/**
+ * Метаданные категорий. `glyph` — имя ОWNED-глифа (см. components/ds/icon),
+ * не эмодзи: Cases говорит на том же визуальном языке, что и остальная система.
+ */
 export const CASE_CATEGORY_META: Record<CaseCategory, { label: string; glyph: string }> = {
-  premium: { label: 'Premium', glyph: '⭐' },
-  event: { label: 'Событие', glyph: '⚡' },
-  seasonal: { label: 'Сезонные', glyph: '🍂' },
-  free: { label: 'Бесплатные', glyph: '🎈' },
-  standard: { label: 'Кейсы', glyph: '📦' },
+  premium: { label: 'Premium', glyph: 'star' },
+  event: { label: 'Событие', glyph: 'bolt' },
+  seasonal: { label: 'Сезонные', glyph: 'season' },
+  free: { label: 'Бесплатные', glyph: 'gift' },
+  standard: { label: 'Кейсы', glyph: 'case' },
+}
+
+/**
+ * Owned-глиф для арт-капсулы награды (вместо «📦-как-арт»). Реального арта у
+ * наград нет (нет колонки image), поэтому показываем глиф на подложке цвета
+ * редкости — это и есть «мечта», поданная премиально, а не безликая коробка.
+ */
+export function rewardGlyph(r: ShowcaseReward): GlyphName {
+  if (r.rewardKind === 'tg_gift') return 'gift'
+  if (r.rewardKind === 'currency') return 'coin'
+  if (r.isJackpot) return 'crown'
+  return 'trophy'
 }
 
 /** Доля каждого тира в кейсе (по суммарному шансу). Для полосы распределения. */
@@ -121,6 +138,12 @@ export type CaseView = ShowcaseCase & {
   valueProp: string | null
   /** Осталось времени до закрытия окна (мс), либо null. */
   endsInMs: number | null
+  /**
+   * РЕАЛЬНЫЙ остаток самой дефицитной лимитированной награды
+   * (min по max_global_supply − granted_count), либо null если лимиток нет.
+   * Источник честной срочности «осталось N». Никогда не выдумывается.
+   */
+  scarcest: { reward: RewardView; remaining: number } | null
 }
 
 /** Обогащает кейс производными для витрины (ценность важнее открытия). */
@@ -194,6 +217,17 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
     valueProp = topReward.label
   }
 
+  // Самая дефицитная лимитированная награда — реальный остаток (N left). Берём
+  // минимальный остаток среди наград с заданным max_global_supply. Только из
+  // реальных данных: remaining приходит из БД (max_global_supply − granted_count).
+  let scarcest: { reward: RewardView; remaining: number } | null = null
+  for (const r of rewardsView) {
+    if (r.remaining == null) continue
+    if (scarcest == null || r.remaining < scarcest.remaining) {
+      scarcest = { reward: r, remaining: r.remaining }
+    }
+  }
+
   return {
     ...c,
     rewardsView,
@@ -213,6 +247,7 @@ export function buildCaseView(c: ShowcaseCase): CaseView {
     rarityDistribution,
     valueProp,
     endsInMs,
+    scarcest,
   }
 }
 

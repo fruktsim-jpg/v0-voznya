@@ -2,24 +2,22 @@
 
 import { Drawer } from 'vaul'
 import { rarityToken } from '@/lib/rarity'
-import { chanceLabel, qtyLabel, type CaseView, type RewardView } from '@/lib/cases-ux'
+import { chanceLabel, qtyLabel, rewardGlyph, type CaseView, type RewardView } from '@/lib/cases-ux'
 import { Sheet } from '@/components/ds/sheet'
 import { ItemArt } from '@/components/ds/item-art'
+import { Glyph } from '@/components/ds/icon/glyph'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { RarityDistribution } from '@/components/cases/rarity-distribution'
 import { CaseOpeningFlow } from '@/components/cases/case-opening-flow'
-import {
-  caseCostLabel,
-  caseIndicators,
-  INDICATOR_CLASS,
-} from '@/components/cases/case-meta'
+import { IndicatorChips } from '@/components/cases/indicator-chips'
+import { caseCostLabel } from '@/components/cases/case-meta'
 
 /**
- * CaseDetailSheet (Stage 3) — the "understand why this case matters, then open
- * it" surface. A bottom sheet (mobile-native) with: hero artwork on the tier
- * gradient, value proposition, the FULL rarity distribution (legend), status
- * indicators, the complete drop-list (every reward, its rarity + odds), and the
- * opening flow embedded so the calm hub grid never reflows during a spin.
+ * CaseDetailSheet — "see the dream, then open it". A bottom sheet (mobile-native)
+ * that leads with the case's top reward, then real scarcity ("осталось N") and
+ * the honest odds, then the embedded opening flow (the reel — UNCHANGED), then
+ * the full drop-list. Every reward shows its rarity art (owned glyph on a rarity
+ * capsule), not a generic emoji.
  *
  * Odds shown here are the SAME weights the bot's open_case honors (derived in
  * lib/cases / lib/cases-ux), so the displayed value matches what can drop.
@@ -28,23 +26,25 @@ import {
 function RewardRow({ r }: { r: RewardView }) {
   const t = rarityToken(r.rarity)
   const qty = qtyLabel(r)
-  const icon = r.isJackpot
-    ? '💎'
-    : r.rewardKind === 'currency'
-      ? '💰'
-      : r.rewardKind === 'tg_gift'
-        ? '🎁'
-        : '🎖️'
   return (
     <li
-      className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
+      className="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm"
       style={{ borderColor: r.rarity === 'common' ? 'rgba(255,255,255,0.08)' : `${t.color}55` }}
     >
-      <span aria-hidden="true">{icon}</span>
+      <ItemArt glyph={<Glyph name={rewardGlyph(r)} />} rarity={r.rarity} size="sm" className="!h-9 !w-9" />
       <span className="min-w-0 flex-1 truncate text-foreground">
         {r.label}
         {qty && <span className="ml-1 text-muted-foreground">{qty}</span>}
-        {r.limited && <span className="ml-2 text-[11px] text-amber-300">лимит</span>}
+        {/* Real Stars value of a Telegram Gift reward, when known. */}
+        {r.rewardKind === 'tg_gift' && r.starCost != null && (
+          <span className="ml-2 text-[11px] text-amber-300">★ {r.starCost.toLocaleString('ru-RU')}</span>
+        )}
+        {/* Real remaining supply for a limited reward (not just a flag). */}
+        {r.remaining != null && (
+          <span className="ml-2 text-[11px] font-semibold text-rose-300">
+            осталось {r.remaining.toLocaleString('ru-RU')}
+          </span>
+        )}
       </span>
       <RarityBadge rarity={r.rarity} />
       <span className="shrink-0 font-mono text-xs tabular-nums" style={{ color: t.color }}>
@@ -74,7 +74,7 @@ export function CaseDetailSheet({
 
   const c = caseView
   const t = rarityToken(c.topRarity)
-  const indicators = caseIndicators(c)
+  const top = c.topReward
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -83,7 +83,7 @@ export function CaseDetailSheet({
         {c.rewardCount} наград · открытие {caseCostLabel(c)}
       </Drawer.Description>
 
-      {/* Hero on the tier gradient */}
+      {/* Hero on the tier gradient — leads with the DREAM (the top reward). */}
       <div
         className="relative -mx-4 -mt-4 mb-4 flex flex-col items-center overflow-hidden px-4 pb-5 pt-6 sm:-mx-6 sm:px-6"
         style={{ background: t.gradient }}
@@ -93,23 +93,23 @@ export function CaseDetailSheet({
           className="pointer-events-none absolute inset-0 opacity-60"
           style={{ background: 'radial-gradient(circle at 50% 20%, transparent, rgba(0,0,0,0.45))' }}
         />
-        <div className="relative">
-          <ItemArt glyph="📦" rarity={c.topRarity} size="xl" />
+        <p className="relative text-[11px] font-semibold uppercase tracking-wide text-foreground/60">
+          {c.name}
+        </p>
+        <div className="relative mt-2">
+          <ItemArt glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />} rarity={c.topRarity} size="xl" />
         </div>
-        <h2 className="relative mt-3 text-center text-xl font-bold text-foreground">{c.name}</h2>
-        {indicators.length > 0 && (
-          <div className="relative mt-2 flex flex-wrap items-center justify-center gap-1.5">
-            {indicators.map((ind) => (
-              <span
-                key={ind.key}
-                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold backdrop-blur-sm ${INDICATOR_CLASS[ind.tone]}`}
-              >
-                <span aria-hidden="true">{ind.glyph}</span>
-                {ind.label}
-              </span>
-            ))}
-          </div>
+        {top && (
+          <>
+            <h2 className="relative mt-3 text-center text-xl font-bold text-foreground">{top.label}</h2>
+            <p className="relative mt-0.5 text-center text-xs text-muted-foreground">
+              твой шанс · {chanceLabel(top.chance)}
+            </p>
+          </>
         )}
+        <div className="relative mt-2 flex flex-wrap items-center justify-center">
+          <IndicatorChips caseView={c} size="md" />
+        </div>
       </div>
 
       {c.description && <p className="mb-4 text-sm text-muted-foreground">{c.description}</p>}

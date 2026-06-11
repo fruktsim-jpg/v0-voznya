@@ -25,26 +25,36 @@ export function caseCostShort(c: CaseView): string {
 export type CaseIndicator = {
   key: string
   label: string
+  /** Имя owned-глифа (см. components/ds/icon), не эмодзи. */
   glyph: string
-  tone: 'premium' | 'limited' | 'jackpot' | 'gift' | 'seasonal'
+  tone: 'premium' | 'limited' | 'jackpot' | 'gift' | 'seasonal' | 'scarce'
 }
 
-/** Status chips shown on a case (premium / limited / jackpot / gift / seasonal). */
+/** Status chips shown on a case (premium / scarce / limited / jackpot / gift / seasonal). */
 export function caseIndicators(c: CaseView): CaseIndicator[] {
   const out: CaseIndicator[] = []
-  if (c.isPremiumCase) out.push({ key: 'premium', label: 'Premium', glyph: '⭐', tone: 'premium' })
+  if (c.isPremiumCase) out.push({ key: 'premium', label: 'Premium', glyph: 'star', tone: 'premium' })
+  // Реальный дефицит важнее всего — «осталось N» из max_global_supply.
+  if (c.scarcest && c.scarcest.remaining > 0)
+    out.push({
+      key: 'scarce',
+      label: `осталось ${c.scarcest.remaining.toLocaleString('ru-RU')}`,
+      glyph: 'flame',
+      tone: 'scarce',
+    })
   const left = timeLeftLabel(c.endsInMs)
-  if (left) out.push({ key: 'limited', label: left, glyph: '⏳', tone: 'limited' })
-  if (c.hasJackpot) out.push({ key: 'jackpot', label: 'Джекпот', glyph: '💎', tone: 'jackpot' })
+  if (left) out.push({ key: 'limited', label: left, glyph: 'season', tone: 'limited' })
+  if (c.hasJackpot) out.push({ key: 'jackpot', label: 'Джекпот', glyph: 'crown', tone: 'jackpot' })
   if (c.giftChance > 0 && !c.isPremiumCase)
-    out.push({ key: 'gift', label: 'Gift', glyph: '🎁', tone: 'gift' })
+    out.push({ key: 'gift', label: 'Gift', glyph: 'gift', tone: 'gift' })
   if (c.seasonCode && !c.isLimited)
-    out.push({ key: 'season', label: 'Сезон', glyph: '🍂', tone: 'seasonal' })
+    out.push({ key: 'season', label: 'Сезон', glyph: 'season', tone: 'seasonal' })
   return out
 }
 
 export const INDICATOR_CLASS: Record<CaseIndicator['tone'], string> = {
   premium: 'border-amber-400/40 bg-amber-400/10 text-amber-200',
+  scarce: 'border-rose-400/50 bg-rose-400/15 text-rose-200',
   limited: 'border-rose-400/40 bg-rose-400/10 text-rose-200',
   jackpot: 'border-amber-300/40 bg-amber-300/10 text-amber-200',
   gift: 'border-fuchsia-400/40 bg-fuchsia-400/10 text-fuchsia-200',

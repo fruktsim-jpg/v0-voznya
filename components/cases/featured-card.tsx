@@ -1,33 +1,35 @@
 'use client'
 
 import { rarityToken } from '@/lib/rarity'
-import type { CaseView } from '@/lib/cases-ux'
+import { rewardGlyph, chanceLabel, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
-import { RarityDistribution } from '@/components/cases/rarity-distribution'
-import {
-  caseCostLabel,
-  caseIndicators,
-  INDICATOR_CLASS,
-} from '@/components/cases/case-meta'
+import { Glyph } from '@/components/ds/icon/glyph'
+import { IndicatorChips } from '@/components/cases/indicator-chips'
+import { caseCostLabel } from '@/components/cases/case-meta'
 
 /**
- * FeaturedCard (Stage 3) — the hero of the cases hub. The single most valuable
- * case gets a full-width, gradient-washed presentation that anchors attention
- * and sets the premium tone before the dense grid. Big artwork, the chase
- * reward, the rarity profile and a prominent open CTA.
+ * FeaturedCard — the hero of the storefront. Its only job is DESIRE: the most
+ * exciting case gets a full-width, gradient-washed stage that shows THE DREAM —
+ * the actual top reward as big rarity art, the few runner-up chase rewards, real
+ * scarcity ("осталось N"), and a prominent open CTA. This is "я хочу это" before
+ * the reel ever spins.
  *
  * Client component (tap → open detail). Presentation only.
  */
 export function FeaturedCard({
   caseView,
+  opens,
   onOpenDetail,
 }: {
   caseView: CaseView
+  opens?: number
   onOpenDetail: (c: CaseView) => void
 }) {
   const c = caseView
   const t = rarityToken(c.topRarity)
-  const indicators = caseIndicators(c)
+  const top = c.topReward
+  // Up to 3 runner-up chase rewards (after the headline one) for "и ещё …".
+  const runnerUps = c.best.slice(1, 4)
 
   return (
     <button
@@ -58,52 +60,65 @@ export function FeaturedCard({
       />
 
       <div className="relative flex items-center gap-2">
-        <span className="rounded-full border border-white/20 bg-black/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur-sm">
-          ★ Рекомендуем
+        <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur-sm">
+          <Glyph name="spark" className="h-3 w-3" /> Рекомендуем
         </span>
-        <div className="ml-auto flex flex-wrap justify-end gap-1">
-          {indicators.map((ind) => (
-            <span
-              key={ind.key}
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-sm ${INDICATOR_CLASS[ind.tone]}`}
-            >
-              <span aria-hidden="true">{ind.glyph}</span>
-              {ind.label}
-            </span>
-          ))}
+        <div className="ml-auto">
+          <IndicatorChips caseView={c} size="md" />
         </div>
       </div>
 
       <div className="relative mt-3 flex items-center gap-4">
-        <ItemArt glyph="📦" rarity={c.topRarity} size="xl" className="!h-28 !w-28 shrink-0" />
+        {/* THE DREAM — the actual top reward, big, in its rarity capsule. */}
+        <ItemArt
+          glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />}
+          rarity={c.topRarity}
+          size="xl"
+          className="!h-28 !w-28 shrink-0"
+        />
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold leading-tight text-white sm:text-2xl">{c.name}</h2>
-          {c.topReward && (
-            <p className="mt-1 line-clamp-2 text-sm text-white/80">
-              <span aria-hidden="true">💎 </span>
-              {c.topReward.label}
-            </p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
+            {c.name}
+          </p>
+          {top && (
+            <>
+              <h2 className="mt-0.5 line-clamp-2 text-xl font-extrabold leading-tight text-white sm:text-2xl">
+                {top.label}
+              </h2>
+              <p className="mt-1 text-xs text-white/70">
+                твой шанс выиграть · {chanceLabel(top.chance)}
+              </p>
+            </>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-white/70">
-            <span>{c.rewardCount} наград</span>
-            {c.rareChance > 0 && (
-              <span className="font-mono tabular-nums">
-                редкое+ {c.rareChance >= 10 ? c.rareChance.toFixed(0) : c.rareChance.toFixed(1)}%
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
-      <div className="relative mt-3">
-        <RarityDistribution slices={c.rarityDistribution} height={8} />
-      </div>
+      {/* Runner-up chase rewards — "и ещё можно поймать" as small rarity art. */}
+      {runnerUps.length > 0 && (
+        <div className="relative mt-3 flex items-center gap-2">
+          <span className="text-[10px] text-white/50">а ещё</span>
+          {runnerUps.map((r, i) => (
+            <ItemArt
+              key={`${r.rewardItemCode ?? r.rewardKind}-${i}`}
+              glyph={<Glyph name={rewardGlyph(r)} />}
+              rarity={r.rarity}
+              size="sm"
+              className="!h-10 !w-10"
+            />
+          ))}
+        </div>
+      )}
 
-      <span
-        className="case-cta-pulse relative mt-3 flex items-center justify-center gap-1.5 rounded-2xl border border-white/25 bg-white/15 py-2.5 text-sm font-bold text-white backdrop-blur-sm"
-      >
+      <span className="case-cta-pulse relative mt-3 flex items-center justify-center gap-1.5 rounded-2xl border border-white/25 bg-white/15 py-2.5 text-sm font-bold text-white backdrop-blur-sm">
         Открыть · {caseCostLabel(c)}
       </span>
+
+      {opens != null && opens > 0 && (
+        <p className="relative mt-2 flex items-center justify-center gap-1 text-[10px] text-white/60">
+          <Glyph name="users" className="h-3 w-3" />
+          уже открыли {opens.toLocaleString('ru-RU')} раз
+        </p>
+      )}
     </button>
   )
 }

@@ -1,5 +1,9 @@
 import Link from 'next/link'
-import { getActiveCasesWithRewards } from '@/lib/cases'
+import {
+  getActiveCasesWithRewards,
+  getRecentCaseWins,
+  getCaseOpenCounts,
+} from '@/lib/cases'
 import { buildCaseView } from '@/lib/cases-ux'
 import { CasesHub } from '@/components/cases/cases-hub'
 import { ScreenHeader } from '@/components/v2/screen-header'
@@ -13,18 +17,22 @@ export const metadata = {
 }
 
 /**
- * Cases (Stage 3 — Opening Experience). The cases hub as a premium product: a
- * featured hero, category filters and a value-first grid (each tile reads its
- * rarity profile + chase reward at a glance). The full opening experience —
- * anticipation, a decelerating reel, a rarity-scaled reveal, sound/haptics and
- * gift fate — lives in the detail sheet (CasesHub → CaseDetailSheet).
+ * Cases — the primary emotional ACQUISITION loop ("я хочу это"). The storefront's
+ * job is desire BEFORE the reel and the itch AFTER it; the opening reel itself is
+ * unchanged (already premium). Shows the DREAM (real top rewards as rarity art),
+ * real scarcity (max_global_supply − granted_count → "осталось N"), and real
+ * social proof (recent wins from the case_openings ledger).
  *
  * The economy/RNG is UNCHANGED: open_case (bot, shared DB) stays the single
- * writer, reached via /api/cases/open. This page only reads catalog data and
- * derives presentation (lib/cases, lib/cases-ux).
+ * writer, reached via /api/cases/open. This page only READS catalog + ledger
+ * data and derives presentation (lib/cases, lib/cases-ux).
  */
 export default async function CasesPage() {
-  const rawCases = await getActiveCasesWithRewards()
+  const [rawCases, recentWins, openCounts] = await Promise.all([
+    getActiveCasesWithRewards(),
+    getRecentCaseWins(12),
+    getCaseOpenCounts(),
+  ])
   const cases = rawCases.map(buildCaseView)
 
   return (
@@ -53,7 +61,11 @@ export default async function CasesPage() {
             </Link>
           </div>
         ) : (
-          <CasesHub cases={cases} />
+          <CasesHub
+            cases={cases}
+            recentWins={recentWins}
+            openCounts={Object.fromEntries(openCounts)}
+          />
         )}
       </div>
     </main>
