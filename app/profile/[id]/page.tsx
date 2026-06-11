@@ -88,13 +88,12 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     notFound()
   }
 
-  // Личная лента событий игрока — переносим сильную идею из ProfileV2 (Timeline)
-  // в каноничный PlayerCard, не переписывая его. Деградирует к пустому списку.
-  const activity = await getUserFeed(userId, 20)
-
-  // Phase D — Profile as a trophy case: percentile standings + crown jewel +
-  // mastery. Read-only aggregation; degrades to an empty-but-valid summary.
-  const prestige = await getPrestigeSummary(profile)
+  // Личная лента событий игрока (Timeline) + витрина престижа (Phase D).
+  // Независимы между собой → грузим параллельно, чтобы не складывать задержки.
+  const [activity, prestige] = await Promise.all([
+    getUserFeed(userId, 20),
+    getPrestigeSummary(profile),
+  ])
 
   return (
     <div className="space-y-4 pt-header">

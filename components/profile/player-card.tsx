@@ -1,10 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { titleForEarned, ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, TITLES } from '@/lib/voznya-bot'
+import { titleForEarned, ACHIEVEMENTS, TITLES } from '@/lib/voznya-bot'
 import { MMR_RANKS } from '@/lib/mmr'
 
-import { formatCurrency, formatDays, formatAchievements, formatMessages } from '@/lib/pluralize'
+import { formatCurrency, formatDays } from '@/lib/pluralize'
 
 import Link from 'next/link'
 import { PlayerLink } from '@/components/ui/player-link'
@@ -14,11 +14,10 @@ import { PlayerNavigation } from '@/components/profile/player-navigation'
 
 import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
-import { AchievementBadge, type AchievementRarity } from '@/components/profile/achievement-badge'
-import { InventoryShowcase } from '@/components/profile/inventory-showcase'
 import { RankBadge, TitleBadge } from '@/components/prestige'
-import { Glyph, VoznyaCoin } from '@/components/ds/icon'
+import { Glyph, VoznyaCoin, type GlyphName } from '@/components/ds/icon'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
+import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { ActivityCard } from '@/components/v2/activity-card'
 import type { PlayerProfile } from '@/lib/queries'
 import type { CommunityEvent } from '@/lib/events'
@@ -99,12 +98,6 @@ interface PlayerCardProps {
 
 const TOTAL_ACHIEVEMENTS = ACHIEVEMENTS.length
 
-function rarityFor(category: string): AchievementRarity {
-  if (category === 'legend') return 'legend'
-  if (category === 'secret') return 'secret'
-  return 'normal'
-}
-
 export function PlayerCard({
   profile,
   isOwner = false,
@@ -147,23 +140,35 @@ export function PlayerCard({
   // so Архидрун's block feels nothing like Залётный's. Null-safe (stone fallback).
   const mmrTier = profile.mmrRank ? prestigeForMmrRank(profile.mmrRank.name) : null
 
-  // Unlocked achievement codes
-  const unlockedCodes = new Set(profile.achievements.map((a) => a.code))
+  // ----------------------------------------------------------------------
+  // D5 Achievements (COMPACT, motivating — not a wall). Profile shows only the
+  // most recent unlocks + the rarest (highest-reward) ones, then links into the
+  // bot for the full set. The full categorized list is intentionally NOT here.
+  // ----------------------------------------------------------------------
+  const recentAchievements = [...profile.achievements]
+    .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
+    .slice(0, 3)
+  const rareAchievements = [...profile.achievements]
+    .sort((a, b) => b.reward - a.reward)
+    .slice(0, 3)
+  const achPercent =
+    TOTAL_ACHIEVEMENTS > 0
+      ? Math.round((profile.achievementsUnlocked / TOTAL_ACHIEVEMENTS) * 100)
+      : 0
 
-  // Group achievements by category. Secret category is included: locked secrets
-  // render as mysteries (no spoilers), unlocked ones reveal fully.
-  const achievementsByCategory = ACHIEVEMENT_CATEGORIES.map((category) => {
-    const isSecretCat = category.code === 'secret'
-    const items = ACHIEVEMENTS.filter((a) => a.category === category.code).map((a) => ({
-      ...a,
-      unlocked: unlockedCodes.has(a.code),
-    }))
-    return { ...category, isSecretCat, achievements: items }
-  }).filter((cat) => cat.achievements.length > 0)
-
-  // NOTE: the "best of" showcase (rarest item / top achievement / title) now
-  // lives in the structural PrestigeBanner that opens the profile (Phase D —
-  // profile as a trophy case), so it is intentionally not duplicated here.
+  // ----------------------------------------------------------------------
+  // D6 Collection (COMPACT highlights — points toward Inventory, never replaces
+  // it). Just the rarest few owned items + totals + a link to /inventory.
+  // ----------------------------------------------------------------------
+  const collectionHighlights = [...(profile.inventory?.list ?? [])]
+    .sort((a, b) => {
+      const ra = rarityStyle(a.rarity).order
+      const rb = rarityStyle(b.rarity).order
+      if (ra !== rb) return rb - ra
+      if (a.equipped !== b.equipped) return a.equipped ? -1 : 1
+      return a.name.localeCompare(b.name, 'ru')
+    })
+    .slice(0, 4)
 
   return (
 
@@ -258,9 +263,9 @@ export function PlayerCard({
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-400/20"
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-400/20"
                 >
-                  🛡 Админка
+                  <Glyph name="shield" className="h-3.5 w-3.5" /> Админка
                 </Link>
               )}
             </div>
@@ -378,8 +383,8 @@ export function PlayerCard({
                 </div>
               </div>
             ) : (
-              <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-2.5 text-center text-xs font-medium text-primary sm:text-sm">
-                🔥 Максимальный ранг Возни достигнут
+              <div className="mt-5 flex items-center justify-center gap-1.5 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-2.5 text-center text-xs font-medium text-primary sm:text-sm">
+                <Glyph name="flame" className="h-4 w-4" /> Максимальный ранг Возни достигнут
               </div>
             )}
           </div>
@@ -387,8 +392,9 @@ export function PlayerCard({
       )}
 
       {/* ============================================================== */}
-      {/* УРОВЕНЬ 2 — Три оси: уважение / богатство / голос              */}
-      {/* MMR = влияние, Репутация = уважение, Ешки = богатство.         */}
+      {/* УРОВЕНЬ 2 — Три оси ценности: уважение / богатство / голос.    */}
+      {/* ПОЗИЦИИ в рейтингах живут в PrestigeBanner (витрина престижа),  */}
+      {/* здесь — только абсолютные значения «что у меня есть», без #.    */}
       {/* ============================================================== */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -400,14 +406,12 @@ export function PlayerCard({
         {profile.reputation !== null && (
           <div className="glass rounded-2xl border border-rose-400/25 bg-gradient-to-br from-rose-400/[0.08] to-transparent p-4 sm:p-5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rose-300/80">
-              <span className="text-base">❤️</span> Уважение
+              <Glyph name="heart" className="h-4 w-4" /> Уважение
             </div>
             <div className="mt-2 type-stat text-2xl text-rose-200 sm:text-3xl">
               {profile.reputation.toLocaleString('ru-RU')}
             </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-              Репутация{profile.ranks.byReputation ? ` · #${profile.ranks.byReputation}` : ''}
-            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">Репутация</div>
           </div>
         )}
 
@@ -420,8 +424,7 @@ export function PlayerCard({
             {formatCurrency(profile.balance)}
           </div>
           <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-            Ешки{profile.rankInTop ? ` · #${profile.rankInTop}` : ''} · заработано{' '}
-            {formatCurrency(profile.totalEarned)}
+            Заработано {formatCurrency(profile.totalEarned)}
           </div>
         </div>
 
@@ -429,21 +432,20 @@ export function PlayerCard({
         {profile.messages > 0 && (
           <div className="glass rounded-2xl border border-sky-400/25 bg-gradient-to-br from-sky-400/[0.08] to-transparent p-4 sm:p-5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-sky-300/80">
-              <span className="text-base">💬</span> Голос
+              <Glyph name="message" className="h-4 w-4" /> Голос
             </div>
             <div className="mt-2 type-stat text-2xl text-sky-200 sm:text-3xl">
               {profile.messages.toLocaleString('ru-RU')}
             </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-              {formatMessages(profile.messages, false)}
-              {profile.ranks.byMessages ? ` · #${profile.ranks.byMessages}` : ''}
-            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">Сообщений в чате</div>
           </div>
         )}
       </motion.div>
 
       {/* ============================================================== */}
-      {/* УРОВЕНЬ 3 — Игровая статистика (дуэли/ферма/клады/казино/...)  */}
+      {/* ============================================================== */}
+      {/* D3 — Личная статистика. Сгруппирована по смыслу, без стены      */}
+      {/* цифр. Достижения здесь НЕ дублируем — мастерство в PrestigeBanner.*/}
       {/* ============================================================== */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -453,54 +455,116 @@ export function PlayerCard({
       >
         <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
-            <span className="text-lg sm:text-xl">🎮</span> Возня
+            <Glyph name="swords" className="text-primary" /> Статистика
           </h2>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-            {/* Дуэли */}
-            <StatTile emoji="⚔️" value={`${profile.duelsWon} / ${profile.duelsLost}`} label={`Дуэли · ${winRate}%`} />
-            {/* Ферма */}
+            {/* Дуэли — победы/поражения + winrate */}
             <StatTile
-              emoji="🌾"
+              glyph="swords"
+              value={`${profile.duelsWon} / ${profile.duelsLost}`}
+              label={`Дуэли · ${winRate}%`}
+            />
+            {/* Ферма — текущий/макс стрик */}
+            <StatTile
+              glyph="sprout"
               value={`${profile.farmStreak} / ${profile.maxFarmStreak}`}
               label={`Ферма · ${profile.farmSuccessCount}`}
             />
             {/* Клады */}
-            <StatTile emoji="📦" value={profile.treasuresFound.toLocaleString('ru-RU')} label="Клады" />
+            <StatTile
+              glyph="vault"
+              value={profile.treasuresFound.toLocaleString('ru-RU')}
+              label="Клады"
+            />
             {/* Казино */}
             {profile.casinoGamesCount > 0 && (
-              <StatTile emoji="🎰" value={profile.casinoGamesCount.toLocaleString('ru-RU')} label="Казино" />
+              <StatTile
+                glyph="dice"
+                value={profile.casinoGamesCount.toLocaleString('ru-RU')}
+                label="Казино"
+              />
             )}
             {/* Пидор дня */}
             {profile.pidorCount > 0 && (
-              <StatTile emoji="🏳️" value={profile.pidorCount.toLocaleString('ru-RU')} label="Пидор дня" />
+              <StatTile
+                glyph="target"
+                value={profile.pidorCount.toLocaleString('ru-RU')}
+                label="Пидор дня"
+              />
             )}
-            {/* Достижения */}
-            <StatTile
-              emoji="🏆"
-              value={`${profile.achievementsUnlocked} / ${TOTAL_ACHIEVEMENTS}`}
-              label="Достижения"
-            />
           </div>
         </div>
       </motion.div>
 
       {/* ============================================================== */}
-      {/* Инвентарь — read-only витрина предметов (если есть)            */}
+      {/* D6 — Коллекция (КОМПАКТНО). Только самое редкое + счётчики и     */}
+      {/* ссылка в Инвентарь. Профиль ведёт в Инвентарь, не заменяет его. */}
       {/* ============================================================== */}
       {profile.inventory && profile.inventory.list.length > 0 && (
-        <div id="inventory" className="scroll-mt-24">
-          <InventoryShowcase
-            items={profile.inventory.list}
-            totalItems={profile.inventory.items}
-            uniqueItems={profile.inventory.uniqueItems}
-            delay={0.2}
-          />
-        </div>
+        <motion.div
+          id="inventory"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-3 scroll-mt-24 sm:mt-6"
+        >
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+                <Glyph name="inventory" className="text-primary" /> Коллекция
+              </h2>
+              <span className="text-[11px] text-muted-foreground sm:text-xs">
+                {profile.inventory.uniqueItems.toLocaleString('ru-RU')} видов ·{' '}
+                {profile.inventory.items.toLocaleString('ru-RU')} шт.
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+              {collectionHighlights.map((item) => {
+                const style = rarityStyle(item.rarity)
+                return (
+                  <div
+                    key={item.itemCode}
+                    className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center ${style.className}`}
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/20 text-2xl">
+                      {typeEmoji(item.type)}
+                    </div>
+                    <span className="line-clamp-1 w-full text-xs font-semibold text-foreground">
+                      {item.name}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {style.label}
+                    </span>
+                    {item.equipped && (
+                      <span className="absolute right-1.5 top-1.5 rounded-full border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                        надето
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {isOwner && (
+              <Link
+                href="/inventory"
+                className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-border bg-white/[0.03] py-2.5 text-xs font-semibold text-foreground transition hover:-translate-y-0.5 hover:border-primary/40 sm:text-sm"
+              >
+                <Glyph name="inventory" className="h-4 w-4" />
+                Весь инвентарь
+                <Glyph name="chevronUp" className="h-3.5 w-3.5 rotate-90" />
+              </Link>
+            )}
+          </div>
+        </motion.div>
       )}
 
 
-      {/* Брак — часть личности игрока (одна из уникальных систем Возни). */}
+      {/* ============================================================== */}
+      {/* D4 — Социальная личность: брак/семья (уникальная система Возни). */}
+      {/* ============================================================== */}
       {profile.marriage && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -511,12 +575,12 @@ export function PlayerCard({
           <div className="glass relative overflow-hidden rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-400/[0.08] to-transparent p-4 sm:rounded-3xl sm:p-6">
             <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-rose-400/15 blur-3xl" />
             <div className="relative flex items-center gap-3 sm:gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/15 text-2xl shadow-lg shadow-rose-500/10 sm:h-14 sm:w-14 sm:text-3xl">
-                💍
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/15 text-rose-200 shadow-lg shadow-rose-500/10 sm:h-14 sm:w-14">
+                <Glyph name="heart" className="h-6 w-6 sm:h-7 sm:w-7" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-300/80">
-                  <span>❤️</span> Связан узами с
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-300/80">
+                  Связан узами с
                 </div>
                 <PlayerLink
                   userId={profile.marriage.partnerId}
@@ -540,7 +604,8 @@ export function PlayerCard({
 
 
       {/* ============================================================== */}
-      {/* Достижения — с разделением редкости                            */}
+      {/* D5 — Достижения (КОМПАКТНО, мотивирующе). Прогресс + недавние +  */}
+      {/* редкие. Полная стена ушла — за остальным игрок идёт в бота.     */}
       {/* ============================================================== */}
       {profile.achievementsUnlocked > 0 && (
         <motion.div
@@ -548,73 +613,63 @@ export function PlayerCard({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.24 }}
-          className="mt-4 scroll-mt-24 sm:mt-6"
+          className="mt-3 scroll-mt-24 sm:mt-6"
         >
-          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
-            <div className="mb-4 flex items-center gap-3 sm:mb-6">
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+                <Glyph name="medal" className="text-accent-gold" /> Достижения
+              </h2>
+              <span className="text-[11px] text-muted-foreground sm:text-xs">
+                {profile.achievementsUnlocked} из {TOTAL_ACHIEVEMENTS} · {achPercent}%
+              </span>
+            </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-                🏆
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground sm:text-xl">Достижения</h2>
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  {profile.achievementsUnlocked} из {TOTAL_ACHIEVEMENTS} открыто
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                style={{ width: `${achPercent}%` }}
+              />
+            </div>
+
+            {recentAchievements.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Недавно открыто
                 </p>
+                <div className="space-y-2">
+                  {recentAchievements.map((a) => (
+                    <AchievementRow key={a.code} achievement={a} />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-5 sm:space-y-6">
-              {achievementsByCategory.map((category, catIndex) => {
-                const unlockedInCategory = category.achievements.filter((a) => a.unlocked).length
-                const sorted = [...category.achievements].sort(
-                  (a, b) => Number(b.unlocked) - Number(a.unlocked),
-                )
-
-                return (
-                  <div key={category.code}>
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="text-base sm:text-lg">{category.emoji}</span>
-                      <h3 className="text-sm font-semibold text-foreground sm:text-base">
-                        {category.name}
-                      </h3>
-                      <span className="text-xs text-muted-foreground">
-                        {unlockedInCategory}/{category.achievements.length}
-                      </span>
-                    </div>
-                    <div className="space-y-2.5">
-                      {sorted.map((achievement, achIndex) => (
-                        <AchievementBadge
-                          key={achievement.code}
-                          emoji={achievement.emoji}
-                          name={achievement.name}
-                          description={achievement.description}
-                          unlocked={achievement.unlocked}
-                          reward={achievement.reward}
-                          rarity={rarityFor(achievement.category)}
-                          mystery={category.isSecretCat && !achievement.unlocked}
-                          index={catIndex * 10 + achIndex}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            {rareAchievements.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Самые ценные
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {rareAchievements.map((a) => (
+                    <span
+                      key={a.code}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-2.5 py-1 text-[11px] font-medium text-amber-200"
+                      title={a.description}
+                    >
+                      <span aria-hidden="true">{a.emoji}</span>
+                      <span className="max-w-[10rem] truncate">{a.name}</span>
+                      {a.reward > 0 && <span className="opacity-70">+{a.reward}</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {profile.achievementsUnlocked < TOTAL_ACHIEVEMENTS && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="mt-5 rounded-xl border border-border/50 bg-white/[0.02] p-4 text-center sm:mt-6"
-              >
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  🎯 Ещё {TOTAL_ACHIEVEMENTS - profile.achievementsUnlocked}{' '}
-                  {formatAchievements(TOTAL_ACHIEVEMENTS - profile.achievementsUnlocked, false)} ждут
-                  тебя в боте
-                </p>
-              </motion.div>
+              <p className="mt-4 text-center text-[11px] text-muted-foreground sm:text-xs">
+                Ещё {TOTAL_ACHIEVEMENTS - profile.achievementsUnlocked} ждут тебя в боте
+              </p>
             )}
           </div>
         </motion.div>
@@ -645,18 +700,14 @@ export function PlayerCard({
           transition={{ delay: 0.28 }}
           className="mt-4 sm:mt-6"
         >
-          <div className="glass rounded-2xl border border-border p-5 sm:rounded-3xl sm:p-8">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-                📜
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground sm:text-xl">История</h2>
-                <p className="text-xs text-muted-foreground sm:text-sm">Путь игрока в Возне</p>
-              </div>
+          <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Glyph name="pulse" className="text-primary" />
+              <h2 className="text-sm font-bold text-foreground sm:text-base">История</h2>
+              <span className="text-[11px] text-muted-foreground sm:text-xs">· путь в Возне</span>
             </div>
             <ul className="space-y-2">
-              {activity.slice(0, 15).map((e) => (
+              {activity.slice(0, 12).map((e) => (
                 <li key={e.id}>
                   <ActivityCard event={e} />
                 </li>
@@ -679,7 +730,9 @@ export function PlayerCard({
         className="mt-4 sm:mt-6"
       >
         <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 p-5 text-center sm:rounded-3xl sm:p-8">
-          <div className="mb-3 text-3xl sm:mb-4 sm:text-4xl">🤖</div>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary sm:mb-4">
+            <Glyph name="spark" className="h-6 w-6" />
+          </div>
           <h3 className="mb-2 text-base font-bold text-foreground sm:text-lg">Играй в ВОЗНЮ</h3>
           <p className="mb-4 text-xs text-muted-foreground sm:mb-5 sm:text-sm">
             Зарабатывай ешки, расти в MMR и открывай достижения
@@ -691,17 +744,44 @@ export function PlayerCard({
   )
 }
 
-/** Компактная плитка игровой статистики (уровень 3). */
-function StatTile({ emoji, value, label }: { emoji: string; value: string; label: string }) {
+/** Компактная плитка личной статистики (D3) — иконка из owned-системы. */
+function StatTile({ glyph, value, label }: { glyph: GlyphName; value: string; label: string }) {
   return (
     <div className="glass rounded-xl border border-border p-2.5 sm:p-3.5">
       <div className="flex items-center gap-2">
-        <div className="text-lg sm:text-2xl">{emoji}</div>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-9 sm:w-9">
+          <Glyph name={glyph} className="h-4 w-4" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-bold text-foreground sm:text-lg">{value}</div>
           <div className="truncate text-[9px] text-muted-foreground sm:text-xs">{label}</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Компактная строка недавнего достижения (D5). Эмодзи самого ачивмента
+ *  сохраняем — это его собственная идентичность, не «хром» интерфейса. */
+function AchievementRow({
+  achievement,
+}: {
+  achievement: { emoji: string; name: string; description: string; reward: number }
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-white/[0.02] p-2.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-lg">
+        <span aria-hidden="true">{achievement.emoji}</span>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">{achievement.name}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{achievement.description}</p>
+      </div>
+      {achievement.reward > 0 && (
+        <span className="shrink-0 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary">
+          +{achievement.reward}
+        </span>
+      )}
     </div>
   )
 }

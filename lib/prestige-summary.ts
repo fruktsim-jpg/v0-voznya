@@ -9,20 +9,32 @@ import type { PlayerProfile } from './queries'
  * Local guards (mirrors of the private helpers in queries.ts). Kept here so
  * this module stays self-contained without widening queries.ts's public API.
  * Both fail safe to `false` so a missing table just hides a standing.
+ *
+ * Process-cached (schema is stable at runtime), matching queries.ts, so a
+ * profile load doesn't re-probe the catalog on every request.
  */
+const tablePresence = new Map<string, boolean>()
 async function tableExists(table: string): Promise<boolean> {
+  const cached = tablePresence.get(table)
+  if (cached !== undefined) return cached
   try {
     const rows = await query<{ reg: string | null }>(
       `SELECT to_regclass($1) AS reg`,
       [table],
     )
-    return Boolean(rows[0]?.reg)
+    const present = Boolean(rows[0]?.reg)
+    tablePresence.set(table, present)
+    return present
   } catch {
     return false
   }
 }
 
+const columnPresence = new Map<string, boolean>()
 async function columnExists(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`
+  const cached = columnPresence.get(key)
+  if (cached !== undefined) return cached
   try {
     const rows = await query<{ exists: boolean }>(
       `SELECT EXISTS (
@@ -31,10 +43,29 @@ async function columnExists(table: string, column: string): Promise<boolean> {
        ) AS exists`,
       [table, column],
     )
-    return Boolean(rows[0]?.exists)
+    const present = Boolean(rows[0]?.exists)
+    columnPresence.set(key, present)
+    return present
   } catch {
     return false
   }
+}
+
+/**
+ * Ladder denominators are GLOBAL (identical for every viewer and every profile)
+ * and some are whole-table / journal GROUP BY scans, so we memoize them with a
+ * short TTL instead of recomputing on each profile load. Slightly stale counts
+ * are harmless for percentile framing.
+ */
+const POP_TTL_MS = 120_000
+const popCache = new Map<string, { value: number; at: number }>()
+async function cachedPopulation(key: string, compute: () => Promise<number>): Promise<number> {
+  const hit = popCache.get(key)
+  const now = Date.now()
+  if (hit && now - hit.at < POP_TTL_MS) return hit.value
+  const value = await compute()
+  popCache.set(key, { value, at: now })
+  return value
 }
 
 /**
@@ -146,8 +177,19 @@ async function reputationPopulation(): Promise<number> {
 }
 
 async function voicePopulation(): Promise<number> {
+  // Must mirror getPlayerProfile's `rankByMessages` population EXACTLY, or a
+  // legitimately-ranked player can get rank > total (then silently dropped) and
+  // percentiles inflate. When combot stats exist the ladder ranks by the
+  // COMBINED count (native + combot) and includes combot-only users, so the
+  // denominator must too.
+  const withCombot = await tableExists('combot_user_stats')
   const rows = await query<{ n: string }>(
-    `SELECT COUNT(*) AS n FROM users WHERE messages_count > 0`,
+    withCombot
+      ? `SELECT COUNT(*) AS n
+           FROM users u
+           LEFT JOIN combot_user_stats c ON c.user_id = u.user_id
+          WHERE (u.messages_count + COALESCE(c.messages, 0)) > 0`
+      : `SELECT COUNT(*) AS n FROM users WHERE messages_count > 0`,
   )
   return Number(rows[0]?.n ?? 0)
 }
@@ -163,10 +205,12 @@ export async function getPrestigeSummary(profile: PlayerProfile): Promise<Presti
 
   try {
     const [mmrTotal, wealthTotal, repTotal, voiceTotal] = await Promise.all([
-      profile.ranks.byMmr ? mmrPopulation() : Promise.resolve(0),
-      profile.rankInTop ? wealthPopulation() : Promise.resolve(0),
-      profile.ranks.byReputation ? reputationPopulation() : Promise.resolve(0),
-      profile.ranks.byMessages ? voicePopulation() : Promise.resolve(0),
+      profile.ranks.byMmr ? cachedPopulation('mmr', mmrPopulation) : Promise.resolve(0),
+      profile.rankInTop ? cachedPopulation('wealth', wealthPopulation) : Promise.resolve(0),
+      profile.ranks.byReputation
+        ? cachedPopulation('reputation', reputationPopulation)
+        : Promise.resolve(0),
+      profile.ranks.byMessages ? cachedPopulation('voice', voicePopulation) : Promise.resolve(0),
     ])
 
     const add = (
