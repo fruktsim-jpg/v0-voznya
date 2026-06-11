@@ -12,7 +12,7 @@ export function Section({
   id,
   className = '',
 }: {
-  title?: string
+  title?: ReactNode
   subtitle?: string
   action?: ReactNode
   children: ReactNode
@@ -26,7 +26,7 @@ export function Section({
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               {title && (
-                <h2 className="text-lg font-bold text-foreground sm:text-xl">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-foreground sm:text-xl">
                   {title}
                 </h2>
               )}

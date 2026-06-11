@@ -66,6 +66,46 @@ export function isBigMoment(tier: CelebrationTier): boolean {
   return tier === 'legendary' || tier === 'mythic' || tier === 'epic'
 }
 
+/**
+ * Ceremony channel (PHASE C — C5 Ceremony Expansion).
+ *
+ * Not every celebrated event deserves a full-screen takeover. Pre-C5 the host
+ * rendered the same blocking overlay for a common drop and a mythic — the fast
+ * road to celebration fatigue, after which users dismiss reflexively and the
+ * mythic moment is wasted too.
+ *
+ * The matrix routes each event to the lightest treatment that still honors it:
+ *
+ *   full  — screen takeover, particles, lingers. EARN IT: legendary/mythic of
+ *           any kind, plus structurally huge events (new division, a completed
+ *           collection set). These are the "stop and look" moments.
+ *   mini  — a compact, non-blocking corner card with a rarity edge + auto-hide.
+ *           "That was good" without seizing the screen: epic drops, rank-ups,
+ *           season milestones, achievements.
+ *   toast — a single notification line. Acknowledged, not ceremonied: standard/
+ *           rare drops, purchases, soft recognition.
+ *
+ * Decoupled from FX intensity (sound/haptics still scale by tier) — this only
+ * decides how much SCREEN a moment is allowed to take.
+ */
+export type CeremonyChannel = 'toast' | 'mini' | 'full'
+
+export function ceremonyChannel(c: Celebration): CeremonyChannel {
+  // Always-full structural milestones, regardless of tier.
+  if (c.kind === 'division') return 'full'
+  if (c.kind === 'collection' && (c.tier === 'legendary' || c.tier === 'mythic')) return 'full'
+
+  // The genuinely big tiers take the screen.
+  if (c.tier === 'mythic' || c.tier === 'legendary') return 'full'
+
+  // Mid-weight recognition: notable, not screen-blocking.
+  if (c.tier === 'epic') return 'mini'
+  if (c.kind === 'rankup' || c.kind === 'season' || c.kind === 'achievement') return 'mini'
+
+  // Everything else — standard/rare drops, purchases, soft notices — is a toast.
+  return 'toast'
+}
+
 /** Particle count by tier (0 = none). Capped for performance on mobile. */
 export function shardCount(tier: CelebrationTier): number {
   switch (tier) {

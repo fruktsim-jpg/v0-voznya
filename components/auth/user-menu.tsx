@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TelegramLoginButton } from '@/components/auth/telegram-login-button'
 import { onBalanceChanged } from '@/lib/balance-events'
-import { VoznyaCoin } from '@/components/ds/icon'
+import { VoznyaCoin, Glyph, type GlyphName } from '@/components/ds/icon'
 
 type Summary =
   | { authenticated: false }
@@ -34,7 +34,7 @@ function formatEsh(n: number): string {
 
 type AuthedSummary = Extract<Summary, { authenticated: true }>
 type MenuEntry =
-  | { kind: 'link'; id: string; label: string; href: string }
+  | { kind: 'link'; id: string; label: string; icon: GlyphName; href: string }
   | { kind: 'divider'; id: string }
 
 /**
@@ -49,29 +49,29 @@ type MenuEntry =
 function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
   const profile = `/profile/${data.userId}`
   const items: MenuEntry[] = [
-    { kind: 'link', id: 'profile', label: '👤 Профиль', href: profile },
-    { kind: 'link', id: 'season', label: '🏆 Сезон', href: '/season' },
+    { kind: 'link', id: 'profile', label: 'Профиль', icon: 'profile', href: profile },
+    { kind: 'link', id: 'season', label: 'Сезон', icon: 'season', href: '/season' },
   ]
 
 
   if (data.registered) {
     items.push(
-      { kind: 'link', id: 'inventory', label: '🎒 Инвентарь', href: '/inventory' },
-      { kind: 'link', id: 'achievements', label: '🏆 Достижения', href: `${profile}#achievements` },
+      { kind: 'link', id: 'inventory', label: 'Инвентарь', icon: 'inventory', href: '/inventory' },
+      { kind: 'link', id: 'achievements', label: 'Достижения', icon: 'trophy', href: `${profile}#achievements` },
     )
   }
 
   items.push(
     { kind: 'divider', id: 'd-shop' },
-    { kind: 'link', id: 'cases', label: '📦 Кейсы', href: '/cases' },
-    { kind: 'link', id: 'gifts', label: '🛒 Магазин', href: '/gifts' },
+    { kind: 'link', id: 'cases', label: 'Кейсы', icon: 'case', href: '/cases' },
+    { kind: 'link', id: 'gifts', label: 'Магазин', icon: 'shop', href: '/gifts' },
   )
 
 
   if (data.isAdmin) {
     items.push(
       { kind: 'divider', id: 'd-admin' },
-      { kind: 'link', id: 'admin', label: '🛡 Админка', href: '/admin' },
+      { kind: 'link', id: 'admin', label: 'Админка', icon: 'shield', href: '/admin' },
     )
   }
 
@@ -209,8 +209,9 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
                   href={item.href}
                   role="menuitem"
                   onClick={() => setOpen(false)}
-                  className="block px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
                 >
+                  <Glyph name={item.icon} className="shrink-0 text-base text-muted-foreground" />
                   {item.label}
                 </Link>
               ),

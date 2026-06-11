@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { ActivityCard } from '@/components/v2/activity-card'
 import { EmptyState } from '@/components/v2/empty-state'
+import { Glyph } from '@/components/ds/icon/glyph'
 import {
   EVENT_FILTERS,
   type CommunityEvent,
@@ -65,7 +66,7 @@ export function EventFeed({
       {/* Лента */}
       {visible.length === 0 ? (
         <EmptyState
-          icon="🌙"
+          icon={<Glyph name="moon" />}
           title="Пока тихо"
           description="Скоро здесь будет жарко — кейсы, подарки и выигрыши сообщества."
         />

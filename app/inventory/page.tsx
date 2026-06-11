@@ -46,6 +46,8 @@ export default async function InventoryPage() {
       <ScreenHeader
         icon="inventory"
         title="Инвентарь"
+        kicker="Твоя коллекция"
+        accent="indigo"
         action={
           <Link href="/cases" className="text-sm font-medium text-primary hover:underline">
             Кейсы

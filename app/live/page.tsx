@@ -38,7 +38,7 @@ export default async function LivePage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">
-      <ScreenHeader icon="flame" title="Live" />
+      <ScreenHeader icon="flame" title="Live" kicker="Жизнь Возни прямо сейчас" accent="teal" />
 
       <LiveTabs
         tabs={[
@@ -64,7 +64,11 @@ export default async function LivePage() {
           },
           {
             id: 'tops',
-            label: '🏆 Топы',
+            label: (
+              <>
+                <Glyph name="trophy" /> Топы
+              </>
+            ),
             content: (
               <>
                 <TopRich />
@@ -76,12 +80,20 @@ export default async function LivePage() {
           },
           {
             id: 'economy',
-            label: '💰 Экономика',
+            label: (
+              <>
+                <Glyph name="vault" /> Экономика
+              </>
+            ),
             content: <EconomyPanel />,
           },
           {
             id: 'reference',
-            label: '📖 Справочник',
+            label: (
+              <>
+                <Glyph name="book" /> Справочник
+              </>
+            ),
             content: (
               <>
                 <AchievementsCatalog />

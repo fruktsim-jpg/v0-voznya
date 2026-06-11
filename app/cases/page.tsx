@@ -3,6 +3,7 @@ import { getActiveCasesWithRewards } from '@/lib/cases'
 import { buildCaseView } from '@/lib/cases-ux'
 import { CasesHub } from '@/components/cases/cases-hub'
 import { ScreenHeader } from '@/components/v2/screen-header'
+import { Glyph } from '@/components/ds/icon/glyph'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,8 @@ export default async function CasesPage() {
       <ScreenHeader
         icon="case"
         title="Кейсы"
+        kicker="Открывай и поднимайся"
+        accent="indigo"
         action={
           <Link href="/inventory" className="text-sm font-medium text-primary hover:underline">
             Инвентарь
@@ -41,7 +44,7 @@ export default async function CasesPage() {
       <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
         {cases.length === 0 ? (
           <div className="glass mx-auto mt-6 max-w-md rounded-2xl border border-border p-8 text-center">
-            <div className="mb-2 text-3xl">📦</div>
+            <Glyph name="case" className="mx-auto mb-2 text-3xl text-accent-indigo" />
             <p className="text-sm text-muted-foreground">
               Активных кейсов пока нет. Загляни позже — скоро добавим.
             </p>

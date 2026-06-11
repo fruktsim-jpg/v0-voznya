@@ -5,6 +5,7 @@ import { Card } from '@/components/v2/card'
 import { UserBadge } from '@/components/v2/user-badge'
 import { EmptyState } from '@/components/v2/empty-state'
 import { ScreenHeader } from '@/components/v2/screen-header'
+import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 
 
 export const dynamic = 'force-dynamic'
@@ -37,13 +38,13 @@ export default async function CasinoPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">
-      <ScreenHeader icon="🎰" title="Казино" />
+      <ScreenHeader icon="dice" title="Казино" kicker="Азарт внутри экосистемы" accent="gold" />
 
       <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">
         {!hasActivity ? (
           <div className="mx-auto max-w-md">
             <EmptyState
-              icon="🎰"
+              icon={<Glyph name="dice" />}
               title="Пока тихо"
               description="Ещё никто не делал ставок. Загляни позже — здесь появится азартная жизнь Возни."
             />
@@ -57,15 +58,15 @@ export default async function CasinoPage() {
           <>
             {/* Пульс — статистика впереди */}
             <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-              <PulseStat icon="🎲" value={fmt(pulse.spins24h)} label="ставок за 24ч" accent />
-              <PulseStat icon="👥" value={fmt(pulse.players24h)} label="игроков за 24ч" />
+              <PulseStat icon="dice" value={fmt(pulse.spins24h)} label="ставок за 24ч" accent />
+              <PulseStat icon="users" value={fmt(pulse.players24h)} label="игроков за 24ч" />
               <PulseStat
-                icon="💥"
+                icon="swords"
                 value={pulse.biggestWin24h > 0 ? fmt(pulse.biggestWin24h) : '—'}
                 label="макс. выигрыш 24ч"
               />
               <PulseStat
-                icon="↩️"
+                icon="refresh"
                 value={pulse.payoutRate != null ? `${Math.round(pulse.payoutRate * 100)}%` : '—'}
                 label="возврат игрокам"
               />
@@ -74,9 +75,9 @@ export default async function CasinoPage() {
             <div className="lg:grid lg:grid-cols-3 lg:gap-6">
               {/* Левая колонка: выигрыши + риски */}
               <div className="space-y-6 lg:col-span-2">
-                <Section title="🔥 Крупные выигрыши" subtitle="Кто сейчас в ударе · за неделю" className="!px-0">
+                <Section title={<><Glyph name="flame" className="text-primary" /> Крупные выигрыши</>} subtitle="Кто сейчас в ударе · за неделю" className="!px-0">
                   {topWins.length === 0 ? (
-                    <EmptyState icon="🎲" title="Пока нет крупных выигрышей" />
+                    <EmptyState icon={<Glyph name="dice" />} title="Пока нет крупных выигрышей" />
                   ) : (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {topWins.map((s, i) => (
@@ -86,9 +87,9 @@ export default async function CasinoPage() {
                   )}
                 </Section>
 
-                <Section title="🎯 Крупные риски" subtitle="Кто играет по-крупному" className="!px-0">
+                <Section title={<><Glyph name="target" className="text-primary" /> Крупные риски</>} subtitle="Кто играет по-крупному" className="!px-0">
                   {topRisks.length === 0 ? (
-                    <EmptyState icon="🎲" title="Пока нет крупных ставок" />
+                    <EmptyState icon={<Glyph name="dice" />} title="Пока нет крупных ставок" />
                   ) : (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {topRisks.map((s, i) => (
@@ -101,9 +102,9 @@ export default async function CasinoPage() {
 
               {/* Правая колонка: топ игроков */}
               <aside className="mt-6 lg:mt-0">
-                <Section title="🏆 В плюсе за месяц" subtitle="Кто обыгрывает казино" className="!px-0">
+                <Section title={<><Glyph name="trophy" className="text-primary" /> В плюсе за месяц</>} subtitle="Кто обыгрывает казино" className="!px-0">
                   {leaders.length === 0 ? (
-                    <EmptyState icon="🏅" title="Пока никто не в плюсе" />
+                    <EmptyState icon={<Glyph name="medal" />} title="Пока никто не в плюсе" />
                   ) : (
                     <Card className="space-y-2">
                       {leaders.map((p) => (
@@ -152,7 +153,7 @@ function PulseStat({
   label,
   accent = false,
 }: {
-  icon: string
+  icon: GlyphName
   value: string
   label: string
   accent?: boolean
@@ -162,7 +163,7 @@ function PulseStat({
       variant={accent ? 'epic' : 'default'}
       className="flex flex-col items-center gap-0.5 py-4 text-center"
     >
-      <span className="text-lg" aria-hidden="true">{icon}</span>
+      <Glyph name={icon} className="text-lg text-primary" />
       <span className="text-xl font-bold text-foreground">{value}</span>
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
     </Card>

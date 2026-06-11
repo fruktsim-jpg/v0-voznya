@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getShowcaseGifts } from '@/lib/gifts'
 import { GiftCard } from '@/components/v2/gift-card'
 import { ScreenHeader } from '@/components/v2/screen-header'
+import { Glyph } from '@/components/ds/icon/glyph'
 import { type Rarity } from '@/lib/rarity'
 
 export const dynamic = 'force-dynamic'
@@ -31,12 +32,12 @@ export default async function GiftsPage() {
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">
-      <ScreenHeader icon="gift" title="Подарки" />
+      <ScreenHeader icon="gift" title="Подарки" kicker="Подарки сообщества" accent="pink" />
 
       <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">
         {sorted.length === 0 ? (
           <div className="glass mx-auto mt-6 max-w-md rounded-2xl border border-border p-8 text-center">
-            <div className="mb-2 text-3xl">📦</div>
+            <Glyph name="gift" className="mx-auto mb-2 text-3xl text-accent-pink" />
             <p className="text-sm text-muted-foreground">
               Коллекция пока пуста. Скоро здесь появятся редкие трофеи.
             </p>

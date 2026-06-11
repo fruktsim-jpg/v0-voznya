@@ -27,8 +27,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { celebrationRarity, type Celebration } from '@/lib/celebration'
+import { celebrationRarity, ceremonyChannel, type Celebration } from '@/lib/celebration'
 import { CelebrationOverlay } from '@/components/celebration/celebration-overlay'
+import { CelebrationMini } from '@/components/celebration/celebration-mini'
+import { toast } from '@/components/ds/toast'
 import { useFx } from '@/hooks/use-fx'
 
 const CELEBRATE_EVENT = 'voznya:celebrate'
@@ -78,8 +80,26 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
     [fx],
   )
 
+  /**
+   * Toast channel: non-blocking. Fire the sound + a sonner line and return —
+   * it never occupies the single full/mini "moment" slot, so a stream of small
+   * events (purchases, common drops) can't back up the queue behind a takeover.
+   */
+  const fireToast = useCallback(
+    (c: Celebration) => {
+      fireFx(c)
+      toast(c.title, { description: c.subtitle })
+    },
+    [fireFx],
+  )
+
   const enqueue = useCallback(
     (c: Celebration) => {
+      // Anti-fatigue routing (C5): only mini/full compete for the screen slot.
+      if (ceremonyChannel(c) === 'toast') {
+        fireToast(c)
+        return
+      }
       setCurrent((cur) => {
         if (cur) {
           queue.current.push(c)
@@ -89,7 +109,7 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
         return c
       })
     },
-    [fireFx],
+    [fireFx, fireToast],
   )
 
   const dismiss = useCallback(() => {
@@ -113,7 +133,12 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
   return (
     <CelebrationContext.Provider value={{ celebrate: enqueue }}>
       {children}
-      {current && <CelebrationOverlay celebration={current} onDismiss={dismiss} />}
+      {current &&
+        (ceremonyChannel(current) === 'mini' ? (
+          <CelebrationMini celebration={current} onDismiss={dismiss} />
+        ) : (
+          <CelebrationOverlay celebration={current} onDismiss={dismiss} />
+        ))}
     </CelebrationContext.Provider>
   )
 }
