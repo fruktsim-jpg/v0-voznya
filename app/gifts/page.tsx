@@ -30,8 +30,8 @@ export default async function GiftsPage() {
   )
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <ScreenHeader icon="🎁" title="Подарки" />
+    <main className="relative min-h-svh overflow-x-hidden">
+      <ScreenHeader icon="gift" title="Подарки" />
 
       <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">
         {sorted.length === 0 ? (

@@ -40,7 +40,7 @@ export default async function Page() {
   // Registered player → world-first living command center.
   if (ctx.player) {
     return (
-      <main className="relative min-h-svh overflow-x-hidden bg-background">
+      <main className="relative min-h-svh overflow-x-hidden">
         <HomeHub ctx={ctx} />
         <SiteFooter />
       </main>
@@ -50,7 +50,7 @@ export default async function Page() {
   // Guest / not-yet-registered → onboarding landing (unchanged direction).
   const feed = ctx.worldFeed.length > 0 ? ctx.worldFeed : await getCommunityFeed(8)
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
+    <main className="relative min-h-svh overflow-x-hidden">
       <Hero />
 
       {/* Дашборд: куда идти прямо сейчас */}

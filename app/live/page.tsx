@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Glyph } from '@/components/ds/icon/glyph'
 import { LiveCommunityStats } from '@/components/live/community-stats'
 import { TopRich } from '@/components/live/top-rich'
 import { WeeklyTop } from '@/components/live/weekly-top'
@@ -36,14 +37,18 @@ export default async function LivePage() {
   const feed = await getCommunityFeed(6)
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <ScreenHeader icon="🔥" title="Live" />
+    <main className="relative min-h-svh overflow-x-hidden">
+      <ScreenHeader icon="flame" title="Live" />
 
       <LiveTabs
         tabs={[
           {
             id: 'stats',
-            label: '📊 Статистика',
+            label: (
+              <>
+                <Glyph name="chart" /> Статистика
+              </>
+            ),
             content: (
               <>
                 <LiveCommunityStats />

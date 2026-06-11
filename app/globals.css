@@ -83,10 +83,14 @@
   }
   body {
     @apply text-foreground;
-    /* B5: the WorldBackdrop (fixed, z -10) is the base atmosphere; body stays
-       transparent so it shows through. Fallback color matches --background for
-       no-JS / pre-hydration paint. */
-    background-color: var(--background);
+    /* C1 World Visibility: the WorldBackdrop (fixed, z -10) is the base
+       atmosphere and must show through. The <html> element keeps the
+       `bg-background` color as the no-JS / pre-hydration flash guard, and the
+       backdrop's own opaque gradient paints over that flat color. The body MUST
+       stay transparent — an opaque body background here (the previous bug) sat
+       above the negative-z backdrop and hid it on every screen. Do not set a
+       body background-color. */
+    background-color: transparent;
     -webkit-font-smoothing: antialiased;
   }
 }

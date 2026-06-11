@@ -13,7 +13,7 @@ import { useState, type ReactNode } from 'react'
 export function LiveTabs({
   tabs,
 }: {
-  tabs: { id: string; label: string; content: ReactNode }[]
+  tabs: { id: string; label: ReactNode; content: ReactNode }[]
 }) {
   const [active, setActive] = useState(tabs[0]?.id ?? '')
 
@@ -28,7 +28,7 @@ export function LiveTabs({
               type="button"
               onClick={() => setActive(t.id)}
               aria-current={active === t.id ? 'true' : undefined}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
                 active === t.id
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:text-foreground'

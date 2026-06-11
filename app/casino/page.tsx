@@ -36,7 +36,7 @@ export default async function CasinoPage() {
   const hasActivity = pulse.spinsTotal > 0
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
+    <main className="relative min-h-svh overflow-x-hidden">
       <ScreenHeader icon="🎰" title="Казино" />
 
       <div className="mx-auto max-w-5xl px-4 pb-6 sm:px-6">

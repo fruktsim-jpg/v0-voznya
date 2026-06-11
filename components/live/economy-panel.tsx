@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { useApi } from '@/hooks/use-api'
 import { formatCurrency } from '@/lib/pluralize'
 import type { Economy } from '@/lib/queries'
@@ -8,13 +9,13 @@ import type { Economy } from '@/lib/queries'
 export function EconomyPanel() {
   const { data, error } = useApi<Economy>('/api/economy', 30_000)
 
-  const cards: { emoji: string; label: string; value: string }[] = data
+  const cards: { icon: GlyphName; label: string; value: string }[] = data
     ? [
-        { emoji: '💰', label: 'Общая казна', value: formatCurrency(data.treasury) },
-        { emoji: '🏦', label: 'Средний баланс', value: formatCurrency(data.avgBalance) },
-        { emoji: '👑', label: 'Самый богатый', value: data.richest ? data.richest.name : '—' },
-        { emoji: '💸', label: 'Максимальный баланс', value: formatCurrency(data.maxBalance) },
-        { emoji: '🌾', label: 'Фермеров', value: data.farmers.toLocaleString('ru-RU') },
+        { icon: 'vault', label: 'Общая казна', value: formatCurrency(data.treasury) },
+        { icon: 'bank', label: 'Средний баланс', value: formatCurrency(data.avgBalance) },
+        { icon: 'crown', label: 'Самый богатый', value: data.richest ? data.richest.name : '—' },
+        { icon: 'wallet', label: 'Максимальный баланс', value: formatCurrency(data.maxBalance) },
+        { icon: 'sprout', label: 'Фермеров', value: data.farmers.toLocaleString('ru-RU') },
       ]
     : []
 
@@ -44,7 +45,7 @@ export function EconomyPanel() {
                 transition={{ duration: 0.45, delay: i * 0.05 }}
                 className="glass relative overflow-hidden rounded-2xl border border-border p-4 sm:p-6"
               >
-                <div className="text-2xl sm:text-3xl">{c.emoji}</div>
+                <Glyph name={c.icon} className="text-2xl text-primary sm:text-3xl" />
                 <div className="mt-2 truncate text-lg font-bold text-foreground sm:text-xl">{c.value}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{c.label}</div>
               </motion.div>

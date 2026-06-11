@@ -2,10 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { AnimatedCounter } from '@/components/voznya/animated-counter'
+import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { useApi } from '@/hooks/use-api'
 import type { CommunityStats, MessageStats } from '@/lib/queries'
 
-type CardData = { emoji: string; label: string; value: number }
+type CardData = { icon: GlyphName; label: string; value: number }
 
 export function LiveCommunityStats() {
   const { data, error } = useApi<CommunityStats>('/api/stats', 20_000)
@@ -13,14 +14,14 @@ export function LiveCommunityStats() {
 
   const cards: CardData[] = data
     ? [
-        { emoji: '👥', label: 'Пользователей', value: data.users },
-        { emoji: '💰', label: 'Ешек в обороте', value: data.eshInCirculation },
+        { icon: 'users', label: 'Пользователей', value: data.users },
+        { icon: 'coin', label: 'Ешек в обороте', value: data.eshInCirculation },
         ...(messages
-          ? [{ emoji: '💬', label: 'Сообщений всего', value: messages.total }]
-          : [{ emoji: '📦', label: 'Кладов найдено', value: data.treasuresFound }]),
-        { emoji: '🏆', label: 'Получено ачивок', value: data.achievements },
-        { emoji: '⚔️', label: 'Дуэлей', value: data.duels },
-        { emoji: '🌾', label: 'Фермеров', value: data.farmers },
+          ? [{ icon: 'message' as const, label: 'Сообщений всего', value: messages.total }]
+          : [{ icon: 'vault' as const, label: 'Кладов найдено', value: data.treasuresFound }]),
+        { icon: 'trophy', label: 'Получено ачивок', value: data.achievements },
+        { icon: 'swords', label: 'Дуэлей', value: data.duels },
+        { icon: 'sprout', label: 'Фермеров', value: data.farmers },
       ]
     : []
 
@@ -46,7 +47,7 @@ export function LiveCommunityStats() {
                 transition={{ duration: 0.45, delay: i * 0.05 }}
                 className="glass relative overflow-hidden rounded-2xl border border-border p-4 text-center sm:p-6"
               >
-                <div className="text-2xl sm:text-3xl">{c.emoji}</div>
+                <Glyph name={c.icon} className="mx-auto text-2xl text-primary sm:text-3xl" />
                 <div className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">
                   <AnimatedCounter value={c.value} />
                 </div>

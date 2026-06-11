@@ -27,9 +27,9 @@ export default async function CasesPage() {
   const cases = rawCases.map(buildCaseView)
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
+    <main className="relative min-h-svh overflow-x-hidden">
       <ScreenHeader
-        icon="📦"
+        icon="case"
         title="Кейсы"
         action={
           <Link href="/inventory" className="text-sm font-medium text-primary hover:underline">

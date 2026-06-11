@@ -28,8 +28,8 @@ export default async function InventoryPage() {
 
   if (!isDbConfigured()) {
     return (
-      <main className="relative min-h-svh overflow-x-hidden bg-background">
-        <ScreenHeader icon="🎒" title="Инвентарь" />
+      <main className="relative min-h-svh overflow-x-hidden">
+        <ScreenHeader icon="inventory" title="Инвентарь" />
         <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
           <div className="glass mx-auto mt-6 max-w-md rounded-2xl border border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">Инвентарь временно недоступен.</p>
@@ -42,9 +42,9 @@ export default async function InventoryPage() {
   const view = await getInventory(session.uid)
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
+    <main className="relative min-h-svh overflow-x-hidden">
       <ScreenHeader
-        icon="🎒"
+        icon="inventory"
         title="Инвентарь"
         action={
           <Link href="/cases" className="text-sm font-medium text-primary hover:underline">

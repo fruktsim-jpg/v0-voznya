@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Chip, ChipGroup } from '@/components/ds/chip'
+import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { rarityToken } from '@/lib/rarity'
 import {
   type FilterState,
@@ -27,11 +28,11 @@ const SORT_LABELS: Record<SortKey, string> = {
   name: 'По названию',
 }
 
-const FLAGS: { key: FilterState['flag']; label: string; icon: string }[] = [
-  { key: 'all', label: 'Все', icon: '🎒' },
-  { key: 'favorites', label: 'Избранное', icon: '❤️' },
-  { key: 'limited', label: 'Лимитные', icon: '🏆' },
-  { key: 'premium', label: 'Premium', icon: '⭐' },
+const FLAGS: { key: FilterState['flag']; label: string; icon: GlyphName }[] = [
+  { key: 'all', label: 'Все', icon: 'inventory' },
+  { key: 'favorites', label: 'Избранное', icon: 'heart' },
+  { key: 'limited', label: 'Лимитные', icon: 'trophy' },
+  { key: 'premium', label: 'Premium', icon: 'star' },
 ]
 
 export function InventoryFilters({
@@ -55,8 +56,8 @@ export function InventoryFilters({
       {/* Search + sort */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-            🔎
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <Glyph name="search" className="text-base" />
           </span>
           <input
             value={filters.search}
@@ -99,7 +100,7 @@ export function InventoryFilters({
         {FLAGS.map((f) => (
           <Chip
             key={f.key}
-            icon={f.icon}
+            icon={<Glyph name={f.icon} />}
             active={filters.flag === f.key}
             onClick={() => set({ flag: f.key })}
           >
