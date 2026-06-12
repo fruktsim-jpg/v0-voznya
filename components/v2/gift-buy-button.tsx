@@ -31,12 +31,18 @@ export function GiftBuyButton({
   rarity,
   priceEshki,
   color,
+  owned = false,
+  affordable = null,
 }: {
   code: string
   name?: string
   rarity?: Rarity
   priceEshki: number
   color: string
+  /** Player already holds this gift (pending) — offer to view, not re-buy. */
+  owned?: boolean
+  /** Known affordability before the round-trip (null = unknown / guest). */
+  affordable?: boolean | null
 }) {
   const [state, setState] = useState<BuyState>('idle')
   const [msg, setMsg] = useState('')
@@ -44,6 +50,12 @@ export function GiftBuyButton({
 
   async function buy() {
     if (state === 'buying' || state === 'bought') return
+    // Balance-aware: don't spend a round-trip on a purchase we know will fail.
+    if (affordable === false) {
+      setState('error')
+      setMsg('Не хватает ешек')
+      return
+    }
     setState('buying')
     setMsg('')
     try {
@@ -91,26 +103,28 @@ export function GiftBuyButton({
     }
   }
 
-  if (state === 'bought') {
+  if (state === 'bought' || owned) {
     return (
       <a
         href="/inventory"
-        className="inline-flex items-center justify-center rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+        className="inline-flex w-full items-center justify-center rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20"
       >
-        ✅ В инвентаре →
+        {state === 'bought' ? '✅ Куплено · в инвентаре →' : 'В инвентаре →'}
       </a>
     )
   }
+
+  const cantAfford = affordable === false
 
   return (
     <div className="flex flex-col items-center gap-1">
       <button
         onClick={buy}
-        disabled={state === 'buying'}
-        className="rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-50"
+        disabled={state === 'buying' || cantAfford}
+        className="w-full rounded-full border px-3 py-1.5 text-xs font-bold transition hover:brightness-110 disabled:opacity-40"
         style={{ borderColor: `${color}88`, color }}
       >
-        {state === 'buying' ? '…' : `Купить · ${fmt(priceEshki)}`}
+        {state === 'buying' ? '…' : cantAfford ? 'Не хватает ешек' : `Купить · ${fmt(priceEshki)}`}
       </button>
       {state === 'error' && (
         <span className="text-[10px] font-semibold text-red-300">{msg}</span>

@@ -12,7 +12,7 @@ import { Glyph, type GlyphName } from '@/components/ds/icon'
  */
 const ACTIONS: { href: string; icon: GlyphName; label: string; hint: string; accent: string }[] = [
   { href: '/cases', icon: 'case', label: 'Кейсы', hint: 'Открывай и лови дроп', accent: 'var(--accent-indigo)' },
-  { href: '/gifts', icon: 'gift', label: 'Подарки', hint: 'Коллекция Telegram Gifts', accent: 'var(--accent-pink)' },
+  { href: '/gifts', icon: 'gift', label: 'Магазин', hint: 'Подарки и Premium за ешки', accent: 'var(--accent-pink)' },
   { href: '/live', icon: 'pulse', label: 'Live', hint: 'Статистика и топы', accent: 'var(--accent-teal)' },
   { href: '/casino', icon: 'dice', label: 'Казино', hint: 'Азартная часть', accent: 'var(--accent-gold)' },
 ]
