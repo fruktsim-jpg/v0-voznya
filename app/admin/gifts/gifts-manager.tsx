@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Rarity } from '@/lib/rarity'
 import { RARITY_ORDER } from '@/lib/rarity'
 import type { ContentStatus } from '@/lib/admin/lifecycle'
@@ -323,6 +323,7 @@ export function GiftsManager({
                   <AuditTrail targetType="gift" targetId={editingCode} limit={5} />
                 </div>
               )}
+              {editingCode && <GiftStats code={editingCode} />}
             </div>
           </div>
         </div>
@@ -408,3 +409,65 @@ export function GiftsManager({
     </div>
   )
 }
+
+type GiftStatsData = {
+  purchases: number
+  refunds: number
+  revenueEshki: number
+  delivery: { completed: number; pending: number; cancelled: number }
+  starsRealized: number
+  marginEshki: number
+  inInventories: { holders: number; quantity: number }
+  droppedByCases: number
+}
+
+/** Object-local gift analytics (read-only) shown when editing a gift. */
+function GiftStats({ code }: { code: string }) {
+  const [data, setData] = useState<GiftStatsData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    fetch(`/api/admin/gifts/${encodeURIComponent(code)}/stats`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && setData(d))
+      .catch(() => alive && setData(null))
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [code])
+
+  return (
+    <div className="rounded-xl border border-white/5 bg-black/10 p-3">
+      <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Статистика объекта</p>
+      {loading ? (
+        <p className="text-[11px] text-muted-foreground">Загрузка…</p>
+      ) : !data ? (
+        <p className="text-[11px] text-muted-foreground">Нет данных.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label="Куплено" value={fmt(data.purchases)} />
+          <Stat label="Выручка" value={`${fmt(data.revenueEshki)} еш`} />
+          <Stat label="В инвентарях" value={`${fmt(data.inInventories.quantity)} (${fmt(data.inInventories.holders)})`} />
+          <Stat label="Выдано (Telegram)" value={fmt(data.delivery.completed)} />
+          <Stat label="В очереди" value={fmt(data.delivery.pending)} />
+          <Stat label="Возвраты" value={fmt(data.refunds)} />
+          <Stat label="Маржа" value={`${fmt(data.marginEshki)} еш`} className={data.marginEshki >= 0 ? 'text-emerald-300' : 'text-destructive-foreground'} />
+          <Stat label="В кейсах" value={fmt(data.droppedByCases)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className="rounded-lg border border-white/5 bg-black/20 p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 text-sm font-semibold ${className ?? 'text-foreground'}`}>{value}</div>
+    </div>
+  )
+}
+

@@ -106,3 +106,73 @@ export function Empty({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+
+// --- Economy health (operator verdict, derived from already-loaded data) -----
+
+type DailyFlow = { day: string; minted: number; burned: number; net: number }
+type SourceFlow = { reason: string; minted: number; burned: number; net: number }
+
+/**
+ * EconomyHealth — a single operator read: "is the economy healthy?" Derived
+ * purely from the 14-day daily flow + 30-day sources already loaded by the page
+ * (no new queries). Shows inflation pressure (net over the window vs current
+ * mass), a 7d-vs-prior-7d trend, and the top generator / top sink.
+ */
+export function EconomyHealth({
+  daily,
+  sources,
+  totalEshki,
+}: {
+  daily: DailyFlow[]
+  sources: SourceFlow[]
+  totalEshki: number | null
+}) {
+  const net14 = daily.reduce((s, d) => s + d.net, 0)
+  const last7 = daily.slice(-7).reduce((s, d) => s + d.net, 0)
+  const prev7 = daily.slice(-14, -7).reduce((s, d) => s + d.net, 0)
+  // Inflation pressure = net minted over the window relative to current supply.
+  const supply = totalEshki ?? 0
+  const pressure = supply > 0 ? net14 / supply : 0
+  const trendUp = last7 > prev7
+
+  const band =
+    Math.abs(pressure) < 0.05
+      ? { label: 'Здоровая', tone: 'text-emerald-300', ring: 'border-emerald-400/30 from-emerald-400/[0.08]' }
+      : pressure >= 0.05
+        ? { label: 'Инфляция', tone: 'text-rose-300', ring: 'border-rose-400/30 from-rose-400/[0.08]' }
+        : { label: 'Дефляция', tone: 'text-sky-300', ring: 'border-sky-400/30 from-sky-400/[0.08]' }
+
+  const topGenerator = [...sources].sort((a, b) => b.minted - a.minted)[0]
+  const topSink = [...sources].sort((a, b) => b.burned - a.burned)[0]
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`glass rounded-2xl border bg-gradient-to-br to-transparent p-4 ${band.ring}`}>
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Состояние</div>
+        <div className={`mt-1 text-2xl font-bold ${band.tone}`}>{band.label}</div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground/70">
+          давление {fmtSigned(Math.round(pressure * 1000) / 10)}% массы / 14д
+        </div>
+      </div>
+      <div className="glass rounded-2xl border border-border from-white/[0.04] bg-gradient-to-br to-transparent p-4">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Тренд (7д vs 7д)</div>
+        <div className={`mt-1 text-2xl font-bold ${trendUp ? 'text-rose-300' : 'text-emerald-300'}`}>
+          {trendUp ? '↑ растёт' : '↓ сжимается'}
+        </div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground/70">
+          {fmtSigned(last7)} против {fmtSigned(prev7)}
+        </div>
+      </div>
+      <div className="glass rounded-2xl border border-emerald-400/20 from-emerald-400/[0.06] bg-gradient-to-br to-transparent p-4">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Главный генератор</div>
+        <div className="mt-1 truncate text-lg font-bold text-emerald-300">{topGenerator?.reason ?? '—'}</div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground/70">+{fmt(topGenerator?.minted ?? 0)} за 30д</div>
+      </div>
+      <div className="glass rounded-2xl border border-rose-400/20 from-rose-400/[0.06] bg-gradient-to-br to-transparent p-4">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Главный сток</div>
+        <div className="mt-1 truncate text-lg font-bold text-rose-300">{topSink?.reason ?? '—'}</div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground/70">−{fmt(topSink?.burned ?? 0)} за 30д</div>
+      </div>
+    </div>
+  )
+}

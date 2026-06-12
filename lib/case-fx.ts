@@ -61,11 +61,15 @@ export type CaseFxPrefs = {
 const PREFS_KEY = 'voznya.fx.prefs.v1'
 export const FX_PREFS_EVENT = 'voznya:fx-prefs'
 
-// Default: haptics ON (free, native, expected in TG). Sound DEFAULT OFF — even
-// though the procedural synth means "on" now produces real audio, we never start
-// making noise without an explicit opt-in (no implied/auto audio). The Settings
-// toggle flips `sound` on; the first cue then plays after a user gesture.
-export const DEFAULT_FX_PREFS: CaseFxPrefs = { sound: false, haptics: true }
+// Default: haptics ON (free, native, expected in TG). Sound DEFAULT ON — the
+// procedural synth produces real audio with no asset files, and the default
+// experience should be the full experience. Browsers/Telegram still gate audio
+// behind the first user gesture (the AudioContext resumes then), so nothing
+// plays before interaction. A manual disable is PERSISTED in localStorage and
+// always wins on subsequent loads — we never re-enable after the user turns it
+// off (readFxPrefs returns the stored value; only a first-time user with no
+// stored prefs gets the ON default).
+export const DEFAULT_FX_PREFS: CaseFxPrefs = { sound: true, haptics: true }
 
 export function readFxPrefs(): CaseFxPrefs {
   if (typeof window === 'undefined') return DEFAULT_FX_PREFS

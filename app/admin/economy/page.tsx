@@ -12,6 +12,7 @@ import Link from 'next/link'
 
 import {
   EconomyTabs,
+  EconomyHealth,
   StatGrid,
   SectionTitle,
   Note,
@@ -86,6 +87,11 @@ export default async function EconomyDashboardPage() {
         </p>
         <EconomyTabs active="/admin/economy" />
       </div>
+
+      <section>
+        <SectionTitle>Здоровье экономики</SectionTitle>
+        <EconomyHealth daily={daily} sources={sources} totalEshki={overview.totalEshki} />
+      </section>
 
       <section>
         <SectionTitle>Сводка</SectionTitle>
