@@ -24,6 +24,7 @@ export type ShopCardItem = {
   limited: boolean
   seasonal: boolean
   isNew: boolean
+  collectionName: string | null
 }
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -83,6 +84,12 @@ export function ShopCard({
       <p className="relative mt-0.5 text-[11px]" style={{ color: t.color }}>
         {t.label}
       </p>
+      {item.collectionName && (
+        <p className="relative mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[10px] text-muted-foreground">
+          <span aria-hidden>◈</span>
+          <span className="truncate">{item.collectionName}</span>
+        </p>
+      )}
 
       {/* Price — the minted coin, tier-colored lozenge */}
       <div className="relative mt-2.5 w-full">

@@ -49,4 +49,19 @@ export type ShopItem = {
   isNew: boolean
   category: ShopCategory
   soldCount: number
+  /**
+   * Collection this object belongs to, when authored. Code + display name come
+   * from the authored `inventory_items.collection_code` → `collections` join.
+   * null = not part of any set (the legacy gift_catalog case). Drives the
+   * collection chip on cards and the collection filter.
+   */
+  collectionCode: string | null
+  collectionName: string | null
+  /**
+   * True when an authored `inventory_items` definition backs this storefront
+   * row (rarity/itemClass/collection/supply came from the unified content
+   * system, not from code-string heuristics). Lets the UI mark genuinely
+   * authored objects and lets us trust their metadata.
+   */
+  authored: boolean
 }

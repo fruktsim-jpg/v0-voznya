@@ -47,6 +47,7 @@ export function ShopExperience({
   const [sort, setSort] = useState<SortKey>('featured')
   const [onlyAffordable, setOnlyAffordable] = useState(false)
   const [onlyLimited, setOnlyLimited] = useState(false)
+  const [collection, setCollection] = useState<string | 'all'>('all')
 
   // Bumped on every balance-change event (case open / sell / shop buy) so the
   // balance line, affordability and owned-hints re-fetch live — no F5. We bust
@@ -72,10 +73,24 @@ export function ShopExperience({
     return c
   }, [catalog])
 
+  // Authored collections present in the catalog → a "set" filter row. Only shown
+  // when the storefront actually contains item-aware collection objects.
+  const collections = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; count: number }>()
+    for (const it of catalog) {
+      if (!it.collectionCode || !it.collectionName) continue
+      const prev = map.get(it.collectionCode)
+      if (prev) prev.count += 1
+      else map.set(it.collectionCode, { code: it.collectionCode, name: it.collectionName, count: 1 })
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [catalog])
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
     let list = catalog.filter((it) => {
       if (category !== 'all' && it.category !== category) return false
+      if (collection !== 'all' && it.collectionCode !== collection) return false
       if (onlyLimited && !it.limited) return false
       if (onlyAffordable && balance != null && it.priceEshki > balance) return false
       if (q && !it.name.toLowerCase().includes(q)) return false
@@ -103,7 +118,7 @@ export function ShopExperience({
       }
     })
     return list
-  }, [catalog, featured, category, search, sort, onlyAffordable, onlyLimited, balance])
+  }, [catalog, featured, category, search, sort, onlyAffordable, onlyLimited, balance, collection])
 
   return (
     <div className="space-y-5">
@@ -175,6 +190,28 @@ export function ShopExperience({
             />
           )}
         </div>
+
+        {/* Collection (set) filter — only when authored collection objects exist */}
+        {collections.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Коллекции
+            </span>
+            <FilterToggle
+              active={collection === 'all'}
+              onClick={() => setCollection('all')}
+              label="Все"
+            />
+            {collections.map((c) => (
+              <FilterToggle
+                key={c.code}
+                active={collection === c.code}
+                onClick={() => setCollection((prev) => (prev === c.code ? 'all' : c.code))}
+                label={`◈ ${c.name} ${c.count}`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Grid */}
         {visible.length === 0 ? (

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getShopCatalog, pickFeatured } from '@/lib/shop-catalog'
+import { getShopCatalog, getShopFeatured } from '@/lib/shop-catalog'
 import { ShopExperience } from '@/components/shop/shop-experience'
 import { ScreenHeader } from '@/components/v2/screen-header'
 import { Glyph } from '@/components/ds/icon/glyph'
@@ -13,15 +13,18 @@ export const metadata = {
 }
 
 /**
- * Shop (redesign) — a DESTINATION, not a catalog. The server computes the
- * desire-ranked storefront (rarity / category / limited / seasonal / featured)
- * over gift_catalog and hands it to the interactive ShopExperience, which layers
- * the player's balance + owned items (read-only) for affordability and ownership
- * hints. The purchase itself goes through the audited buy action (AGENTS.md).
+ * Shop (redesign) — a DESTINATION, not a catalog, now ITEM-AWARE. The server
+ * computes the desire-ranked storefront over gift_catalog ENRICHED by the
+ * unified content system (authored `inventory_items` rarity / class / collection
+ * / supply / lifecycle win when present), and resolves the hero through the
+ * authored Featured engine (SHOP_HERO) with a heuristic fallback. The interactive
+ * ShopExperience layers the player's balance + owned items (read-only) for
+ * affordability and ownership hints. The purchase itself goes through the audited
+ * buy action and still locks gift_catalog (AGENTS.md) — economy untouched.
  */
 export default async function ShopPage() {
   const catalog = await getShopCatalog()
-  const featured = pickFeatured(catalog, 5)
+  const featured = await getShopFeatured(catalog, 5)
 
   return (
     <main className="relative min-h-svh overflow-x-hidden pb-6">
