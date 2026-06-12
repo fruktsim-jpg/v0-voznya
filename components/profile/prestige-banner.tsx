@@ -102,9 +102,16 @@ function CrownJewel({ jewel }: { jewel: NonNullable<PrestigeSummary['crownJewel'
 export function PrestigeBanner({
   summary,
   className = '',
+  tier = null,
 }: {
   summary: PrestigeSummary
   className?: string
+  /**
+   * E0.2 — тир-мир (по MMR-рангу) для окраски hero: Bronze ≠ Diamond с первого
+   * взгляда. Чисто презентационный акцент поверх read-only summary; null —
+   * нейтральная рамка (degrade honestly).
+   */
+  tier?: { color: string; gradient: string; glow: string; aura: string; index: number } | null
 }) {
   const { standings, crownJewel, mastery, equippedTitle } = summary
   const achPct =
@@ -121,9 +128,26 @@ export function PrestigeBanner({
   return (
     <section
       aria-label="Престиж игрока"
-      className={`glass relative overflow-hidden rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6 ${className}`}
+      className={`glass relative overflow-hidden rounded-2xl border p-4 sm:rounded-3xl sm:p-6 ${className}`}
+      style={
+        tier
+          ? {
+              borderColor: `${tier.color}55`,
+              background: tier.index >= 2 ? tier.gradient : `${tier.color}0d`,
+              boxShadow: tier.index >= 4 ? tier.glow || undefined : undefined,
+            }
+          : undefined
+      }
     >
-      <div className="flex items-center justify-between gap-2">
+      {/* Tier-world aura wash (high tiers only) — атмосфера, не данные. */}
+      {tier && tier.index >= 3 && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full blur-3xl"
+          style={{ background: tier.aura }}
+        />
+      )}
+      <div className="relative flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
           <Glyph name="trophy" className="text-accent-gold" />
           Витрина престижа

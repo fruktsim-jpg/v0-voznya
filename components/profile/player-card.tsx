@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { titleForEarned, ACHIEVEMENTS, TITLES } from '@/lib/voznya-bot'
 import { MMR_RANKS } from '@/lib/mmr'
@@ -15,7 +16,7 @@ import { PlayerNavigation } from '@/components/profile/player-navigation'
 import { ShareButton } from '@/components/profile/share-button'
 import { QuickLinks } from '@/components/profile/quick-links'
 import { RankBadge, TitleBadge } from '@/components/prestige'
-import { Glyph, VoznyaCoin, type GlyphName } from '@/components/ds/icon'
+import { Glyph, type GlyphName } from '@/components/ds/icon'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { ActivityCard } from '@/components/v2/activity-card'
@@ -92,6 +93,16 @@ interface PlayerCardProps {
   isAdmin?: boolean
   /** Личная лента событий игрока (Timeline). Опционально — без неё блок скрыт. */
   activity?: CommunityEvent[]
+  /**
+   * E0.2 — «Витрина престижа» (PrestigeBanner). Это server-компонент, поэтому он
+   * прокидывается СЛОТОМ, а не импортируется здесь: так профиль открывается
+   * единой связкой «личность → где я стою» (standings — ЕДИНСТВЕННЫЙ владелец
+   * #места), без второго конкурирующего hero сверху страницы.
+   */
+  prestigeSlot?: ReactNode
+  /** E0.2 — сезонный бейдж (server). Живёт рядом с прогрессией, а не отдельной
+   *  верхней полосой, чтобы не быть четвёртым повтором ранга над hero. */
+  seasonSlot?: ReactNode
 }
 
 
@@ -103,6 +114,8 @@ export function PlayerCard({
   isOwner = false,
   isAdmin = false,
   activity = [],
+  prestigeSlot = null,
+  seasonSlot = null,
 }: PlayerCardProps) {
 
 
@@ -275,6 +288,17 @@ export function PlayerCard({
               <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
             )}
 
+            {/* Дата вступления — тихая строка в hero (E0.2), а не отдельный
+                осиротевший блок посреди страницы. */}
+            <p className="mt-1 text-[11px] text-muted-foreground/80 sm:text-xs">
+              {profile.joinedAt ? 'В чате с ' : 'Участник с '}
+              {new Date(profile.joinedAt ?? profile.createdAt).toLocaleDateString('ru-RU', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-2.5">
               {/* Титул (по заработку) — тир-мир по позиции в лестнице титулов */}
               <Link href="/live#titles" className="transition-transform hover:-translate-y-0.5">
@@ -286,14 +310,11 @@ export function PlayerCard({
                   size="lg"
                 />
               </Link>
-              {/* Ранг MMR (путь по миру) — тир-мир по рангу */}
+              {/* Ранг MMR (путь по миру) — тир-мир по рангу. Само ЧИСЛО места
+                  (#по MMR) здесь НЕ печатаем: единственный владелец #места —
+                  блок Standings в витрине престижа (E0.2, dedup 4→1). */}
               {profile.mmrRank && (
                 <RankBadge emoji={profile.mmrRank.emoji} name={profile.mmrRank.name} size="lg" />
-              )}
-              {profile.ranks.byMmr && (
-                <span className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground sm:text-sm">
-                  #{profile.ranks.byMmr} по MMR
-                </span>
               )}
             </div>
           </div>
@@ -301,15 +322,26 @@ export function PlayerCard({
       </motion.div>
 
       {/* ============================================================== */}
-      {/* MMR — главный игровой блок (влияние / путь по миру)            */}
+      {/* ВИТРИНА ПРЕСТИЖА (E0.2) — ЕДИНСТВЕННЫЙ hero «где я стою».        */}
+      {/* Standings внутри — единственный владелец #места. Раньше это был  */}
+      {/* отдельный блок на странице ВЫШЕ личности (второй конкурирующий    */}
+      {/* hero); теперь идёт сразу после личности, единой связкой.          */}
       {/* ============================================================== */}
-      {profile.mmr !== null && (
+      {prestigeSlot && <div className="mt-3 sm:mt-6">{prestigeSlot}</div>}
+
+      {/* ============================================================== */}
+      {/* ПРОГРЕССИЯ — «куда я расту»: MMR + путь до следующего ранга.     */}
+      {/* E0.2: место (#) и второй MMR-бейдж убраны — их владелец Standings.*/}
+      {/* Рядом живёт сезонный бейдж (а не отдельной верхней полосой).      */}
+      {/* ============================================================== */}
+      {(profile.mmr !== null || seasonSlot) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="mt-3 sm:mt-6"
+          className="mt-3 grid gap-3 sm:mt-6 sm:gap-4"
         >
+          {profile.mmr !== null && (
           <div
             className="glass relative overflow-hidden rounded-2xl border p-5 sm:rounded-3xl sm:p-7"
             style={{
@@ -328,33 +360,18 @@ export function PlayerCard({
                 style={{ background: mmrTier.aura }}
               />
             )}
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Glyph name="trophy" className="text-accent-gold" /> Влияние · MMR
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1">
-                  <span
-                    className="type-stat text-3xl leading-none sm:text-5xl"
-                    style={{ color: mmrTier ? mmrTier.color : undefined }}
-                  >
-                    {profile.mmr.toLocaleString('ru-RU')}
-                  </span>
-                  {profile.mmrRank && (
-                    <RankBadge emoji={profile.mmrRank.emoji} name={profile.mmrRank.name} size="md" />
-                  )}
-                </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Glyph name="trophy" className="text-accent-gold" /> Влияние · MMR
               </div>
-              {profile.ranks.byMmr && (
-                <div className="shrink-0 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-center">
-                  <div className="type-stat text-lg text-primary sm:text-2xl">
-                    #{profile.ranks.byMmr}
-                  </div>
-                  <div className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
-                    в топе
-                  </div>
-                </div>
-              )}
+              <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1">
+                <span
+                  className="type-stat text-3xl leading-none sm:text-5xl"
+                  style={{ color: mmrTier ? mmrTier.color : undefined }}
+                >
+                  {profile.mmr.toLocaleString('ru-RU')}
+                </span>
+              </div>
             </div>
 
             {/* Прогресс до следующего ранга */}
@@ -388,57 +405,48 @@ export function PlayerCard({
               </div>
             )}
           </div>
+          )}
+
+          {/* Сезон — живёт в прогрессии, не отдельной верхней полосой (E0.2). */}
+          {seasonSlot}
         </motion.div>
       )}
 
       {/* ============================================================== */}
-      {/* УРОВЕНЬ 2 — Три оси ценности: уважение / богатство / голос.    */}
-      {/* ПОЗИЦИИ в рейтингах живут в PrestigeBanner (витрина престижа),  */}
-      {/* здесь — только абсолютные значения «что у меня есть», без #.    */}
+      {/* Оси ценности (КОМПАКТНО, E0.2) — уважение / богатство / голос.   */}
+      {/* Раньше это были три hero-карты, конкурировавшие с витриной по     */}
+      {/* визуальному весу. Теперь — лёгкая контекст-полоса: позиции (#)    */}
+      {/* живут в Standings, здесь только абсолютные значения «что есть».   */}
       {/* ============================================================== */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.12 }}
-        className="mt-3 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-4"
+        className="mt-3 grid grid-cols-3 gap-2.5 sm:mt-5 sm:gap-3"
       >
-        {/* Репутация — уважение сообщества (rose) */}
+        {/* Богатство — на чужом профиле это богатство ВЛАДЕЛЬЦА (в шелле —
+            баланс ЗРИТЕЛЯ), поэтому это не дубль хрома, а часть личности. */}
+        <ValueAxis
+          glyph="coin"
+          tone="text-amber-200"
+          label="Богатство"
+          value={formatCurrency(profile.balance)}
+        />
         {profile.reputation !== null && (
-          <div className="glass rounded-2xl border border-rose-400/25 bg-gradient-to-br from-rose-400/[0.08] to-transparent p-4 sm:p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rose-300/80">
-              <Glyph name="heart" className="h-4 w-4" /> Уважение
-            </div>
-            <div className="mt-2 type-stat text-2xl text-rose-200 sm:text-3xl">
-              {profile.reputation.toLocaleString('ru-RU')}
-            </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">Репутация</div>
-          </div>
+          <ValueAxis
+            glyph="heart"
+            tone="text-rose-200"
+            label="Уважение"
+            value={profile.reputation.toLocaleString('ru-RU')}
+          />
         )}
-
-        {/* Ешки — богатство (amber/gold) */}
-        <div className="glass rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/[0.08] to-transparent p-4 sm:p-5">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-300/80">
-            <VoznyaCoin tone="gold" /> Богатство
-          </div>
-          <div className="mt-2 type-economy text-2xl text-amber-200 sm:text-3xl">
-            {formatCurrency(profile.balance)}
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-            Заработано {formatCurrency(profile.totalEarned)}
-          </div>
-        </div>
-
-        {/* Сообщения — голос в чате (sky/blue) */}
         {profile.messages > 0 && (
-          <div className="glass rounded-2xl border border-sky-400/25 bg-gradient-to-br from-sky-400/[0.08] to-transparent p-4 sm:p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-sky-300/80">
-              <Glyph name="message" className="h-4 w-4" /> Голос
-            </div>
-            <div className="mt-2 type-stat text-2xl text-sky-200 sm:text-3xl">
-              {profile.messages.toLocaleString('ru-RU')}
-            </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">Сообщений в чате</div>
-          </div>
+          <ValueAxis
+            glyph="message"
+            tone="text-sky-200"
+            label="Голос"
+            value={profile.messages.toLocaleString('ru-RU')}
+          />
         )}
       </motion.div>
 
@@ -483,14 +491,6 @@ export function PlayerCard({
                 glyph="dice"
                 value={profile.casinoGamesCount.toLocaleString('ru-RU')}
                 label="Казино"
-              />
-            )}
-            {/* Пидор дня */}
-            {profile.pidorCount > 0 && (
-              <StatTile
-                glyph="target"
-                value={profile.pidorCount.toLocaleString('ru-RU')}
-                label="Пидор дня"
               />
             )}
           </div>
@@ -675,21 +675,6 @@ export function PlayerCard({
         </motion.div>
       )}
 
-      {/* Дата вступления */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="mt-4 text-center text-xs text-muted-foreground sm:mt-6 sm:text-sm"
-      >
-        {profile.joinedAt ? 'В чате с ' : 'Участник с '}
-        {new Date(profile.joinedAt ?? profile.createdAt).toLocaleDateString('ru-RU', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-      </motion.div>
-
       {/* ============================================================== */}
       {/* История — личная лента событий игрока (Timeline из ProfileV2). */}
       {/* ============================================================== */}
@@ -707,8 +692,8 @@ export function PlayerCard({
               <span className="text-[11px] text-muted-foreground sm:text-xs">· путь в Возне</span>
             </div>
             <ul className="space-y-2">
-              {activity.slice(0, 12).map((e) => (
-                <li key={e.id}>
+              {activity.slice(0, 12).map((e, i) => (
+                <li key={`${e.id}-${i}`}>
                   <ActivityCard event={e} />
                 </li>
               ))}
@@ -744,9 +729,30 @@ export function PlayerCard({
   )
 }
 
-/** Компактная плитка личной статистики (D3) — иконка из owned-системы. */
-function StatTile({ glyph, value, label }: { glyph: GlyphName; value: string; label: string }) {
+/** Компактная ось ценности (E0.2) — лёгкая контекст-плитка, без hero-веса. */
+function ValueAxis({
+  glyph,
+  tone,
+  label,
+  value,
+}: {
+  glyph: GlyphName
+  tone: string
+  label: string
+  value: string
+}) {
   return (
+    <div className="glass rounded-xl border border-border bg-white/[0.02] p-3 text-center sm:p-3.5">
+      <span className={`flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}>
+        <Glyph name={glyph} className={`h-3.5 w-3.5 ${tone}`} /> {label}
+      </span>
+      <div className={`mt-1 type-stat text-lg sm:text-2xl ${tone}`}>{value}</div>
+    </div>
+  )
+}
+
+/** Компактная плитка личной статистики (D3) — иконка из owned-системы. */
+function StatTile({ glyph, value, label }: { glyph: GlyphName; value: string; label: string }) {  return (
     <div className="glass rounded-xl border border-border p-2.5 sm:p-3.5">
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-9 sm:w-9">

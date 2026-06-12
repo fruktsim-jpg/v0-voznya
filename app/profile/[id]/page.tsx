@@ -7,6 +7,7 @@ import { PlayerCard } from '@/components/profile/player-card'
 import { PrestigeBanner } from '@/components/profile/prestige-banner'
 import { SeasonBadge } from '@/components/profile/season-badge'
 import { NotRegistered } from '@/components/auth/not-registered'
+import { prestigeForMmrRank } from '@/lib/ds/prestige'
 
 import { getSession } from '@/lib/auth/get-session'
 import { getAdminSession } from '@/lib/auth/admin-session'
@@ -95,17 +96,34 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     getPrestigeSummary(profile),
   ])
 
+  // E0.2 — тир-мир для окраски hero престижа (Bronze ≠ Diamond с первого
+  // взгляда). Берём от MMR-ранга игрока; null-safe внутри хелпера.
+  const heroTier = profile.mmrRank ? prestigeForMmrRank(profile.mmrRank.name) : null
+
   return (
     <div className="space-y-4 pt-header">
-      <SeasonBadge userId={userId} />
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <PrestigeBanner summary={prestige} />
-      </div>
       <PlayerCard
         profile={profile}
         isOwner={isOwner}
         isAdmin={isAdmin}
         activity={activity}
+        prestigeSlot={
+          <PrestigeBanner
+            summary={prestige}
+            tier={
+              heroTier
+                ? {
+                    color: heroTier.color,
+                    gradient: heroTier.gradient,
+                    glow: heroTier.glow,
+                    aura: heroTier.aura,
+                    index: heroTier.index,
+                  }
+                : null
+            }
+          />
+        }
+        seasonSlot={<SeasonBadge userId={userId} />}
       />
     </div>
   )
