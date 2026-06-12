@@ -64,6 +64,11 @@ export function ItemCard({
         <p className="line-clamp-1 w-full text-[11px] font-medium" style={{ color: t.color }}>
           {item.isPremium ? 'Telegram Premium' : t.label}
         </p>
+        {item.setName && (
+          <p className="line-clamp-1 w-full text-[10px] text-muted-foreground" title={`Из набора: ${item.setName}`}>
+            🧩 {item.setName}
+          </p>
+        )}
         {item.value > 0 ? (
           <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <span className="type-economy">{fmt(item.value)}</span> <VoznyaCoin tone="muted" />

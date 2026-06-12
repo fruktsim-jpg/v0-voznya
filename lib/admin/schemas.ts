@@ -102,6 +102,41 @@ export const collectionSchema = z.object({
 
 export type CollectionInput = z.infer<typeof collectionSchema>
 
+/**
+ * Gift Studio payload — a gift is a first-class visual object: a `gift_catalog`
+ * row (pricing/delivery) PLUS an `inventory_items` definition sharing the same
+ * code (art/rarity/collection/lifecycle/featured). Code is optional (auto-gen
+ * from name on create). Authoring only — never the purchase/economy path.
+ */
+export const giftStudioSchema = z.object({
+  code: optionalCodeSchema,
+  name: nameSchema,
+  description: descriptionSchema,
+  rarity: raritySchema.optional().default('rare'),
+  // pricing / delivery (gift_catalog)
+  starCost: z.number().int().min(0).max(1_000_000),
+  priceEshki: z.number().int().min(0).max(100_000_000),
+  telegramGiftId: z.string().trim().max(64).optional().nullable().transform((v) => (v ? v : null)),
+  stock: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  sortOrder: z.number().int().min(0).max(100000).optional().default(100),
+  // visual object (inventory_items)
+  collectionCode: z
+    .string()
+    .trim()
+    .max(64)
+    .regex(/^[a-z0-9_]*$/i, 'Только латиница, цифры и _')
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null)),
+  newCollectionName: z.string().trim().min(1).max(128).optional().nullable().transform((v) => (v ? v : null)),
+  availableFrom: optionalDate,
+  availableUntil: optionalDate,
+  status: statusSchema.optional().default('draft'),
+  featuredSlot: z.string().trim().max(32).optional().nullable().transform((v) => (v ? v : null)),
+})
+
+export type GiftStudioInput = z.infer<typeof giftStudioSchema>
+
 /** Featured slot (Featured slots) payload. */
 export const FEATURED_SURFACES = [
   'HOME_HERO',

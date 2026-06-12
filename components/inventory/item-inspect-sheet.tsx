@@ -577,6 +577,7 @@ export function ItemInspectSheet({
           />
         )}
         <MetaRow label="Источник" value={sourceLabel} />
+        {item.setName && <MetaRow label="Набор" value={`🧩 ${item.setName}`} />}
         {acquired && <MetaRow label="Получено" value={acquired} />}
         {item.equipped && <MetaRow label="Статус" value={<span className="text-emerald-300">надето</span>} />}
       </div>

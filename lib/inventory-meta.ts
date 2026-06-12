@@ -82,6 +82,14 @@ export type InvItem = {
   typeLabel: string
   collection: CollectionKey
   collectionLabel: string
+  /**
+   * Authored collection (real `collections` catalog), when the item belongs to
+   * one. Distinct from the logical `collection` grouping above: this is the
+   * named set the operator created, surfaced to seed the collection loop
+   * ("part of <set>"). Null for items with no authored collection.
+   */
+  setCode: string | null
+  setName: string | null
   isPremium: boolean
   limited: boolean
   /** Internal value in eshki (0 when unknown / cosmetic). */
@@ -187,6 +195,8 @@ export function toInvItems(items: InventoryItem[]): InvItem[] {
         typeLabel: it.isPremium ? 'Premium' : 'Подарок',
         collection,
         collectionLabel: COLLECTION_LABELS[collection],
+        setCode: null,
+        setName: null,
         isPremium: it.isPremium,
         limited: it.limited,
         value: it.value,
@@ -212,6 +222,8 @@ export function toInvItems(items: InventoryItem[]): InvItem[] {
       typeLabel: TYPE_LABELS[it.type] ?? it.type,
       collection,
       collectionLabel: COLLECTION_LABELS[collection],
+      setCode: it.collectionCode,
+      setName: it.collectionName,
       isPremium: false,
       limited: false,
       value: 0,

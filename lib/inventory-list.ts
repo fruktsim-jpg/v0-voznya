@@ -35,6 +35,10 @@ export type InventoryStackItem = {
   quantity: number
   equipped: boolean
   acquiredAt: string | null
+  // Collection awareness (read-only): which set this item belongs to, so the
+  // inventory can surface "part of <collection>" and seed the collection loop.
+  collectionCode: string | null
+  collectionName: string | null
 }
 
 // Pending Telegram Gift / Premium как полноценный предмет инвентаря.
@@ -111,11 +115,15 @@ export async function getInventory(userId: number): Promise<InventoryView> {
       rarity: string | null
       type: string | null
       description: string | null
+      collection_code: string | null
+      collection_name: string | null
     }>(
       `SELECT inv.item_code, inv.quantity, inv.equipped, inv.acquired_at,
-              cat.name, cat.rarity, cat.type, cat.description
+              cat.name, cat.rarity, cat.type, cat.description,
+              cat.collection_code, col.name AS collection_name
          FROM inventory inv
          LEFT JOIN inventory_items cat ON cat.code = inv.item_code
+         LEFT JOIN collections col ON col.code = cat.collection_code
         WHERE inv.user_id = $1
         ORDER BY inv.equipped DESC, inv.acquired_at DESC`,
       [userId],
@@ -131,6 +139,8 @@ export async function getInventory(userId: number): Promise<InventoryView> {
         quantity: Number(r.quantity) || 0,
         equipped: Boolean(r.equipped),
         acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,
+        collectionCode: r.collection_code,
+        collectionName: r.collection_name,
       })
     }
   } catch {
