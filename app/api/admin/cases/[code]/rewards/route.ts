@@ -51,6 +51,7 @@ export async function GET(
       reward_item_code: string | null
       reward_item_name: string | null
       reward_item_rarity: string | null
+      reward_item_value: number | null
       amount: string | null
       weight: number
       min_qty: number
@@ -61,6 +62,7 @@ export async function GET(
     }>(
       `SELECT r.id, r.reward_kind, r.reward_item_code,
               i.name AS reward_item_name, i.rarity AS reward_item_rarity,
+              i.ref_value AS reward_item_value,
               r.amount, r.weight, r.min_qty, r.max_qty,
               r.max_global_supply, r.granted_count, r.is_jackpot
          FROM case_rewards r

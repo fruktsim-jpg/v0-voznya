@@ -2,6 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
+import { ItemArt } from '@/components/ds/item-art'
+import { rarityToken } from '@/lib/rarity'
+import {
+  computeCaseEconomics,
+  simulateOpens,
+  pct,
+  rtpBand,
+  type EconomyReward,
+} from '@/lib/admin/case-economics'
 
 /**
  * Cases admin manager (client). Lists case definitions, lets an admin create /
@@ -31,6 +40,7 @@ type Reward = {
   reward_item_code: string | null
   reward_item_name: string | null
   reward_item_rarity: string | null
+  reward_item_value: number | null
   amount: string | null
   weight: number
   min_qty: number
@@ -513,87 +523,313 @@ function RewardEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseRow.item_code])
 
-  const totalWeight = rewards.reduce((s, r) => s + r.weight, 0)
+  // Economics: chances, EV, RTP, rarity distribution, supply pressure — derived
+  // live from the same weights the bot uses. Price is the case open cost.
+  const price = caseRow.open_cost_kind === 'currency' ? caseRow.open_cost_amount : 0
+  const econ = useMemo(() => {
+    const mapped: EconomyReward[] = rewards.map((r) => ({
+      id: r.id,
+      rewardKind: r.reward_kind === 'currency' ? 'currency' : 'item',
+      amount: r.amount == null ? null : Number(r.amount),
+      refValue: r.reward_item_value == null ? null : Number(r.reward_item_value),
+      rarity: r.reward_item_rarity,
+      weight: r.weight,
+      minQty: r.min_qty,
+      maxQty: r.max_qty,
+      maxGlobalSupply: r.max_global_supply,
+      grantedCount: r.granted_count,
+      isJackpot: r.is_jackpot,
+    }))
+    return computeCaseEconomics(mapped, price)
+  }, [rewards, price])
 
   return (
-    <div className="glass rounded-2xl border border-border p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            Дроп-лист: {caseRow.name}
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
-            Σ весов: {fmt(totalWeight)} · строк: {rewards.length}
-          </p>
+    <div className="space-y-4">
+      {!loading && econ.hasDrops && <CaseEconomicsPanel econ={econ} />}
+
+      <div className="glass rounded-2xl border border-border p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Награды: {caseRow.name}</h3>
+            <p className="text-[11px] text-muted-foreground">
+              {rewards.length} наград{rewards.length === 1 ? 'а' : ''} · цена открытия:{' '}
+              {price > 0 ? `${fmt(price)} ешек` : 'ключ из инвентаря'}
+            </p>
+          </div>
         </div>
+
+        {loading ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">Загрузка…</div>
+        ) : rewards.length === 0 ? (
+          <div className="rounded-xl border border-border/60 bg-white/[0.02] p-4 text-sm text-muted-foreground">
+            Наград нет. Добавь хотя бы одну — иначе кейс нельзя открыть.
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {econ.rows.map((r) => {
+              const reward = rewards.find((x) => x.id === r.id)!
+              const tier = r.tier
+              const token = rarityToken(tier)
+              const isCurrency = r.rewardKind === 'currency'
+              const label = isCurrency
+                ? `${fmt(Number(reward.amount ?? 0))} ешек`
+                : reward.reward_item_name ?? reward.reward_item_code ?? 'предмет'
+              const qty =
+                reward.min_qty === reward.max_qty
+                  ? `×${reward.min_qty}`
+                  : `×${reward.min_qty}–${reward.max_qty}`
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-3 rounded-xl border bg-white/[0.02] p-2.5"
+                  style={{ borderColor: `${token.color}55` }}
+                >
+                  <ItemArt
+                    src={
+                      !isCurrency && reward.reward_item_code
+                        ? `/api/items/asset/${encodeURIComponent(reward.reward_item_code)}?preview=1`
+                        : undefined
+                    }
+                    rarity={tier}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {r.isJackpot && <span className="text-xs">💎</span>}
+                      <span className="truncate text-sm text-foreground">{label}</span>
+                      <span className="text-[11px] text-muted-foreground">{qty}</span>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                      <span style={{ color: token.color }}>{token.label}</span>
+                      {!isCurrency && (
+                        <span className="text-muted-foreground">
+                          {reward.reward_item_value != null
+                            ? `${fmt(Number(reward.reward_item_value))} еш.`
+                            : 'без цены'}
+                        </span>
+                      )}
+                      {reward.max_global_supply != null && (
+                        <span className="text-amber-300">
+                          лимит {reward.granted_count}/{reward.max_global_supply}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-mono text-sm font-semibold text-primary">{pct(r.p)}</div>
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await fetch(
+                            `/api/admin/cases/${encodeURIComponent(caseRow.item_code)}/rewards?id=${r.id}`,
+                            { method: 'DELETE' },
+                          )
+                          load()
+                        }}
+                        className="mt-1 text-[11px] text-destructive-foreground/80 underline-offset-2 hover:underline"
+                      >
+                        убрать
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {canManage && (
+        <AddRewardForm caseRow={caseRow} onAdded={load} currentTotalWeight={econ.totalWeight} />
+      )}
       </div>
 
-      {loading ? (
-        <div className="py-6 text-center text-sm text-muted-foreground">Загрузка…</div>
-      ) : rewards.length === 0 ? (
-        <div className="rounded-xl border border-border/60 bg-white/[0.02] p-4 text-sm text-muted-foreground">
-          Дропов нет. Добавь хотя бы один — иначе кейс нельзя открыть.
-        </div>
-      ) : (
-        <ul className="space-y-1.5">
-          {rewards.map((r) => {
-            const pct = totalWeight > 0 ? (r.weight / totalWeight) * 100 : 0
-            const label =
-              r.reward_kind === 'currency'
-                ? `💰 ${fmt(Number(r.amount ?? 0))} ешек`
-                : `${r.reward_item_name ?? r.reward_item_code ?? 'предмет'}`
-            const rs = r.reward_kind === 'item' ? rarityStyle(r.reward_item_rarity ?? 'common') : null
-            const qty = r.min_qty === r.max_qty ? `×${r.min_qty}` : `×${r.min_qty}–${r.max_qty}`
-            return (
-              <li
-                key={r.id}
-                className="flex items-center gap-2 rounded-xl border border-border/60 bg-white/[0.02] px-3 py-2 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate text-foreground">
-                  {r.is_jackpot && '💎 '}
-                  {label} <span className="text-muted-foreground">{qty}</span>
-                  {rs && (
-                    <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${rs.className}`}>
-                      {rs.label}
-                    </span>
-                  )}
-                  {r.max_global_supply != null && (
-                    <span className="ml-2 text-[11px] text-amber-300">
-                      лимит {r.granted_count}/{r.max_global_supply}
-                    </span>
-                  )}
-                </span>
-                <span className="shrink-0 font-mono text-xs text-primary">
-                  {pct < 10 ? pct.toFixed(2) : pct.toFixed(1)}%
-                </span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">вес {r.weight}</span>
-                {canManage && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await fetch(
-                        `/api/admin/cases/${encodeURIComponent(caseRow.item_code)}/rewards?id=${r.id}`,
-                        { method: 'DELETE' },
-                      )
-                      load()
-                    }}
-                    className="shrink-0 rounded-lg border border-destructive/40 px-2 py-0.5 text-[11px] text-destructive-foreground transition hover:bg-destructive/20"
-                  >
-                    ✕
-                  </button>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      {canManage && <AddRewardForm caseRow={caseRow} onAdded={load} />}
+      {!loading && econ.hasDrops && <SimulationPanel econ={econ} />}
     </div>
   )
 }
 
-function AddRewardForm({ caseRow, onAdded }: { caseRow: AdminCase; onAdded: () => void }) {
+/** Live economics: EV, RTP, rarity distribution, supply pressure. */
+function CaseEconomicsPanel({ econ }: { econ: ReturnType<typeof computeCaseEconomics> }) {
+  const band = rtpBand(econ.rtp)
+  const bandColor =
+    band === 'healthy'
+      ? 'text-emerald-300'
+      : band === 'high'
+        ? 'text-amber-300'
+        : band === 'low'
+          ? 'text-destructive-foreground'
+          : 'text-muted-foreground'
+  return (
+    <div className="glass rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.05] to-transparent p-4">
+      <h3 className="mb-3 text-sm font-semibold text-foreground">Экономика кейса (вживую)</h3>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Ожидаемая ценность" value={`${fmt(Math.round(econ.ev))} еш.`} />
+        <Metric
+          label="RTP (возврат)"
+          value={econ.rtp == null ? '—' : `${Math.round(econ.rtp * 100)}%`}
+          className={bandColor}
+        />
+        <Metric label="Цена открытия" value={econ.price > 0 ? `${fmt(econ.price)} еш.` : 'ключ'} />
+        <Metric
+          label="Маржа дома"
+          value={econ.rtp == null ? '—' : `${Math.round((1 - econ.rtp) * 100)}%`}
+        />
+      </div>
+
+      {econ.unpricedItemRows > 0 && (
+        <p className="mt-2 text-[11px] text-amber-300">
+          ⚠️ {econ.unpricedItemRows} предмет(ов) без цены (ref_value) — EV/RTP занижены.
+        </p>
+      )}
+
+      {/* Rarity distribution bar */}
+      <div className="mt-4">
+        <p className="mb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+          Распределение по редкости
+        </p>
+        <div className="flex h-3 w-full overflow-hidden rounded-full border border-white/10">
+          {econ.rarityDistribution.map((d) => (
+            <div
+              key={d.tier}
+              title={`${rarityToken(d.tier).label}: ${pct(d.p)}`}
+              style={{ width: `${d.p * 100}%`, background: rarityToken(d.tier).color }}
+            />
+          ))}
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+          {econ.rarityDistribution.map((d) => (
+            <span key={d.tier} className="flex items-center gap-1 text-[11px]">
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ background: rarityToken(d.tier).color }}
+              />
+              <span style={{ color: rarityToken(d.tier).color }}>{rarityToken(d.tier).label}</span>
+              <span className="text-muted-foreground">{pct(d.p)}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Supply pressure */}
+      {econ.supplyPressure.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            Давление на запас
+          </p>
+          <div className="space-y-1">
+            {econ.supplyPressure.map((s) => (
+              <div key={s.reward.id} className="flex items-center gap-2 text-[11px]">
+                <span className="w-28 shrink-0 truncate text-muted-foreground">
+                  {s.reward.rewardKind === 'currency'
+                    ? `${fmt(s.reward.amount ?? 0)} еш.`
+                    : s.reward.rarity ?? 'предмет'}
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full border border-white/10">
+                  <div
+                    className={s.pctConsumed > 80 ? 'h-full bg-destructive' : 'h-full bg-amber-400'}
+                    style={{ width: `${Math.min(100, s.pctConsumed)}%` }}
+                  />
+                </div>
+                <span className="w-16 shrink-0 text-right text-muted-foreground">
+                  {s.remaining}/{s.cap}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Metric({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: string
+  className?: string
+}) {
+  return (
+    <div className="rounded-xl border border-white/5 bg-black/20 p-2.5">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 text-base font-semibold ${className ?? 'text-foreground'}`}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+/** Deterministic open simulation (100 / 1k / 10k) — instant, no RNG variance. */
+function SimulationPanel({ econ }: { econ: ReturnType<typeof computeCaseEconomics> }) {
+  const [opens, setOpens] = useState(1000)
+  const sim = useMemo(() => simulateOpens(econ, opens), [econ, opens])
+  return (
+    <div className="glass rounded-2xl border border-border p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">Симуляция открытий</h3>
+        <div className="flex gap-1">
+          {[100, 1000, 10000].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setOpens(n)}
+              className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${
+                opens === n
+                  ? 'border-primary/50 bg-primary/15 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {fmt(n)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Потрачено" value={econ.price > 0 ? `${fmt(sim.totalSpent)} еш.` : '—'} />
+        <Metric label="Возврат" value={`${fmt(Math.round(sim.totalReturned))} еш.`} />
+        <Metric
+          label="Итог (нетто)"
+          value={econ.price > 0 ? `${sim.net >= 0 ? '+' : ''}${fmt(Math.round(sim.net))} еш.` : '—'}
+          className={sim.net >= 0 ? 'text-emerald-300' : 'text-destructive-foreground'}
+        />
+        <Metric label="RTP" value={sim.rtp == null ? '—' : `${Math.round(sim.rtp * 100)}%`} />
+      </div>
+
+      <div className="mt-3 space-y-1">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          Ожидаемые выпадения по редкости
+        </p>
+        {sim.perTier.map((t) => (
+          <div key={t.tier} className="flex items-center gap-2 text-[11px]">
+            <span className="w-24 shrink-0" style={{ color: rarityToken(t.tier).color }}>
+              {rarityToken(t.tier).label}
+            </span>
+            <span className="text-foreground">
+              ~{fmt(Math.round(t.expectedHits))} раз
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground/70">
+        Детерминированный прогноз (ожидание = шанс × N), без случайной дисперсии.
+      </p>
+    </div>
+  )
+}
+
+function AddRewardForm({
+  caseRow,
+  onAdded,
+  currentTotalWeight,
+}: {
+  caseRow: AdminCase
+  onAdded: () => void
+  currentTotalWeight: number
+}) {
   const [kind, setKind] = useState<'item' | 'currency'>('item')
   const [itemCode, setItemCode] = useState('')
   const [amount, setAmount] = useState('')
@@ -642,7 +878,7 @@ function AddRewardForm({ caseRow, onAdded }: { caseRow: AdminCase; onAdded: () =
   return (
     <div className="mt-3 rounded-xl border border-border/60 bg-white/[0.02] p-3">
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Добавить дроп
+        Добавить награду
       </h4>
       <div className="grid gap-2 sm:grid-cols-2">
         <select
@@ -719,8 +955,16 @@ function AddRewardForm({ caseRow, onAdded }: { caseRow: AdminCase; onAdded: () =
         onClick={submit}
         className="mt-2 w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/25 disabled:opacity-50"
       >
-        Добавить дроп
+        Добавить награду
       </button>
+      {Number(weight) > 0 && (
+        <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+          при этом весе шанс выпадения ≈{' '}
+          <span className="font-mono text-primary">
+            {pct(Number(weight) / (currentTotalWeight + Number(weight)))}
+          </span>
+        </p>
+      )}
       <Feedback msg={msg} />
     </div>
   )
