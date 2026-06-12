@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="rg_band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="50%" stop-color="#FFD24A"/>
+      <stop offset="100%" stop-color="#B8860B"/>
+    </linearGradient>
+    <radialGradient id="rg_gem" cx="42%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#E7D2FF"/>
+      <stop offset="55%" stop-color="#8847FF"/>
+      <stop offset="100%" stop-color="#4A1F8F"/>
+    </radialGradient>
+    <radialGradient id="rg_halo" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE08A" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFE08A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="rg_glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="142" rx="30" ry="6.5" fill="#000" opacity="0.36"/>
+  <circle cx="80" cy="84" r="50" fill="url(#rg_halo)"/>
+  <g filter="url(#rg_glow)">
+    <!-- gold band -->
+    <ellipse cx="80" cy="96" rx="30" ry="34" fill="none" stroke="url(#rg_band)" stroke-width="11"/>
+    <ellipse cx="80" cy="96" rx="30" ry="34" fill="none" stroke="#FFF6D5" stroke-width="2" opacity="0.5"/>
+    <!-- prongs -->
+    <path d="M70 58 L80 40 L90 58 Z" fill="url(#rg_band)" stroke="#9A6B05" stroke-width="1"/>
+    <!-- gem -->
+    <g transform="translate(80 44)">
+      <polygon points="0,-18 14,-4 8,16 -8,16 -14,-4" fill="url(#rg_gem)" stroke="#FFF3C9" stroke-width="2" stroke-linejoin="round"/>
+      <polygon points="0,-18 14,-4 -14,-4" fill="#FFFFFF" opacity="0.4"/>
+    </g>
+  </g>
+</svg>

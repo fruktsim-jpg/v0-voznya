@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="zw_shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="45%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#9A6B05"/>
+    </linearGradient>
+    <linearGradient id="zw_field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2A3658"/>
+      <stop offset="100%" stop-color="#141B30"/>
+    </linearGradient>
+    <radialGradient id="zw_halo" cx="50%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#FFE08A" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFE08A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="zw_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="146" rx="32" ry="6.5" fill="#000" opacity="0.4"/>
+  <circle cx="80" cy="72" r="56" fill="url(#zw_halo)"/>
+  <g filter="url(#zw_glow)">
+    <!-- shield -->
+    <path d="M80 18 L124 32 V78 C124 110 104 130 80 142 C56 130 36 110 36 78 V32 Z"
+          fill="url(#zw_field)" stroke="url(#zw_shield)" stroke-width="5" stroke-linejoin="round"/>
+    <!-- gold cross of Zwolle -->
+    <rect x="72" y="36" width="16" height="92" fill="url(#zw_shield)"/>
+    <rect x="44" y="68" width="72" height="16" fill="url(#zw_shield)"/>
+    <!-- crown atop -->
+    <path d="M64 22 L70 12 L80 20 L90 12 L96 22 Z" fill="url(#zw_shield)" stroke="#9A6B05" stroke-width="1"/>
+    <!-- highlight -->
+    <path d="M80 18 L124 32 V44 C100 34 80 30 80 30 Z" fill="#FFFFFF" opacity="0.18"/>
+  </g>
+</svg>

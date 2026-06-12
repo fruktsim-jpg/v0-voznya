@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="dm_top" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#D6FBFF"/>
+      <stop offset="50%" stop-color="#8FE9F5"/>
+      <stop offset="100%" stop-color="#56C7DE"/>
+    </linearGradient>
+    <linearGradient id="dm_l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7FE3F2"/>
+      <stop offset="100%" stop-color="#2E97C9"/>
+    </linearGradient>
+    <linearGradient id="dm_r" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#56C7DE"/>
+      <stop offset="100%" stop-color="#1C6FA8"/>
+    </linearGradient>
+    <radialGradient id="dm_halo" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#9FF0FF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#9FF0FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="dm_glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="140" rx="30" ry="6.5" fill="#000" opacity="0.36"/>
+  <circle cx="80" cy="70" r="54" fill="url(#dm_halo)"/>
+  <g filter="url(#dm_glow)" transform="translate(80 64)">
+    <!-- crown (table) -->
+    <polygon points="-40,-24 -22,-24 -10,-24 0,-24 10,-24 22,-24 40,-24 28,-6 -28,-6" fill="url(#dm_top)"/>
+    <!-- table facets -->
+    <polygon points="-28,-6 28,-6 0,-24" fill="#FFFFFF" opacity="0.35"/>
+    <polyline points="-22,-24 -10,-6" fill="none" stroke="#2E97C9" stroke-width="1" opacity="0.5"/>
+    <polyline points="22,-24 10,-6" fill="none" stroke="#2E97C9" stroke-width="1" opacity="0.5"/>
+    <!-- pavilion (point) -->
+    <polygon points="-40,-24 -28,-6 0,52" fill="url(#dm_l)"/>
+    <polygon points="40,-24 28,-6 0,52" fill="url(#dm_r)"/>
+    <polygon points="-28,-6 28,-6 0,52" fill="url(#dm_l)" opacity="0.85"/>
+    <polyline points="-14,-6 0,52" fill="none" stroke="#EAFEFF" stroke-width="1" opacity="0.5"/>
+    <polyline points="14,-6 0,52" fill="none" stroke="#1C6FA8" stroke-width="1" opacity="0.5"/>
+    <!-- sparkle -->
+    <path d="M-18,-32 l2,5 l5,2 l-5,2 l-2,5 l-2,-5 l-5,-2 l5,-2 z" fill="#FFFFFF"/>
+  </g>
+</svg>

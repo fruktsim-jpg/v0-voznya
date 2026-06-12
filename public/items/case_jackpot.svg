@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="cj_lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="100%" stop-color="#E0A813"/>
+    </linearGradient>
+    <linearGradient id="cj_body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C8860B"/>
+      <stop offset="100%" stop-color="#7A4E08"/>
+    </linearGradient>
+    <radialGradient id="cj_burst" cx="50%" cy="36%" r="60%">
+      <stop offset="0%" stop-color="#FFF6D5" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#FFD700" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cj_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="142" rx="40" ry="8" fill="#000" opacity="0.42"/>
+  <!-- light burst escaping the open lid -->
+  <circle cx="80" cy="66" r="60" fill="url(#cj_burst)"/>
+  <g filter="url(#cj_glow)">
+    <!-- chest body -->
+    <path d="M40 72 H120 V120 a6 6 0 0 1 -6 6 H46 a6 6 0 0 1 -6 -6 Z" fill="url(#cj_body)" stroke="#5A3A06" stroke-width="2"/>
+    <!-- open lid tilted back -->
+    <path d="M38 70 Q80 44 122 70 L116 56 Q80 34 44 56 Z" fill="url(#cj_lid)" stroke="#9A6B05" stroke-width="2"/>
+    <!-- lid front rim -->
+    <rect x="40" y="68" width="80" height="8" rx="3" fill="url(#cj_lid)"/>
+    <!-- lock plate -->
+    <rect x="72" y="86" width="16" height="20" rx="3" fill="url(#cj_lid)" stroke="#5A3A06" stroke-width="1.5"/>
+    <circle cx="80" cy="96" r="3" fill="#5A3A06"/>
+    <!-- coins spilling -->
+    <circle cx="68" cy="64" r="7" fill="#FFE9A8" stroke="#C8860B" stroke-width="1.5"/>
+    <circle cx="86" cy="60" r="8" fill="#FFD700" stroke="#C8860B" stroke-width="1.5"/>
+    <circle cx="98" cy="66" r="6" fill="#FFE9A8" stroke="#C8860B" stroke-width="1.5"/>
+    <!-- jackpot star -->
+    <path d="M80 40 l3,7 l8,1 l-6,5 l2,8 l-7,-4 l-7,4 l2,-8 l-6,-5 l8,-1 z" fill="#FFFFFF"/>
+  </g>
+</svg>

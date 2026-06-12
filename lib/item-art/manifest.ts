@@ -77,11 +77,26 @@ export type ItemArtManifest = {
 export const ITEM_ART_MANIFEST: ItemArtManifest = {
   version: 1,
   assets: {
-    // P0 PROOF-OF-PIPELINE sample (the only authored asset). Demonstrates that
-    // populating one entry lights up every surface that renders this code —
-    // inventory grid, inspect sheet, showcase, profile collection. Replace /
-    // remove freely; real P1 dream items land here the same way.
-    relic_zwolle: { src: '/items/_sample_relic.svg', authored: true },
+    // ── P1 DREAM ITEMS ─────────────────────────────────────────────────────
+    // The premium vertical slice. Every code below is REAL (verified against
+    // case_definitions / case_rewards / gift_catalog / inventory_items), so the
+    // art lands on live screens — cases, shop, inventory, feed, profile —
+    // through the P0 funnel with no per-surface code change.
+    //
+    // The desire ladder, top-down:
+    badge_founder: { src: '/items/badge_founder.svg', authored: true }, // #1 mythic, founders set
+    gift_premium_6m: { src: '/items/gift_premium_6m.svg', authored: true }, // #2 the jackpot gift
+    relic_zwolle: { src: '/items/relic_zwolle.svg', authored: true }, // #3 legendary city relic
+    gift_diamond: { src: '/items/gift_diamond.svg', authored: true }, // #4 shop centerpiece
+    gift_ring: { src: '/items/gift_ring.svg', authored: true }, // #5 shop, "I gave this"
+    relic_rotterdam: { src: '/items/relic_rotterdam.svg', authored: true }, // #6 epic city relic
+    relic_amsterdam: { src: '/items/relic_amsterdam.svg', authored: true }, // #7 rare city relic
+
+    // ── P1 CASE COVERS ─────────────────────────────────────────────────────
+    // The "box art" that fixes the weak storefront. Real case_definitions codes.
+    case_jackpot: { src: '/items/case_jackpot.svg', authored: true },
+    case_premium: { src: '/items/case_premium.svg', authored: true },
+    case_collector: { src: '/items/case_collector.svg', authored: true },
   },
   templates: {},
 }
@@ -89,6 +104,9 @@ export const ITEM_ART_MANIFEST: ItemArtManifest = {
 /** Look up a unique asset for a code. Returns null when none is authored. */
 export function manifestAsset(code: string | null | undefined): ManifestAsset | null {
   if (!code) return null
+  // Dev-only toggle to capture "before" (glyph-fallback) screenshots without
+  // touching the manifest. Never set in production.
+  if (process.env.NEXT_PUBLIC_ART_OFF === '1') return null
   return ITEM_ART_MANIFEST.assets[code] ?? null
 }
 

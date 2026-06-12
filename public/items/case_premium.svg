@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="cp_lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9EE0FF"/>
+      <stop offset="100%" stop-color="#2E97C9"/>
+    </linearGradient>
+    <linearGradient id="cp_body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2A3658"/>
+      <stop offset="100%" stop-color="#141B30"/>
+    </linearGradient>
+    <radialGradient id="cp_burst" cx="50%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#CFefff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#36A4F0" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cp_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="142" rx="40" ry="8" fill="#000" opacity="0.42"/>
+  <circle cx="80" cy="70" r="56" fill="url(#cp_burst)"/>
+  <g filter="url(#cp_glow)">
+    <!-- box body, dark with blue trim -->
+    <path d="M42 70 H118 V120 a6 6 0 0 1 -6 6 H48 a6 6 0 0 1 -6 -6 Z" fill="url(#cp_body)" stroke="url(#cp_lid)" stroke-width="3"/>
+    <!-- lid -->
+    <rect x="40" y="58" width="80" height="16" rx="5" fill="url(#cp_body)" stroke="url(#cp_lid)" stroke-width="3"/>
+    <!-- premium star emblem on the lid -->
+    <g transform="translate(80 98)">
+      <path d="M0,-22 C2.6,-9 9,-2.6 22,0 C9,2.6 2.6,9 0,22 C-2.6,9 -9,2.6 -22,0 C-9,-2.6 -2.6,-9 0,-22 Z"
+            fill="url(#cp_lid)" stroke="#DFF4FF" stroke-width="1.5"/>
+    </g>
+    <!-- vertical seam -->
+    <rect x="78" y="74" width="4" height="52" fill="url(#cp_lid)" opacity="0.5"/>
+  </g>
+</svg>

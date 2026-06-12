@@ -1,7 +1,7 @@
 'use client'
 
 import { rarityToken } from '@/lib/rarity'
-import { rewardGlyph, rewardItemClass, type CaseView } from '@/lib/cases-ux'
+import { rewardGlyph, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
 import { IndicatorChips } from '@/components/cases/indicator-chips'
@@ -51,10 +51,13 @@ export function CaseTile({
       )}
 
       <div className="relative flex items-start gap-3">
-        {/* The DREAM: the actual top reward as rarity art, not a generic box. */}
+        {/* The CASE COVER (box art) — the storefront is a wall of real boxes.
+            The dream reward is named in the text beside it ("можно выиграть X").
+            Case cover art resolves by the case's own code; falls back to a box
+            glyph until a cover asset exists. */}
         <ItemArt
-          code={top?.rewardItemCode ?? null}
-          itemClass={top ? rewardItemClass(top) : 'case'}
+          code={c.itemCode}
+          itemClass="case"
           glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />}
           rarity={c.topRarity}
           size="md"

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="cc_lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C9A6FF"/>
+      <stop offset="100%" stop-color="#6E33D8"/>
+    </linearGradient>
+    <linearGradient id="cc_body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#241B3E"/>
+      <stop offset="100%" stop-color="#140E26"/>
+    </linearGradient>
+    <radialGradient id="cc_burst" cx="50%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#E7D2FF" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#8847FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cc_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="142" rx="40" ry="8" fill="#000" opacity="0.42"/>
+  <circle cx="80" cy="70" r="56" fill="url(#cc_burst)"/>
+  <g filter="url(#cc_glow)">
+    <path d="M42 70 H118 V120 a6 6 0 0 1 -6 6 H48 a6 6 0 0 1 -6 -6 Z" fill="url(#cc_body)" stroke="url(#cc_lid)" stroke-width="3"/>
+    <rect x="40" y="58" width="80" height="16" rx="5" fill="url(#cc_body)" stroke="url(#cc_lid)" stroke-width="3"/>
+    <!-- gem grid emblem (a collector's set) -->
+    <g transform="translate(80 98)" fill="url(#cc_lid)" stroke="#E7D2FF" stroke-width="1">
+      <polygon points="0,-16 8,-8 0,0 -8,-8"/>
+      <polygon points="-14,2 -6,10 -14,18 -22,10" opacity="0.85"/>
+      <polygon points="14,2 22,10 14,18 6,10" opacity="0.85"/>
+    </g>
+    <rect x="78" y="74" width="4" height="52" fill="url(#cc_lid)" opacity="0.5"/>
+  </g>
+</svg>

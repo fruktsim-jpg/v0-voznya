@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="fb_face" cx="42%" cy="34%" r="75%">
+      <stop offset="0%" stop-color="#C9A6FF"/>
+      <stop offset="38%" stop-color="#8847FF"/>
+      <stop offset="72%" stop-color="#EB4B4B"/>
+      <stop offset="100%" stop-color="#FFD700"/>
+    </radialGradient>
+    <linearGradient id="fb_rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF3C9"/>
+      <stop offset="100%" stop-color="#7A3BD0"/>
+    </linearGradient>
+    <linearGradient id="fb_ribbon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EB4B4B"/>
+      <stop offset="100%" stop-color="#8A1F1F"/>
+    </linearGradient>
+    <filter id="fb_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- contact shadow -->
+  <ellipse cx="80" cy="143" rx="34" ry="7" fill="#000" opacity="0.4"/>
+  <!-- ribbons -->
+  <path d="M64 96 L52 140 L70 128 L80 138 L90 128 L108 140 L96 96 Z" fill="url(#fb_ribbon)" stroke="#5E1414" stroke-width="1.5" stroke-linejoin="round"/>
+  <g filter="url(#fb_glow)">
+    <!-- medal star body: 8-point faceted -->
+    <g transform="translate(80 70)">
+      <polygon points="0,-52 14,-16 52,-16 22,8 34,46 0,22 -34,46 -22,8 -52,-16 -14,-16"
+               fill="url(#fb_face)" stroke="url(#fb_rim)" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- inner medallion -->
+      <circle cx="0" cy="-4" r="22" fill="#1A0E2E" stroke="url(#fb_rim)" stroke-width="2.5"/>
+      <!-- founder mark: roman I / pillar -->
+      <path d="M-4,-16 L4,-16 L4,8 L-4,8 Z M-10,-18 L10,-18 L10,-14 L-10,-14 Z M-10,8 L10,8 L10,12 L-10,12 Z" fill="#FFD700"/>
+      <!-- top-left highlight -->
+      <polygon points="0,-52 14,-16 -14,-16" fill="#FFFFFF" opacity="0.45"/>
+    </g>
+  </g>
+</svg>

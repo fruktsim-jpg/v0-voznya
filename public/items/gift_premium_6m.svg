@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="pr_star" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9EE0FF"/>
+      <stop offset="45%" stop-color="#36A4F0"/>
+      <stop offset="100%" stop-color="#1A6FD0"/>
+    </linearGradient>
+    <linearGradient id="pr_rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DFF4FF"/>
+      <stop offset="100%" stop-color="#0E4E9E"/>
+    </linearGradient>
+    <radialGradient id="pr_halo" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#7CC8FF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#7CC8FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="pr_glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="142" rx="32" ry="7" fill="#000" opacity="0.38"/>
+  <circle cx="80" cy="74" r="58" fill="url(#pr_halo)"/>
+  <g filter="url(#pr_glow)" transform="translate(80 74)">
+    <!-- Telegram Premium: the rounded 4-point star emblem -->
+    <path d="M0,-50 C6,-20 20,-6 50,0 C20,6 6,20 0,50 C-6,20 -20,6 -50,0 C-20,-6 -6,-20 0,-50 Z"
+          fill="url(#pr_star)" stroke="url(#pr_rim)" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- top-left sheen -->
+    <path d="M0,-50 C6,-20 20,-6 50,0 C18,-2 2,-16 0,-50 Z" fill="#FFFFFF" opacity="0.5"/>
+    <!-- center spark -->
+    <circle cx="0" cy="0" r="7" fill="#FFFFFF" opacity="0.9"/>
+  </g>
+</svg>
