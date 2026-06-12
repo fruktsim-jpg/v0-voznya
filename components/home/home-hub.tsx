@@ -32,8 +32,14 @@ import type { HomeContext } from '@/lib/home-context'
 export function HomeHub({ ctx }: { ctx: HomeContext }) {
   return (
     <div className="pb-10">
-      {/* 1. The heartbeat — the hero (Home opens here; identity lives in shell) */}
-      <WorldPulse events={ctx.worldFeed} />
+      {/* 1. The heartbeat — the hero (Home opens here; identity lives in shell).
+          LF-1 heat tiers + LF-4 anticipation strip use the SAME hotToday /
+          season aggregates Home already computes — no new data fetched. */}
+      <WorldPulse
+        events={ctx.worldFeed}
+        hot={ctx.hotToday}
+        seasonEndsAt={ctx.seasonRace?.endsAt ?? null}
+      />
 
       {/* 2. Re-entry hook (world-first) */}
       {ctx.player && (

@@ -59,9 +59,6 @@ export function CasesHub({
         />
       )}
 
-      {/* Social proof — real recent wins, only on the unfiltered view. */}
-      {category === 'all' && <RecentWins wins={recentWins} />}
-
       {/* Category filters */}
       {categories.length > 1 && (
         <ChipGroup>
@@ -103,6 +100,11 @@ export function CasesHub({
           </div>
         </section>
       ))}
+
+      {/* Social proof — real recent wins. Placed AFTER the catalog so the hero
+          and case grid stay adjacent in the first viewport (the dream + the
+          action read first); "others are winning" reinforces below. */}
+      {category === 'all' && <RecentWins wins={recentWins} />}
 
       <CaseDetailSheet caseView={selected} open={open} onOpenChange={setOpen} />
     </div>

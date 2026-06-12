@@ -90,3 +90,47 @@ export function timeAgo(iso: string): string {
   const d = Math.floor(h / 24)
   return `${d} дн назад`
 }
+
+/**
+ * Heat tiering (LF-1) — the emotional weight of an event, derived honestly from
+ * what it IS (code) and its real value/rarity. The Live Feed uses this to make
+ * a jackpot LOUD and a routine action QUIET, so the stream feels like "the world
+ * is doing something interesting", not "rows are being added".
+ *
+ *   - 'headline' → rare, world-stopping moments: jackpots, big casino wins,
+ *     legendary/mythic drops, new families. Rendered large with glow.
+ *   - 'notable'  → above-the-noise: rare drops, rank-ups, high-value events.
+ *   - 'ambient'  → routine activity: ordinary case opens, small gifts. Compact.
+ *
+ * No fabrication: every input is a real, timestamped event field.
+ */
+export type EventHeat = 'headline' | 'notable' | 'ambient'
+
+const HEADLINE_CODES: ReadonlySet<EventCode> = new Set([
+  'CASE_JACKPOT',
+  'CASINO_BIG_WIN',
+  'MARRIAGE_CREATED',
+])
+const NOTABLE_CODES: ReadonlySet<EventCode> = new Set([
+  'CASE_GIFT_DROP',
+  'MMR_RANK_UP',
+  'TREASURE_FOUND',
+])
+
+const HEADLINE_RARITIES: ReadonlySet<Rarity> = new Set(['legendary', 'mythic'] as Rarity[])
+const NOTABLE_RARITIES: ReadonlySet<Rarity> = new Set(['epic', 'rare'] as Rarity[])
+
+export function eventHeat(e: CommunityEvent): EventHeat {
+  // Code-driven moments dominate: a jackpot is always a headline.
+  if (HEADLINE_CODES.has(e.code)) return 'headline'
+  // A legendary/mythic drop is a headline regardless of code.
+  if (HEADLINE_RARITIES.has(e.rarity)) return 'headline'
+  // High-value payouts punch up a tier even if the code is ordinary.
+  if ((e.value ?? 0) >= 100_000) return 'headline'
+
+  if (NOTABLE_CODES.has(e.code)) return 'notable'
+  if (NOTABLE_RARITIES.has(e.rarity)) return 'notable'
+  if ((e.value ?? 0) >= 10_000) return 'notable'
+
+  return 'ambient'
+}

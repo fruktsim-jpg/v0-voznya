@@ -35,7 +35,7 @@ export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const { favorites, isFavorite, toggle: toggleFav, reconcile: reconcileFav, count: favCount } = useFavorites()
+  const { favorites, isFavorite, toggle: toggleFav, reconcile: reconcileFav } = useFavorites()
   const showcase = useShowcase()
 
   // Derive the normalized view-model once per raw change.
@@ -80,14 +80,6 @@ export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
   }, [])
 
   // Open by raw id (used by header "recent" strip).
-  const openById = useCallback(
-    (id: string) => {
-      const found = items.find((i) => i.id === id)
-      if (found) openItem(found)
-    },
-    [items, openItem],
-  )
-
   // A pending gift was consumed by an action — drop it from the local list.
   const onConsumed = useCallback((deliveryKey: string) => {
     setRaw((prev) =>
@@ -108,7 +100,7 @@ export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
 
   return (
     <div className="space-y-5">
-      <InventoryHeader summary={summary} favoritesCount={favCount} onJumpRecent={openById} />
+      <InventoryHeader summary={summary} />
 
       {showcase.count > 0 && (
         <InventoryShowcase

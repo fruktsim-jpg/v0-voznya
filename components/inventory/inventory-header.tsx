@@ -2,18 +2,26 @@
 
 import { rarityToken } from '@/lib/rarity'
 import type { InventorySummary } from '@/lib/inventory-meta'
-import { ItemArt } from '@/components/ds/item-art'
 import { VoznyaCoin } from '@/components/ds/icon'
 
 /**
- * InventoryHeader (Stage 2) — premium summary band. Compact, high-density,
- * no dashboard bloat: a value-forward hero line + a rarity distribution bar +
- * four KPI cells + a recent-acquisitions strip.
+ * InventoryHeader (E0.x vault pass) — a COMPACT collection strip, not a portfolio
+ * dashboard.
  *
- * Communicates value / progression / status the instant the page opens. All
- * numbers are DERIVED (lib/inventory-meta.summarize) from the read-only
- * inventory — zero new data, zero requests. Client component only because it
- * shares the same client tree as the grid; it has no local state.
+ * The audit found the old header opened the screen like a stock portfolio: a
+ * `text-3xl` "Ценность коллекции" hero + a 4-cell KPI grid (Предметов / Коллекции
+ * / В избранном / Тиров) + a "Недавние" strip — pushing the player's actual items
+ * below the fold and failing the 5-second "this is my collection" test. Every one
+ * of those KPIs is re-derived elsewhere (item count = the grid + filter count;
+ * Коллекции = the collections rail; В избранном = a filter chip; Тиров = the
+ * rarity bar itself), so the grid added a stat band for zero new information.
+ *
+ * Now: ONE slim line — value as an inline figure (not a hero) + top-tier pill —
+ * over the rarity-distribution bar (the one genuinely collection-shaped visual).
+ * This lifts the items into the first viewport so the screen reads as a vault.
+ *
+ * All numbers stay DERIVED (lib/inventory-meta.summarize) from the read-only
+ * inventory — zero new data, zero requests.
  */
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -46,29 +54,12 @@ function RarityBar({ summary }: { summary: InventorySummary }) {
   )
 }
 
-function Cell({ label, value, accent }: { label: string; value: string; accent?: string }) {
-  return (
-    <div className="flex flex-col rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span
-        className="mt-0.5 font-mono text-base font-bold tabular-nums"
-        style={{ color: accent ?? 'var(--foreground)' }}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
-
 export function InventoryHeader({
   summary,
-  favoritesCount,
-  onJumpRecent,
 }: {
   summary: InventorySummary
-  favoritesCount: number
+  /** Kept for call-site compatibility; no longer rendered as a KPI/strip. */
+  favoritesCount?: number
   onJumpRecent?: (id: string) => void
 }) {
   const top = rarityToken(summary.topRarity)
@@ -87,14 +78,25 @@ export function InventoryHeader({
         />
       )}
 
-      <div className="relative flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Ценность коллекции
-          </p>
-          <p className="type-economy flex items-center gap-1.5 text-3xl text-foreground">
-            {fmt(summary.totalValue)} <VoznyaCoin tone="gold" className="text-[0.7em]" />
-          </p>
+      {/* One slim line: items count (the vault's size) · value as a quiet figure
+          · top-tier pill. Value is NOT a hero anymore — the items are. */}
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+            {fmt(summary.totalQuantity)}
+          </span>
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            {summary.totalQuantity === 1 ? 'предмет' : 'предметов'}
+          </span>
+          {summary.totalValue > 0 && (
+            <>
+              <span className="text-muted-foreground/40">·</span>
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                <span className="type-economy tabular-nums">{fmt(summary.totalValue)}</span>
+                <VoznyaCoin tone="muted" className="text-[0.85em]" />
+              </span>
+            </>
+          )}
         </div>
         <span
           className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
@@ -107,38 +109,6 @@ export function InventoryHeader({
       <div className="relative mt-3">
         <RarityBar summary={summary} />
       </div>
-
-      <div className="relative mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Cell label="Предметов" value={fmt(summary.totalQuantity)} />
-        <Cell
-          label="Коллекции"
-          value={`${summary.collectionsCompleted}/${summary.collectionsTotal}`}
-          accent={summary.collectionsCompleted > 0 ? '#f59e0b' : undefined}
-        />
-        <Cell label="В избранном" value={fmt(favoritesCount)} accent={favoritesCount ? '#ef4444' : undefined} />
-        <Cell label="Тиров" value={fmt(summary.rarityDistribution.length)} />
-      </div>
-
-      {summary.recent.length > 0 && (
-        <div className="relative mt-3">
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Недавние
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {summary.recent.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                onClick={() => onJumpRecent?.(i.id)}
-                className="shrink-0 transition active:scale-95"
-                title={i.name}
-              >
-                <ItemArt src={i.art} glyph={i.glyph} rarity={i.rarity} size="sm" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   )
 }
