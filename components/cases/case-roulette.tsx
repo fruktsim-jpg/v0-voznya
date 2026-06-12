@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { rarityToken } from '@/lib/rarity'
 import type { ReelCell } from '@/lib/case-open-ux'
 import type { CaseFx } from '@/lib/case-fx'
+import { ItemArt } from '@/components/ds/item-art'
 
 /**
  * CaseRoulette (Stage 3) — the "rolling" stage: a CS-style horizontal reel that
@@ -116,8 +117,18 @@ export function CaseRoulette({
                   boxShadow: accent ? `inset 0 -8px 16px -10px ${t.color}` : undefined,
                 }}
               >
-                <span className="text-3xl" aria-hidden="true">
-                  {cell.icon}
+                <span className="flex h-12 items-center justify-center" aria-hidden="true">
+                  {cell.code != null || cell.itemClass != null ? (
+                    <ItemArt
+                      code={cell.code}
+                      itemClass={cell.itemClass}
+                      glyph={<span className="text-3xl">{cell.icon}</span>}
+                      rarity={cell.rarity}
+                      size="sm"
+                    />
+                  ) : (
+                    <span className="text-3xl">{cell.icon}</span>
+                  )}
                 </span>
                 <span className="mt-0.5 w-full truncate px-1 text-center text-[9px] text-muted-foreground">
                   {cell.label}

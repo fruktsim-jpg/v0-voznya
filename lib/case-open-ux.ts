@@ -6,8 +6,26 @@
 // (CSPRNG, balance, ledger, gift pending pipeline). No RNG here.
 
 import { currencyRewardRarity, normalizeRarity, RARITY_ORDER, type Rarity } from '@/lib/rarity'
+import type { ItemClass } from '@/lib/item-art/model'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
+
+/**
+ * Reward kind → canonical ItemClass, so the acquisition path (reel, reveal,
+ * celebration) can resolve the SAME real manifest art the storefront/inventory
+ * show. Currency has no item art (it renders its glyph), so it maps to null.
+ * Premium gifts are detected by code and promoted to the `premium` class.
+ */
+export function rewardKindClass(
+  rewardKind: string | null | undefined,
+  rewardItemCode?: string | null,
+): ItemClass | null {
+  if (rewardKind === 'tg_gift') {
+    return rewardItemCode && /premium/i.test(rewardItemCode) ? 'premium' : 'gift'
+  }
+  if (rewardKind === 'item') return 'collectible'
+  return null // currency (and unknown) → no item art, glyph only
+}
 
 export type OpenResponse = {
   status?: string
@@ -31,6 +49,10 @@ export type ReelCell = {
   rarity: Rarity
   icon: string
   label: string
+  /** Real item/gift code → resolves manifest art in the reel (null for currency). */
+  code?: string | null
+  /** Canonical class for art resolution (null for currency → glyph). */
+  itemClass?: ItemClass | null
 }
 
 export type WonReward = {
@@ -48,6 +70,10 @@ export type WonReward = {
   // For tg_gift — pending delivery key + sale amount (Keep / Sell / Withdraw).
   deliveryKey: string | null
   sellAmount: number | null
+  /** Real item/gift code so the reveal resolves the actual authored art. */
+  code: string | null
+  /** Canonical class for art resolution (null for currency → glyph fallback). */
+  itemClass: ItemClass | null
 }
 
 export function kindIcon(kind: string, isJackpot: boolean): string {
@@ -90,6 +116,8 @@ export function toWonReward(data: OpenResponse): WonReward {
   const kind = data.rewardKind ?? 'currency'
   const isJackpot = Boolean(data.isJackpot)
   const isPremium = kind === 'tg_gift' && /premium/i.test(data.rewardItemCode ?? '')
+  const code = data.rewardItemCode ?? null
+  const itemClass = rewardKindClass(kind, code)
 
   if (kind === 'currency') {
     const amount = data.amount ?? 0
@@ -107,6 +135,8 @@ export function toWonReward(data: OpenResponse): WonReward {
       balance: data.balance ?? null,
       deliveryKey: null,
       sellAmount: null,
+      code: null,
+      itemClass: null,
     }
   }
 
@@ -125,6 +155,8 @@ export function toWonReward(data: OpenResponse): WonReward {
       balance: data.balance ?? null,
       deliveryKey: data.deliveryKey ?? null,
       sellAmount: data.sellAmount ?? null,
+      code,
+      itemClass,
     }
   }
 
@@ -143,5 +175,7 @@ export function toWonReward(data: OpenResponse): WonReward {
     balance: data.balance ?? null,
     deliveryKey: null,
     sellAmount: null,
+    code,
+    itemClass,
   }
 }

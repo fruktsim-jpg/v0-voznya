@@ -129,7 +129,14 @@ export function RewardReveal({
             style={{ background: t.color }}
           />
         )}
-        <ItemArt glyph={won.icon} rarity={won.rarity} size="xl" className="relative" />
+        <ItemArt
+          code={won.code}
+          itemClass={won.itemClass}
+          glyph={won.icon}
+          rarity={won.rarity}
+          size="xl"
+          className="relative"
+        />
         {/* Duplicate / quantity ribbon */}
         {(duplicate || (ownedQty && ownedQty > 1) || won.qty > 1) && (
           <span className="absolute -bottom-1 -right-1 z-10 rounded-full border border-white/20 bg-black/80 px-2 py-0.5 text-[11px] font-bold text-foreground backdrop-blur-sm">

@@ -6,6 +6,7 @@ import { Glyph } from '@/components/ds/icon/glyph'
 import {
   failureMessage,
   kindIcon,
+  rewardKindClass,
   toWonReward,
   type OpenResponse,
   type ReelCell,
@@ -16,6 +17,7 @@ import { useCaseFx } from '@/hooks/use-case-fx'
 import { useCelebration } from '@/components/celebration/celebration-host'
 import { tierFromRarity } from '@/lib/celebration'
 import { isHighTier } from '@/lib/case-open-ux'
+import { resolveItemArt } from '@/lib/item-art/resolve'
 import { CaseRoulette, buildReel } from '@/components/cases/case-roulette'
 import { RewardReveal } from '@/components/cases/reward-reveal'
 import { GiftChoice } from '@/components/cases/gift-choice'
@@ -63,13 +65,19 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   const costLabel = caseCostLabel(c)
 
   // Reel fill pool — built from the case's REAL reward list (weight→frequency).
+  // Carries code/itemClass so reel cells resolve the same authored art as the
+  // storefront drop-list, not just an emoji.
   const pool = useMemo<ReelCell[]>(() => {
     const cells = c.rewardsView.map((r) => ({
       rarity: r.rarity,
       icon: kindIcon(r.rewardKind, r.isJackpot),
       label: r.label,
+      code: r.rewardItemCode ?? null,
+      itemClass: rewardKindClass(r.rewardKind, r.rewardItemCode),
     }))
-    return cells.length > 0 ? cells : [{ rarity: 'common' as const, icon: '📦', label: '—' }]
+    return cells.length > 0
+      ? cells
+      : [{ rarity: 'common' as const, icon: '📦', label: '—', code: null, itemClass: null }]
   }, [c.rewardsView])
 
   const clearTimers = () => {
@@ -130,7 +138,13 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
       const isCollectible = w.kind === 'item' || w.kind === 'tg_gift'
       setDupInfo({ duplicate: isCollectible && prev > 0, owned: ownedNow })
 
-      const winCell: ReelCell = { rarity: w.rarity, icon: w.icon, label: w.title }
+      const winCell: ReelCell = {
+        rarity: w.rarity,
+        icon: w.icon,
+        label: w.title,
+        code: w.code,
+        itemClass: w.itemClass,
+      }
       setReel(buildReel(pool, winCell))
 
       fx.sound('rolling')
@@ -155,12 +169,20 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
         // premium). Common/rare keep the calm inline reveal — anti-fatigue.
         const special = w.isJackpot || w.isPremium
         if (special || isHighTier(w.rarity)) {
+          // Resolve the real authored art for the full-screen moment; falls back
+          // to the kind glyph when no asset exists yet (graceful, no broken img).
+          const art = resolveItemArt({
+            code: w.code,
+            itemClass: w.itemClass,
+            rarity: w.rarity,
+          }).src
           celebrate({
             kind: 'drop',
             tier: tierFromRarity(w.rarity, special),
             title: w.title,
             subtitle: special ? 'Редчайший дроп!' : 'Отличная награда',
             glyph: w.icon,
+            art: art ?? undefined,
             rarity: w.rarity,
             shareable: true,
             flavor: w.qty > 1 ? `×${w.qty}` : undefined,
