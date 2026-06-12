@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { loadDashboardCounters, loadRecentAudit } from '@/lib/admin-stats'
+import { loadPulse } from '@/lib/command-center-pulse'
+import { CommandCenterPulse } from '@/components/admin/command-center-pulse'
 import { PlayerSearch } from '@/components/admin/player-search'
 import { humanizeAudit, roleLabel } from '@/lib/admin-format'
 
@@ -24,9 +26,10 @@ export default async function AdminDashboardPage() {
   const session = await getAdminSession()
   if (!session) return null
 
-  const [counters, recent] = await Promise.all([
+  const [counters, recent, pulse] = await Promise.all([
     loadDashboardCounters(),
     loadRecentAudit(15),
+    loadPulse(),
   ])
 
   const cards: StatCard[] = [
@@ -42,12 +45,20 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Search — the main element */}
+      {/* Pulse — the hero: what needs attention right now (cross-system) */}
       <section>
-        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Админка</h1>
+        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Командный центр</h1>
         <p className="mb-4 text-sm text-muted-foreground">
-          Найди игрока, чтобы управлять ешками, MMR, репутацией, инвентарём и достижениями.
+          Состояние всей экосистемы VOZNYA одним взглядом. Ниже — поиск игрока и сводка.
         </p>
+        <CommandCenterPulse report={pulse} />
+      </section>
+
+      {/* Search — now a tool, not the hero */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Поиск игрока
+        </h2>
         <PlayerSearch />
       </section>
 

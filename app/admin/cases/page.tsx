@@ -10,6 +10,8 @@ import {
 } from '@/lib/economy-analytics'
 import { CasesManager, type AdminCase } from './cases-manager'
 import type { CatalogItem } from './case-builder'
+import { buildCasesHealth } from '@/lib/admin/case-health'
+import { CasesHealthBoard } from './cases-health-board'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,6 +82,12 @@ export default async function AdminCasesPage() {
     loadLatestDrops(12),
   ])
 
+  // Operator interpretation: per-case verdicts + "what needs attention".
+  const health = buildCasesHealth(
+    cases.map((c) => ({ item_code: c.item_code, name: c.name })),
+    liveStats,
+  )
+
   return (
     <div>
       <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Кейсы</h1>
@@ -87,6 +95,11 @@ export default async function AdminCasesPage() {
         Управление кейсами и их дроп-листами. Шансы считаются из весов. Открытие
         кейсов выполняет только бот — здесь только настройка и история.
       </p>
+
+      {/* Operator interpretation: case health at a glance */}
+      <div className="mb-6">
+        <CasesHealthBoard report={health} />
+      </div>
 
       {/* Live per-case stats from the openings ledger */}
       <div className="mb-6 overflow-x-auto rounded-2xl border border-border glass">
