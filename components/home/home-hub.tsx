@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { WorldPulse } from '@/components/home/world-pulse'
 import { WhileAway } from '@/components/home/while-away'
+import { StreakChip } from '@/components/home/streak-chip'
 import { HotToday } from '@/components/home/hot-today'
 import { SeasonRace } from '@/components/home/season-race'
 import { CommunityStatsStrip } from '@/components/home/community-stats-strip'
@@ -49,6 +50,10 @@ export function HomeHub({ ctx }: { ctx: HomeContext }) {
           personalEvents={ctx.personalFeed}
         />
       )}
+
+      {/* 2b. Daily streak — личный «крючок возвращения» (streak уже в me/summary,
+          раньше нигде не показывался). Сам скрывается при серии 0 / для гостей. */}
+      {ctx.player && <StreakChip />}
 
       {/* 3. What's hot right now */}
       <HotToday hot={ctx.hotToday} featured={ctx.featured} />

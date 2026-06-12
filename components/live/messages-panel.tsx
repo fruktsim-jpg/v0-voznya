@@ -5,33 +5,27 @@ import { AnimatedCounter } from '@/components/voznya/animated-counter'
 import { PlayerLink } from '@/components/ui/player-link'
 import { formatMessages } from '@/lib/pluralize'
 import { useApi } from '@/hooks/use-api'
+import { AreaTrend } from '@/components/ds/charts'
 import type { MessageStats } from '@/lib/queries'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
 function ActivityChart({ activity }: { activity: MessageStats['activity'] }) {
   if (activity.length === 0) return null
-  const max = Math.max(...activity.map((a) => a.count), 1)
+  // Track 1: раньше здесь был самописный bar-div; теперь используем DS-чарт
+  // AreaTrend (recharts, тёмная тема Возни) — тот же data, настоящий тренд с
+  // осями и тултипом. Это включает ранее «мёртвый» components/ds/charts.
+  const data = activity.map((a) => ({ day: a.day.slice(5), count: a.count }))
   return (
     <div className="glass rounded-2xl border border-border p-4 sm:p-6">
       <div className="mb-3 text-sm font-semibold text-foreground">Активность за 14 дней</div>
-      <div className="flex h-32 items-end gap-1 sm:gap-1.5">
-        {activity.map((a) => (
-          <div key={a.day} className="group relative flex flex-1 flex-col items-center justify-end">
-            <div
-              className="w-full rounded-t bg-gradient-to-t from-primary/40 to-primary transition-all"
-              style={{ height: `${Math.max((a.count / max) * 100, 4)}%` }}
-            />
-            <span className="pointer-events-none absolute -top-6 hidden rounded bg-popover px-1.5 py-0.5 text-[10px] text-foreground group-hover:block">
-              {a.count}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-        <span>{activity[0]?.day.slice(5)}</span>
-        <span>{activity[activity.length - 1]?.day.slice(5)}</span>
-      </div>
+      <AreaTrend
+        data={data}
+        xKey="day"
+        yKey="count"
+        height={140}
+        format={(v) => v.toLocaleString('ru-RU')}
+      />
     </div>
   )
 }
@@ -43,7 +37,7 @@ export function MessagesPanel() {
   if (!data) return null
 
   return (
-    <section className="px-6 py-10 sm:py-14">
+    <section id="top-messages" className="px-6 py-10 sm:py-14">
       <div className="mx-auto max-w-3xl">
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
           <span className="text-gradient">Сообщения</span>

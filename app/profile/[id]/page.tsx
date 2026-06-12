@@ -6,6 +6,7 @@ import { getUserFeed } from '@/lib/feed'
 import { PlayerCard } from '@/components/profile/player-card'
 import { PrestigeBanner } from '@/components/profile/prestige-banner'
 import { SeasonBadge } from '@/components/profile/season-badge'
+import { ProfileShowcase } from '@/components/profile/profile-showcase'
 import { NotRegistered } from '@/components/auth/not-registered'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
 
@@ -125,6 +126,9 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         }
         seasonSlot={<SeasonBadge userId={userId} />}
       />
+      {/* Track 1: витрина закреплённых предметов — только владельцу (пины в
+          localStorage). Раньше этот шелф нигде на профиле не рендерился. */}
+      {isOwner && <ProfileShowcase />}
     </div>
   )
 

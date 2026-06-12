@@ -272,6 +272,7 @@ export type AchievementProgress = {
 
 export type AchievementsResult = {
   totalUnlocked: number
+  totalPlayers: number
   items: AchievementProgress[]
 }
 
@@ -289,7 +290,13 @@ export async function getAchievementsProgress(): Promise<AchievementsResult> {
     unlocked: counts.get(a.code) ?? 0,
   }))
   const totalUnlocked = items.reduce((sum, a) => sum + a.unlocked, 0)
-  return { totalUnlocked, items }
+  // Размер сообщества — для расчёта глобальной редкости достижений (achievements-ux).
+  // Берём число игроков, у которых есть хоть одно достижение (стабильный знаменатель).
+  const playerRows = await query<{ n: string }>(
+    `SELECT COUNT(DISTINCT user_id) AS n FROM user_achievements`,
+  )
+  const totalPlayers = Number(playerRows[0]?.n ?? 0)
+  return { totalUnlocked, totalPlayers, items }
 }
 
 export type MessageTop = { rank: number; userId: number; name: string; count: number }
@@ -869,6 +876,44 @@ export async function getTopFamilies(limit = 10): Promise<Family[]> {
     user2Name: displayName(r.f2, r.u2),
     marriedAt: String(r.married_at),
     days: Number(r.days),
+  }))
+}
+
+export type ReputationLeader = {
+  rank: number
+  userId: number
+  name: string
+  reputation: number
+}
+
+/**
+ * Топ по репутации (Track 1 — surfacing). Раньше репутация существовала как
+ * число в профиле + админ-запись в `reputation_entries`, но НЕ имела
+ * публичного рейтинга — ссылка `/live#top-rep` из prestige-banner вела в
+ * никуда. Это агрегат поверх существующей таблицы (SUM(value) по получателю),
+ * без новых данных/таблиц. Возвращаем только тех, у кого положительная репа.
+ */
+export async function getTopReputation(limit = 10): Promise<ReputationLeader[]> {
+  const rows = await query<{
+    target_user_id: string
+    first_name: string | null
+    username: string | null
+    rep: string
+  }>(
+    `SELECT r.target_user_id, u.first_name, u.username, SUM(r.value) AS rep
+       FROM reputation_entries r
+       JOIN users u ON u.user_id = r.target_user_id
+      GROUP BY r.target_user_id, u.first_name, u.username
+     HAVING SUM(r.value) > 0
+      ORDER BY rep DESC, r.target_user_id ASC
+      LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    userId: Number(r.target_user_id),
+    name: displayName(r.first_name, r.username),
+    reputation: Number(r.rep),
   }))
 }
 

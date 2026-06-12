@@ -5,6 +5,7 @@ import { TopRich } from '@/components/live/top-rich'
 import { WeeklyTop } from '@/components/live/weekly-top'
 import { MessagesPanel } from '@/components/live/messages-panel'
 import { FamiliesTop } from '@/components/live/families-top'
+import { ReputationTop } from '@/components/live/reputation-top'
 import { EconomyPanel } from '@/components/live/economy-panel'
 import { AchievementsCatalog } from '@/components/live/achievements-catalog'
 import { TitlesLadder } from '@/components/live/titles-ladder'
@@ -74,6 +75,7 @@ export default async function LivePage() {
                 <TopRich />
                 <WeeklyTop />
                 <MessagesPanel />
+                <ReputationTop />
                 <FamiliesTop />
               </>
             ),

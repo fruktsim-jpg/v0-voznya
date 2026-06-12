@@ -7,6 +7,7 @@ import { PlayerLink } from '@/components/ui/player-link'
 import { TitleBadge } from '@/components/prestige'
 import { CoinAmount } from '@/components/ds/icon'
 import { prestigeForTitleIndex } from '@/lib/ds/prestige'
+import { YouAreHere } from '@/components/live/you-are-here'
 import type { RichUser } from '@/lib/queries'
 
 // Podium tint for the top-3 ordinals — owned styling instead of medal emoji.
@@ -22,6 +23,8 @@ export function TopRich() {
           <span className="text-gradient">Топ</span> богачей
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Самые богатые участники по балансу ешек</p>
+
+        <YouAreHere label="Твоё место по богатству" />
 
         {error && !data ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>

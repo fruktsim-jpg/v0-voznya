@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SectionTitle } from '@/components/ds/section-title'
 import { VoznyaCoin } from '@/components/ds/icon'
+import { ItemArt } from '@/components/ds/item-art'
 import { rarityToken } from '@/lib/rarity'
 import type { FeaturedOpportunity, HotToday as HotTodayData } from '@/lib/home-context'
 
@@ -71,13 +72,17 @@ export function HotToday({
                 </div>
 
                 <div className="mt-3 flex items-start gap-4">
-                  <span
-                    className="grid size-16 shrink-0 place-items-center rounded-2xl text-4xl"
-                    style={{ background: fToken?.gradient ?? 'rgba(255,255,255,0.05)' }}
-                    aria-hidden
-                  >
-                    📦
-                  </span>
+                  {/* Track 1: настоящий ItemArt вместо хардкод-эмодзи 📦.
+                      Показываем арт топ-награды кейса (или сам кейс как
+                      запасной вариант) — реальный объект желания. */}
+                  <div className="shrink-0">
+                    <ItemArt
+                      code={featured.topReward?.code ?? featured.itemCode}
+                      rarity={featured.topReward?.rarity ?? 'common'}
+                      glyph="📦"
+                      size="lg"
+                    />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-lg font-bold text-foreground">
                       {featured.name}

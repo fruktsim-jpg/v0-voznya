@@ -176,7 +176,7 @@ export type FeaturedOpportunity = {
   description: string | null
   openCostKind: string
   openCostAmount: number
-  topReward: { name: string; rarity: Rarity; chance: number } | null
+  topReward: { name: string; code: string | null; rarity: Rarity; chance: number } | null
   hasChase: boolean
   href: string
 }
@@ -214,6 +214,7 @@ async function pickFeaturedOpportunity(): Promise<FeaturedOpportunity | null> {
     topReward: best
       ? {
           name: best.rewardItemName as string,
+          code: best.rewardItemCode ?? null,
           rarity: (best.rewardItemRarity ?? 'common') as Rarity,
           chance: best.chance,
         }

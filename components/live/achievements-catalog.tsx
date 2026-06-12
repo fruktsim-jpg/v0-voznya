@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENTS } from '@/lib/voznya-bot'
 import type { AchievementsResult } from '@/lib/queries'
+import { achievementRarity } from '@/lib/achievements-ux'
+import { rarityToken, type Rarity } from '@/lib/rarity'
 
 export function AchievementsCatalog() {
   const { data, error } = useApi<AchievementsResult>('/api/achievements', 30_000)
@@ -21,6 +23,7 @@ export function AchievementsCatalog() {
       unlockedCounts.set(item.code, item.unlocked)
     })
   }
+  const totalPlayers = data?.totalPlayers ?? 0
 
   return (
     <section id="achievements" className="px-6 py-10 sm:py-14">
@@ -29,8 +32,7 @@ export function AchievementsCatalog() {
           <span className="text-gradient">Ачивки</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          {ACHIEVEMENTS.length} достижений с наградами в ешках. Цифра на карточке — сколько участников уже открыли.
-
+          {ACHIEVEMENTS.length} достижений с наградами в ешках. Цвет — редкость; цифра — сколько участников открыли.
         </p>
 
         {error && !data ? (
@@ -53,8 +55,11 @@ export function AchievementsCatalog() {
             {achievementsByCategory.map((category, catIndex) => {
               // Special handling for secret achievements
               const isSecret = category.code === 'secret'
+              // FIX (Track 1): операторная приоритетность — раньше было
+              // `unlockedCounts.get(a.code) ?? 0 > 0`, что парсится как
+              // `?? (0 > 0)` и ломало фильтр секреток. Скобки чинят это.
               const secretUnlocked = isSecret
-                ? category.achievements.filter((a) => unlockedCounts.get(a.code) ?? 0 > 0)
+                ? category.achievements.filter((a) => (unlockedCounts.get(a.code) ?? 0) > 0)
                 : []
 
               return (
@@ -79,6 +84,7 @@ export function AchievementsCatalog() {
                             key={a.code}
                             achievement={a}
                             unlocked={unlockedCounts.get(a.code) ?? 0}
+                            totalPlayers={totalPlayers}
                             index={i}
                           />
                         ))}
@@ -104,6 +110,7 @@ export function AchievementsCatalog() {
                           key={a.code}
                           achievement={a}
                           unlocked={unlockedCounts.get(a.code) ?? 0}
+                          totalPlayers={totalPlayers}
                           index={i}
                         />
                       ))}
@@ -122,19 +129,28 @@ export function AchievementsCatalog() {
 function AchievementCard({
   achievement,
   unlocked,
+  totalPlayers,
   index,
 }: {
   achievement: (typeof ACHIEVEMENTS)[0]
   unlocked: number
+  totalPlayers: number
   index: number
 }) {
+  // Wire achievements-ux engine: редкость = награда + глобальная редкость.
+  const rarity: Rarity = achievementRarity(achievement.reward, { unlocked, totalPlayers })
+  const t = rarityToken(rarity)
+  const globalPct = totalPlayers > 0 && unlocked > 0 ? unlocked / totalPlayers : null
+  const isRare = rarity === 'epic' || rarity === 'legendary' || rarity === 'mythic'
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-30px' }}
       transition={{ duration: 0.4, delay: (index % 6) * 0.04 }}
-      className="glass flex items-center gap-3.5 rounded-2xl border border-border p-4"
+      className={`glass flex items-center gap-3.5 rounded-2xl border p-4 ${t.borderClass}`}
+      style={{ boxShadow: isRare ? t.glow || undefined : undefined }}
     >
       <div className="text-2xl sm:text-3xl">{achievement.emoji}</div>
       <div className="min-w-0 flex-1">
@@ -149,6 +165,16 @@ function AchievementCard({
           )}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{achievement.description}</p>
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span className={`text-[10px] font-semibold uppercase tracking-wide ${t.textClass}`}>
+            {t.label}
+          </span>
+          {globalPct != null && globalPct < 0.08 && (
+            <span className="rounded-full bg-white/5 px-1.5 py-px text-[10px] text-muted-foreground">
+              редкое · {globalPct < 0.01 ? '<1' : Math.round(globalPct * 100)}%
+            </span>
+          )}
+        </div>
       </div>
       <div className="shrink-0 text-center">
         <div className="text-base font-bold text-foreground">{unlocked}</div>
