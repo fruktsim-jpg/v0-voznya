@@ -37,6 +37,8 @@ export function DropTicker({ events }: { events: CommunityEvent[] }) {
               }}
             >
               <ItemArt
+                code={e.itemCode}
+                itemClass={e.itemClass}
                 glyph={e.icon}
                 rarity={e.rarity}
                 size="sm"

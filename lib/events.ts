@@ -6,6 +6,7 @@
 
 
 import type { Rarity } from '@/lib/rarity'
+import type { ItemClass } from '@/lib/item-art/model'
 
 export type EventCode =
   | 'CASE_OPEN'
@@ -34,6 +35,36 @@ export type CommunityEvent = {
   occurredAt: string
   /** Готовая иконка/эмодзи для карточки. */
   icon: string
+  /**
+   * Реальный код предмета/подарка, фигурирующего в событии (если есть), чтобы
+   * лента/тикер/«пока тебя не было» показывали ТОТ ЖЕ объект, что и кейс/
+   * инвентарь — через общий ItemArt. null для событий без предмета (MMR, брак).
+   */
+  itemCode?: string | null
+  /** Канонический класс предмета для резолва арта (null → glyph-фолбэк). */
+  itemClass?: ItemClass | null
+  /** Имя предмета (для подписи «выбил X»), если доступно. */
+  itemName?: string | null
+}
+
+/**
+ * Event code → canonical ItemClass for art resolution. Only case/gift events
+ * reference a concrete item; everything else (MMR, marriage, treasure, casino)
+ * has no item object, so it stays glyph-only.
+ */
+export function eventItemClass(code: EventCode): ItemClass | null {
+  switch (code) {
+    case 'CASE_GIFT_DROP':
+    case 'GIFT_DELIVERED':
+    case 'GIFT_PLAYER':
+    case 'GIFT_PURCHASE':
+      return 'gift'
+    case 'CASE_OPEN':
+    case 'CASE_JACKPOT':
+      return 'collectible'
+    default:
+      return null
+  }
 }
 
 /** Категории-фильтры ленты (VOZNYA_EVENTS_SYSTEM §5). */

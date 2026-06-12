@@ -238,10 +238,12 @@ function FeedRow({ event: e }: { event: CommunityEvent }) {
       >
         <div className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
           {/* Funnelled through ItemArt (P0): the feed's headline object renders
-              in the ONE art capsule. Today it shows the event emoji as a glyph
-              fallback; once feed events carry an item code it upgrades to real
-              art automatically — no change here. */}
+              in the ONE art capsule. P1.5b — feed events now carry the real item
+              code, so a headline drop shows the ACTUAL object (glyph fallback
+              when no asset/code). No per-surface logic. */}
           <ItemArt
+            code={e.itemCode}
+            itemClass={e.itemClass}
             glyph={e.icon}
             rarity={e.rarity}
             size="sm"
@@ -293,8 +295,11 @@ function FeedRow({ event: e }: { event: CommunityEvent }) {
   return (
     <li>
       <div className={`flex items-center gap-3 px-5 sm:px-6 ${notable ? 'py-2.5' : 'py-2'}`}>
-        {/* Funnelled through ItemArt (P0) — one capsule, glyph fallback today. */}
+        {/* Funnelled through ItemArt (P0) — one capsule. P1.5b: real item code
+            when present, glyph fallback otherwise. */}
         <ItemArt
+          code={e.itemCode}
+          itemClass={e.itemClass}
           glyph={e.icon}
           rarity={e.rarity}
           size="sm"

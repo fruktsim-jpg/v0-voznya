@@ -47,7 +47,13 @@ export function GiftCard({ gift }: { gift: ShowcaseGift }) {
           )}
           {/* Рабочая покупка (Release 2.2): подарок уходит в инвентарь как
               pending, дальше игрок решает — хранить/продать/вывести. */}
-          <GiftBuyButton code={gift.code} priceEshki={gift.priceEshki} color={t.color} />
+          <GiftBuyButton
+            code={gift.code}
+            name={gift.name}
+            rarity={gift.rarity}
+            priceEshki={gift.priceEshki}
+            color={t.color}
+          />
         </div>
       }
 

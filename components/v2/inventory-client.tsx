@@ -12,6 +12,12 @@ import { InventoryRedesign } from '@/components/inventory/inventory-redesign'
  * page change. The old Steam-style grid + all gift action logic were moved
  * into the redesign (ItemInspectSheet) with the API contracts unchanged.
  */
-export function InventoryClient({ initial }: { initial: InventoryItem[] }) {
-  return <InventoryRedesign initial={initial} />
+export function InventoryClient({
+  initial,
+  userId,
+}: {
+  initial: InventoryItem[]
+  userId?: number
+}) {
+  return <InventoryRedesign initial={initial} userId={userId} />
 }

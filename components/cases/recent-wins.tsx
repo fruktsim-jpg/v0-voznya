@@ -3,6 +3,8 @@
 import { normalizeRarity, rarityToken } from '@/lib/rarity'
 import { timeAgo } from '@/lib/events'
 import { Glyph } from '@/components/ds/icon/glyph'
+import { ItemArt } from '@/components/ds/item-art'
+import { rewardKindClass } from '@/lib/case-open-ux'
 import type { RecentCaseWin } from '@/lib/cases'
 
 /**
@@ -36,12 +38,14 @@ export function RecentWins({ wins }: { wins: RecentCaseWin[] }) {
                 borderColor: accent ? `${t.color}55` : 'rgba(255,255,255,0.08)',
               }}
             >
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm"
-                style={{ background: t.capsule, color: accent ? t.color : undefined }}
-              >
-                <Glyph name={w.rewardKind === 'tg_gift' ? 'gift' : 'trophy'} className="h-4 w-4" />
-              </span>
+              <ItemArt
+                code={w.rewardItemCode}
+                itemClass={rewardKindClass(w.rewardKind, w.rewardItemCode)}
+                glyph={<Glyph name={w.rewardKind === 'tg_gift' ? 'gift' : 'trophy'} className="h-4 w-4" />}
+                rarity={rarity}
+                size="sm"
+                className="!h-8 !w-8 !rounded-lg"
+              />
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-foreground">
                   <span className="text-muted-foreground">{w.actorName}</span>

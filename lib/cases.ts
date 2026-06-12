@@ -180,6 +180,8 @@ export type RecentCaseWin = {
   actorName: string
   rewardName: string
   rewardKind: string
+  /** Real reward item/gift code → resolves the SAME art the inventory shows. */
+  rewardItemCode: string | null
   rarity: string
   // Stars value for tg_gift, else the eshki amount, else null. Display only.
   value: number | null
@@ -200,6 +202,7 @@ export async function getRecentCaseWins(limit = 12): Promise<RecentCaseWin[]> {
       actor_name: string
       reward_name: string | null
       reward_kind: string
+      reward_item_code: string | null
       rarity: string
       value: string | null
       created_at: string
@@ -209,6 +212,7 @@ export async function getRecentCaseWins(limit = 12): Promise<RecentCaseWin[]> {
               COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
               COALESCE(ii.name, gc.name, co.reward_item_code) AS reward_name,
               co.reward_kind,
+              co.reward_item_code,
               CASE
                 WHEN co.reward_kind = 'tg_gift' THEN 'mythic'
                 WHEN cr.is_jackpot THEN 'legendary'
@@ -234,6 +238,7 @@ export async function getRecentCaseWins(limit = 12): Promise<RecentCaseWin[]> {
       actorName: r.actor_name,
       rewardName: r.reward_name ?? 'награда',
       rewardKind: r.reward_kind,
+      rewardItemCode: r.reward_item_code ?? null,
       rarity: r.rarity,
       value: r.value == null ? null : Number(r.value),
       createdAt: new Date(r.created_at).toISOString(),

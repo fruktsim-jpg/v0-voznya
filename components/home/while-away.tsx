@@ -149,6 +149,8 @@ export function WhileAway({
                       className="flex items-center gap-2.5 rounded-xl bg-white/[0.03] p-2.5"
                     >
                       <ItemArt
+                        code={e.itemCode}
+                        itemClass={e.itemClass}
                         glyph={e.icon}
                         rarity={e.rarity}
                         size="sm"

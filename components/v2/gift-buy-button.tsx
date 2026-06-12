@@ -2,6 +2,10 @@
 
 import { useState } from 'react'
 import { notifyBalanceChanged } from '@/lib/balance-events'
+import { useCelebration } from '@/components/celebration/celebration-host'
+import { tierFromRarity } from '@/lib/celebration'
+import { resolveItemArt } from '@/lib/item-art/resolve'
+import type { Rarity } from '@/lib/rarity'
 
 /**
  * GiftBuyButton (Release 2.2) — рабочая кнопка покупки подарка в Магазине.
@@ -11,6 +15,10 @@ import { notifyBalanceChanged } from '@/lib/balance-events'
  * (порт buy_gift): подарок списывает ешки и кладётся в инвентарь как pending.
  * После успеха обновляем баланс в шапке без F5 (P5) и предлагаем перейти в
  * инвентарь, где игрок решает судьбу предмета (хранить/продать/вывести).
+ *
+ * P1.5b — Desire Delivery: покупка теперь ПРАЗДНУЕТСЯ. Successful buy fires a
+ * celebration showing the REAL purchased object (same ItemArt as everywhere),
+ * so spending money produces a moment, not a text link.
  */
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -19,15 +27,20 @@ type BuyState = 'idle' | 'buying' | 'bought' | 'error'
 
 export function GiftBuyButton({
   code,
+  name,
+  rarity,
   priceEshki,
   color,
 }: {
   code: string
+  name?: string
+  rarity?: Rarity
   priceEshki: number
   color: string
 }) {
   const [state, setState] = useState<BuyState>('idle')
   const [msg, setMsg] = useState('')
+  const { celebrate } = useCelebration()
 
   async function buy() {
     if (state === 'buying' || state === 'bought') return
@@ -44,6 +57,20 @@ export function GiftBuyButton({
         setState('bought')
         setMsg('✅ В инвентаре')
         notifyBalanceChanged()
+        // The purchase becomes a MOMENT showing the real object (graceful glyph
+        // fallback when no asset). Gifts are tradeable objects — worth a beat.
+        const r: Rarity = rarity ?? 'rare'
+        const art = resolveItemArt({ code, itemClass: 'gift', rarity: r }).src
+        celebrate({
+          kind: 'purchase',
+          tier: tierFromRarity(r),
+          title: data.giftName ?? name ?? 'Подарок',
+          subtitle: '🎁 В инвентаре — реши его судьбу',
+          glyph: '🎁',
+          art: art ?? undefined,
+          rarity: r,
+          shareable: false,
+        })
         return
       }
       setState('error')

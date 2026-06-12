@@ -55,7 +55,7 @@ export default async function InventoryPage() {
         }
       />
       <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
-        <InventoryClient initial={view.items} />
+        <InventoryClient initial={view.items} userId={session.uid} />
       </div>
     </main>
   )

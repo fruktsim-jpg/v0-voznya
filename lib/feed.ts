@@ -1,6 +1,6 @@
 import 'server-only'
 import { query } from '@/lib/db'
-import type { CommunityEvent, EventCode } from '@/lib/events'
+import { eventItemClass, type CommunityEvent, type EventCode } from '@/lib/events'
 import type { Rarity } from '@/lib/rarity'
 
 /**
@@ -23,6 +23,8 @@ type FeedRow = {
   value: string | null
   rarity: string | null
   created_at: string
+  item_code: string | null
+  item_name: string | null
 }
 
 const ICONS: Record<EventCode, string> = {
@@ -87,7 +89,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
                WHEN cr.is_jackpot THEN 'legendary'
                ELSE COALESCE(ii.rarity, 'common')
              END AS rarity,
-             co.created_at
+             co.created_at,
+             co.reward_item_code AS item_code,
+             COALESCE(ii.name, gc.name) AS item_name
         FROM case_openings co
         JOIN users u ON u.user_id = co.user_id
         LEFT JOIN case_rewards cr ON cr.id = co.reward_id
@@ -109,10 +113,13 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              COALESCE(NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок') AS target_name,
              g.amount AS value,
              CASE WHEN g.kind = 'tg_gift' THEN 'legendary' ELSE 'rare' END AS rarity,
-             g.created_at
+             g.created_at,
+             g.item_code AS item_code,
+             ggc.name AS item_name
         FROM gift_transactions g
         LEFT JOIN users su ON su.user_id = g.sender_user_id
         LEFT JOIN users ru ON ru.user_id = g.recipient_user_id
+        LEFT JOIN gift_catalog ggc ON ggc.code = g.item_code
        WHERE g.status = 'completed'
        ORDER BY g.created_at DESC
        LIMIT ${per}
@@ -124,7 +131,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              NULL::bigint AS target_id, NULL::text AS target_name,
              (t.meta->>'payout')::bigint AS value,
              'epic' AS rarity,
-             t.created_at
+             t.created_at,
+             NULL::text AS item_code,
+             NULL::text AS item_name
         FROM transactions t
         JOIN users u ON u.user_id = t.user_id
        WHERE t.reason = 'casino' AND t.meta ? 'payout'
@@ -139,7 +148,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              NULL::bigint AS target_id, NULL::text AS target_name,
              t.amount AS value,
              'uncommon' AS rarity,
-             t.created_at
+             t.created_at,
+             NULL::text AS item_code,
+             NULL::text AS item_name
         FROM transactions t
         JOIN users u ON u.user_id = t.user_id
        WHERE t.reason = 'treasure' AND t.amount > 0
@@ -153,7 +164,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              NULL::bigint AS target_id, NULL::text AS target_name,
              NULL::bigint AS value,
              'uncommon' AS rarity,
-             ua.unlocked_at AS created_at
+             ua.unlocked_at AS created_at,
+             NULL::text AS item_code,
+             NULL::text AS item_name
         FROM user_achievements ua
         JOIN users u ON u.user_id = ua.user_id
        ORDER BY ua.unlocked_at DESC
@@ -167,7 +180,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              COALESCE(NULLIF(u2.first_name,''), NULLIF(u2.username,''), 'Игрок') AS target_name,
              NULL::bigint AS value,
              'rare' AS rarity,
-             m.married_at AS created_at
+             m.married_at AS created_at,
+             NULL::text AS item_code,
+             NULL::text AS item_name
         FROM marriages m
         JOIN users u1 ON u1.user_id = m.user_id_1
         JOIN users u2 ON u2.user_id = m.user_id_2
@@ -181,7 +196,9 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              NULL::bigint AS target_id, NULL::text AS target_name,
              me.amount AS value,
              'epic' AS rarity,
-             me.created_at
+             me.created_at,
+             NULL::text AS item_code,
+             NULL::text AS item_name
         FROM mmr_entries me
         JOIN users u ON u.user_id = me.player_id
        WHERE me.amount >= ${MMR_EVENT_MIN}
@@ -190,7 +207,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
     )
     SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name,
            target_id::text AS target_id, target_name,
-           value::text AS value, rarity, created_at
+           value::text AS value, rarity, created_at, item_code, item_name
       FROM (
         SELECT * FROM feed
         UNION ALL SELECT * FROM gifts
@@ -217,6 +234,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
 function mapRow(r: FeedRow): CommunityEvent {
   const code = r.code as EventCode
   const value = r.value != null ? Number(r.value) : null
+  const itemCode = r.item_code ?? null
   return {
     id: `${code}:${r.ev_id}`,
     code,
@@ -232,6 +250,9 @@ function mapRow(r: FeedRow): CommunityEvent {
     rarity: toRarity(r.rarity),
     occurredAt: new Date(r.created_at).toISOString(),
     icon: ICONS[code] ?? '✨',
+    itemCode,
+    itemClass: itemCode ? eventItemClass(code) : null,
+    itemName: r.item_name ?? null,
   }
 }
 
@@ -261,7 +282,9 @@ export async function getUserFeed(
                WHEN cr.is_jackpot THEN 'legendary'
                ELSE COALESCE(ii.rarity, 'common')
              END AS rarity,
-             co.created_at
+             co.created_at,
+             co.reward_item_code AS item_code,
+             COALESCE(ii.name, gc.name) AS item_name
         FROM case_openings co
         JOIN users u ON u.user_id = co.user_id
         LEFT JOIN case_rewards cr ON cr.id = co.reward_id
@@ -272,7 +295,8 @@ export async function getUserFeed(
       UNION ALL
       SELECT 'ACHIEVEMENT_UNLOCKED', ua.user_id, ua.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),
-             NULL::bigint, NULL::text, NULL::bigint, 'uncommon', ua.unlocked_at
+             NULL::bigint, NULL::text, NULL::bigint, 'uncommon', ua.unlocked_at,
+             NULL::text, NULL::text
         FROM user_achievements ua
         JOIN users u ON u.user_id = ua.user_id
        WHERE ua.user_id = $1
@@ -283,15 +307,18 @@ export async function getUserFeed(
                       NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок'),
              g.recipient_user_id,
              COALESCE(NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок'),
-             g.amount, CASE WHEN g.kind='tg_gift' THEN 'legendary' ELSE 'rare' END, g.created_at
+             g.amount, CASE WHEN g.kind='tg_gift' THEN 'legendary' ELSE 'rare' END, g.created_at,
+             g.item_code, ggc.name
         FROM gift_transactions g
         LEFT JOIN users su ON su.user_id = g.sender_user_id
         LEFT JOIN users ru ON ru.user_id = g.recipient_user_id
+        LEFT JOIN gift_catalog ggc ON ggc.code = g.item_code
        WHERE g.status='completed' AND (g.sender_user_id = $1 OR g.recipient_user_id = $1)
       UNION ALL
       SELECT 'CASINO_BIG_WIN', t.id, t.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),
-             NULL::bigint, NULL::text, (t.meta->>'payout')::bigint, 'epic', t.created_at
+             NULL::bigint, NULL::text, (t.meta->>'payout')::bigint, 'epic', t.created_at,
+             NULL::text, NULL::text
         FROM transactions t
         JOIN users u ON u.user_id = t.user_id
        WHERE t.user_id = $1 AND t.reason='casino' AND t.meta ? 'payout'
@@ -299,7 +326,7 @@ export async function getUserFeed(
     )
     SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name,
            target_id::text AS target_id, target_name,
-           value::text AS value, rarity, created_at
+           value::text AS value, rarity, created_at, item_code, item_name
       FROM ev
      ORDER BY created_at DESC
      LIMIT ${limit}

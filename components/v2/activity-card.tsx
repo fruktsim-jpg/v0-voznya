@@ -1,16 +1,19 @@
 import { Card } from '@/components/v2/card'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 import { UserBadge } from '@/components/v2/user-badge'
-import { rarityToken } from '@/lib/rarity'
 import { eventText, timeAgo, type CommunityEvent } from '@/lib/events'
+import { ItemArt } from '@/components/ds/item-art'
 
 /**
  * ActivityCard — карточка одного события ленты (VOZNYA_EVENTS_SYSTEM §5).
  * Server component. Вариант карточки зависит от редкости события: epic/legendary/
  * mythic получают подсветку и рамку.
+ *
+ * P1.5b — Desire Delivery: the event medallion is funnelled through ItemArt, so
+ * a drop/gift event shows the REAL object (same art as cases/inventory) when the
+ * event carries an item code; otherwise it falls back to the event glyph.
  */
 export function ActivityCard({ event }: { event: CommunityEvent }) {
-  const token = rarityToken(event.rarity)
   const highlight =
     event.rarity === 'legendary' || event.rarity === 'mythic'
       ? 'legendary'
@@ -20,17 +23,14 @@ export function ActivityCard({ event }: { event: CommunityEvent }) {
 
   return (
     <Card variant={highlight as 'default' | 'epic' | 'legendary'} className="flex items-center gap-3">
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg"
-        style={{
-          color: token.color,
-          boxShadow: token.glow || undefined,
-          background: 'rgba(255,255,255,0.04)',
-        }}
-        aria-hidden="true"
-      >
-        {event.icon}
-      </div>
+      <ItemArt
+        code={event.itemCode}
+        itemClass={event.itemClass}
+        glyph={event.icon}
+        rarity={event.rarity}
+        size="sm"
+        className="!h-10 !w-10 !rounded-2xl"
+      />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-1.5 text-sm">

@@ -22,12 +22,14 @@ export function ItemCard({
   item,
   favorite,
   pinned,
+  isNew,
   onOpen,
   onToggleFavorite,
 }: {
   item: InvItem
   favorite: boolean
   pinned: boolean
+  isNew?: boolean
   onOpen: (item: InvItem) => void
   onToggleFavorite: (id: string) => void
 }) {
@@ -73,6 +75,11 @@ export function ItemCard({
 
       {/* Top-left status badges */}
       <div className="pointer-events-none absolute left-2 top-2 flex flex-col gap-1">
+        {isNew && (
+          <span className="rounded-full border border-sky-400/50 bg-sky-400/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-200 backdrop-blur-sm">
+            новое
+          </span>
+        )}
         {item.limited && (
           <span className="rounded-full border border-amber-400/40 bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-200 backdrop-blur-sm">
             лимит

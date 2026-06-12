@@ -19,6 +19,30 @@ import { ItemCard } from '@/components/inventory/item-card'
 import { ItemInspectSheet } from '@/components/inventory/item-inspect-sheet'
 
 /**
+ * Per-device "last inventory visit" marker (client-only, like lib/last-visit).
+ * Lets us flag items acquired since the previous visit with a "новое" badge —
+ * the missing acquisition feedback. Namespaced per user; never throws.
+ */
+const INV_SEEN_PREFIX = 'voznya:inv-seen:'
+function readInvSeen(userId: number): number | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const n = Number(window.localStorage.getItem(`${INV_SEEN_PREFIX}${userId}`))
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch {
+    return null
+  }
+}
+function writeInvSeen(userId: number, when = Date.now()): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(`${INV_SEEN_PREFIX}${userId}`, String(when))
+  } catch {
+    /* private mode — highlight simply degrades off */
+  }
+}
+
+/**
  * InventoryRedesign (Stage 2) — the orchestrator. Wires the read-only inventory
  * into the prestige collection experience: premium summary header, pinned
  * showcase, collection progress, a fast filter system and an ItemArt-first
@@ -29,7 +53,13 @@ import { ItemInspectSheet } from '@/components/inventory/item-inspect-sheet'
  * gift API inside ItemInspectSheet → on success we drop the consumed gift from
  * the local list (same model as Stage 1). No backend/economy/ownership change.
  */
-export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
+export function InventoryRedesign({
+  initial,
+  userId,
+}: {
+  initial: InventoryItem[]
+  userId?: number
+}) {
   const [raw, setRaw] = useState<InventoryItem[]>(initial)
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -41,6 +71,26 @@ export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
   // Derive the normalized view-model once per raw change.
   const items = useMemo(() => toInvItems(raw), [raw])
   const summary = useMemo(() => summarize(items, favorites.length), [items, favorites.length])
+
+  // "New since last visit" — capture the previous marker ONCE on mount, then
+  // advance it so a refresh doesn't keep re-flagging. Items acquired after the
+  // captured time get a "новое" badge. Client-only, per-device (read-only DB).
+  const [newIds, setNewIds] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    if (userId == null) return
+    const since = readInvSeen(userId)
+    if (since != null) {
+      const fresh = new Set(
+        items
+          .filter((i) => i.acquiredAt != null && new Date(i.acquiredAt).getTime() > since)
+          .map((i) => i.id),
+      )
+      setNewIds(fresh)
+    }
+    writeInvSeen(userId)
+    // Capture only on first mount for this user — not on every items change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   // Prune favorite/showcase prefs whose item is gone (e.g. a gift was sold /
   // withdrawn / gifted) so consumed items don't linger as stale ids or keep
@@ -145,6 +195,7 @@ export function InventoryRedesign({ initial }: { initial: InventoryItem[] }) {
               item={item}
               favorite={isFavorite(item.id)}
               pinned={showcase.isPinned(item.id)}
+              isNew={newIds.has(item.id)}
               onOpen={openItem}
               onToggleFavorite={toggleFav}
             />
