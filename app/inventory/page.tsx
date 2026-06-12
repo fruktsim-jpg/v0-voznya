@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/get-session'
 import { isDbConfigured } from '@/lib/db'
 import { getInventory } from '@/lib/inventory-list'
+import { getPlayerCollections } from '@/lib/collection-progress'
 import { InventoryClient } from '@/components/v2/inventory-client'
+import { CollectionPressure } from '@/components/collection/collection-pressure'
 import { ScreenHeader } from '@/components/v2/screen-header'
 
 export const dynamic = 'force-dynamic'
@@ -40,6 +42,7 @@ export default async function InventoryPage() {
   }
 
   const view = await getInventory(session.uid)
+  const collections = await getPlayerCollections(session.uid)
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">
@@ -55,6 +58,7 @@ export default async function InventoryPage() {
         }
       />
       <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        <CollectionPressure collections={collections} />
         <InventoryClient initial={view.items} userId={session.uid} />
       </div>
     </main>

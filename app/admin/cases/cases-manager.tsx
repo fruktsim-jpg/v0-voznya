@@ -11,6 +11,7 @@ import {
   rtpBand,
   type EconomyReward,
 } from '@/lib/admin/case-economics'
+import { CaseBuilder, type CatalogItem as BuilderCatalogItem } from './case-builder'
 
 /**
  * Cases admin manager (client). Lists case definitions, lets an admin create /
@@ -193,9 +194,11 @@ function ItemPicker({
 export function CasesManager({
   initialCases,
   canManage,
+  builderCatalog = [],
 }: {
   initialCases: AdminCase[]
   canManage: boolean
+  builderCatalog?: BuilderCatalogItem[]
 }) {
   const [cases, setCases] = useState<AdminCase[]>(initialCases)
   const [selected, setSelected] = useState<string | null>(
@@ -216,6 +219,14 @@ export function CasesManager({
 
   return (
     <div className="space-y-4">
+      {canManage && (
+        <CaseBuilder
+          catalog={builderCatalog}
+          canPublish={canManage}
+          onCreated={reloadCases}
+        />
+      )}
+
       {canManage && (
         <CaseForm
           onSaved={reloadCases}

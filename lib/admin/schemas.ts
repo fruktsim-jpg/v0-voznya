@@ -137,6 +137,46 @@ export const giftStudioSchema = z.object({
 
 export type GiftStudioInput = z.infer<typeof giftStudioSchema>
 
+/**
+ * Case Builder (one-screen) payload. The operator thinks in name/image/price +
+ * visual rewards with **percent chances**; the server auto-creates the case item
+ * (type=case), inline-creates any new reward items, and converts chances→weights.
+ * Authoring only — opening stays the bot's job.
+ */
+const builderRewardSchema = z.object({
+  kind: z.enum(['item', 'currency']),
+  // existing reward item (catalog code) OR inline new item (one of these):
+  itemCode: z.string().trim().max(64).optional().nullable().transform((v) => (v ? v : null)),
+  newItemName: z.string().trim().min(1).max(128).optional().nullable().transform((v) => (v ? v : null)),
+  newItemRarity: raritySchema.optional().default('rare'),
+  newItemValue: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  newItemCollectionCode: z.string().trim().max(64).optional().nullable().transform((v) => (v ? v : null)),
+  // currency reward:
+  amount: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  // operator-facing odds + qty + scarcity:
+  chancePercent: z.number().min(0.0001).max(100),
+  minQty: z.number().int().min(1).max(100000).optional().default(1),
+  maxQty: z.number().int().min(1).max(100000).optional().default(1),
+  maxGlobalSupply: z.number().int().min(1).max(100_000_000).optional().nullable(),
+  isJackpot: z.boolean().optional().default(false),
+})
+
+export const caseBuilderSchema = z.object({
+  code: optionalCodeSchema, // case item code (auto-gen on create)
+  name: nameSchema,
+  description: descriptionSchema,
+  rarity: raritySchema.optional().default('epic'), // case item's own rarity
+  openCostKind: z.enum(['free', 'currency']).default('currency'),
+  openCostAmount: z.number().int().min(0).max(100_000_000).optional().default(0),
+  consumesKey: z.boolean().optional().default(false),
+  status: statusSchema.optional().default('draft'),
+  featuredSlot: z.string().trim().max(32).optional().nullable().transform((v) => (v ? v : null)),
+  rewards: z.array(builderRewardSchema).min(1, 'Добавь хотя бы одну награду'),
+})
+
+export type CaseBuilderInput = z.infer<typeof caseBuilderSchema>
+export type CaseBuilderReward = z.infer<typeof builderRewardSchema>
+
 /** Featured slot (Featured slots) payload. */
 export const FEATURED_SURFACES = [
   'HOME_HERO',

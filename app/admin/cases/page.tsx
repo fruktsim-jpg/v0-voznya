@@ -9,6 +9,7 @@ import {
   type NotableDrop,
 } from '@/lib/economy-analytics'
 import { CasesManager, type AdminCase } from './cases-manager'
+import type { CatalogItem } from './case-builder'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,6 +59,18 @@ export default async function AdminCasesPage() {
     )
   } catch {
     cases = []
+  }
+
+  // Catalog for the one-screen builder's reward picker (degrade to empty).
+  let catalog: CatalogItem[] = []
+  try {
+    catalog = await query<CatalogItem>(
+      `SELECT code, name, rarity, type FROM inventory_items
+        WHERE is_active = true AND type <> 'case'
+        ORDER BY name NULLS LAST, code`,
+    )
+  } catch {
+    catalog = []
   }
 
   // Live stats over the openings ledger (read-only; degrade to empty/[]).
@@ -167,7 +180,7 @@ export default async function AdminCasesPage() {
         </div>
       </div>
 
-      <CasesManager initialCases={cases} canManage={canManage} />
+      <CasesManager initialCases={cases} canManage={canManage} builderCatalog={catalog} />
     </div>
   )
 }
