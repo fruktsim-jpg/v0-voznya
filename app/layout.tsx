@@ -3,6 +3,9 @@ import { Inter, Unbounded, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
+import { loadPublishedAssetOverlay } from '@/lib/item-art/manifest-source'
+import { getOverlayVersion } from '@/lib/item-art/manifest'
+import { ItemArtHydrator } from '@/components/item-art/item-art-hydrator'
 import './globals.css'
 
 // VOZNYA TYPOGRAPHY SYSTEM (PHASE B — B2). Three tonal registers instead of
@@ -80,14 +83,20 @@ function getPublicBotId(): string | null {
   return /^\d+$/.test(id) ? id : null
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // IA-1: hydrate the dynamic art overlay (published item_assets) so authored
+  // art resolves on the first paint, server and client alike. Degrades to the
+  // static seed manifest if the table/DB is absent.
+  const overlay = await loadPublishedAssetOverlay()
+  const overlayVersion = getOverlayVersion()
   return (
     <html lang="ru" className={`${inter.variable} ${unbounded.variable} ${jetbrainsMono.variable} bg-background`}>
       <body className="font-sans antialiased">
+        <ItemArtHydrator overlay={overlay} version={overlayVersion} />
         <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>
           {children}
         </AppShell>

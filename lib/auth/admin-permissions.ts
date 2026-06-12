@@ -47,6 +47,11 @@ export const PERM = {
   CASES_VIEW: 'cases.view',
   CASES_MANAGE: 'cases.manage',
   CASES_GRANT: 'cases.grant',
+  // Content authoring (Item Authoring / Command Center) — Pattern A: the site
+  // owns the content catalog (item defs, art assets, collections, featured).
+  CONTENT_VIEW: 'content.view',
+  CONTENT_MANAGE: 'content.manage',
+  CONTENT_PUBLISH: 'content.publish',
 } as const
 
 
@@ -65,6 +70,7 @@ const SUPPORT: ReadonlySet<string> = new Set([
   PERM.REPUTATION_VIEW,
   PERM.ACHIEVEMENTS_VIEW,
   PERM.CASES_VIEW,
+  PERM.CONTENT_VIEW,
 ])
 
 
@@ -92,6 +98,8 @@ const ADMIN: ReadonlySet<string> = new Set([
   PERM.ACHIEVEMENTS_REVOKE,
   PERM.CASES_MANAGE,
   PERM.CASES_GRANT,
+  PERM.CONTENT_MANAGE,
+  PERM.CONTENT_PUBLISH,
 ])
 
 

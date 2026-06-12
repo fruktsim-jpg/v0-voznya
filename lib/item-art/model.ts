@@ -28,6 +28,9 @@
 // =============================================================================
 
 import type { Rarity } from '@/lib/rarity'
+// Re-export so sibling modules (manifest.ts) can import Rarity from the model
+// barrel without reaching into lib/rarity directly.
+export type { Rarity }
 
 // -----------------------------------------------------------------------------
 // 1. ITEM CLASS — the canonical taxonomy of "kinds of thing"

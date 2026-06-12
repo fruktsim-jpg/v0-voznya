@@ -101,13 +101,56 @@ export const ITEM_ART_MANIFEST: ItemArtManifest = {
   templates: {},
 }
 
+// =============================================================================
+// DYNAMIC OVERLAY (Item Authoring IA-1)
+// =============================================================================
+//
+// `ITEM_ART_MANIFEST` above is the baked-in SEED — it guarantees the pre-IA-1
+// dream items never regress and the funnel always has a floor. On top of it we
+// layer a DYNAMIC overlay published from the DB (`item_assets`, status=published)
+// via `/api/items/asset/{code}`. The overlay is an in-memory map hydrated by a
+// server loader (`lib/item-art/manifest-source.ts`) and consulted SYNCHRONOUSLY
+// here — because `resolveItemArt` is sync and runs in both server and client
+// components, we must NOT turn resolution into an async/fetch call.
+//
+// Precedence: dynamic overlay (authored via Command Center) WINS over the static
+// seed, so re-authoring a seeded code (e.g. uploading a real PNG for
+// `case_jackpot`) transparently replaces the shipped SVG everywhere.
+// =============================================================================
+
+let DYNAMIC_OVERLAY: Record<string, ManifestAsset> = {}
+let OVERLAY_VERSION = 0
+
+/**
+ * Replace the dynamic overlay (called by the server hydrator after reading
+ * published `item_assets`). Client bundles receive it via a serialized snapshot
+ * injected at the app shell; see `manifest-source.ts`.
+ */
+export function setDynamicAssetOverlay(
+  overlay: Record<string, ManifestAsset>,
+  version?: number,
+): void {
+  DYNAMIC_OVERLAY = overlay ?? {}
+  if (typeof version === 'number') OVERLAY_VERSION = version
+}
+
+/** Current overlay (for serialization to the client). */
+export function getDynamicAssetOverlay(): Record<string, ManifestAsset> {
+  return DYNAMIC_OVERLAY
+}
+
+export function getOverlayVersion(): number {
+  return OVERLAY_VERSION
+}
+
 /** Look up a unique asset for a code. Returns null when none is authored. */
 export function manifestAsset(code: string | null | undefined): ManifestAsset | null {
   if (!code) return null
   // Dev-only toggle to capture "before" (glyph-fallback) screenshots without
   // touching the manifest. Never set in production.
   if (process.env.NEXT_PUBLIC_ART_OFF === '1') return null
-  return ITEM_ART_MANIFEST.assets[code] ?? null
+  // Dynamic (authored) overlay wins over the static seed.
+  return DYNAMIC_OVERLAY[code] ?? ITEM_ART_MANIFEST.assets[code] ?? null
 }
 
 /** Look up a class template, finished by rarity. Returns null when none exists. */
