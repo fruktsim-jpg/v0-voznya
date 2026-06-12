@@ -97,8 +97,8 @@ export function GiftsManager({
 
 
   async function submit() {
-    if (!form.code.trim() || !form.name.trim()) {
-      setMsg({ ok: false, text: 'Укажи код и название.' })
+    if (!form.name.trim()) {
+      setMsg({ ok: false, text: 'Укажи название.' })
       return
     }
     setBusy(true)
@@ -108,7 +108,9 @@ export function GiftsManager({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: form.code.trim(),
+          // Workflow-first: code is sent only when editing; on create the
+          // server generates it from the name.
+          code: editingCode || undefined,
           name: form.name.trim(),
           description: form.description.trim() || null,
           starCost: Number(form.starCost),
@@ -164,21 +166,22 @@ export function GiftsManager({
 
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[11px] text-muted-foreground">Код</label>
-              <input
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="gift_heart"
-                className={inputClass}
-              />
-            </div>
-            <div>
               <label className="mb-1 block text-[11px] text-muted-foreground">Название</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Сердечко"
                 className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">
+                Код {editingCode ? '(неизменяемый)' : '(сгенерируется)'}
+              </label>
+              <input
+                value={editingCode ?? '— из названия —'}
+                disabled
+                className={`${inputClass} opacity-60`}
               />
             </div>
           </div>
@@ -264,7 +267,7 @@ export function GiftsManager({
             >
               Сохранить
             </button>
-            {(form.code || editingCode) && (
+            {(form.name || editingCode) && (
               <button
                 type="button"
                 onClick={clearForm}
