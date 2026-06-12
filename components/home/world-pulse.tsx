@@ -111,10 +111,10 @@ export function WorldPulse({ events }: { events: CommunityEvent[] }) {
             </div>
           ) : (
             <ul className="max-h-[26rem] divide-y divide-white/5 overflow-y-auto">
-              {visible.map((e) => {
+              {visible.map((e, i) => {
                 const token = rarityToken(e.rarity)
                 return (
-                  <li key={e.id}>
+                  <li key={`${e.id}-${i}`}>
                     <div className="flex items-center gap-3 px-5 py-2.5 sm:px-6">
                       <span
                         className="grid size-10 shrink-0 place-items-center rounded-xl text-xl"

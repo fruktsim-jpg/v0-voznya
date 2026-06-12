@@ -60,6 +60,12 @@ export type GlyphName =
   | 'heart'
   | 'refresh'
   | 'logout'
+  | 'settings'
+  | 'bell'
+  | 'volume'
+  | 'sparkles'
+  | 'eye'
+  | 'gauge'
 
 /**
  * Path data per glyph. Each string is the inner markup of a 24×24 <svg>.
@@ -106,6 +112,13 @@ const GLYPHS: Record<GlyphName, string> = {
   heart: '<path d="M12 20s-7-4.5-7-9.5A3.8 3.8 0 0 1 12 7a3.8 3.8 0 0 1 7 3.5c0 5-7 9.5-7 9.5z"/>',
   refresh: '<path d="M20 11a8 8 0 0 0-14-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14 4.5L20 16M20 20v-4h-4"/>',
   logout: '<path d="M14 4.5h-7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7M15 8.5l4 3.5-4 3.5M19 12H9"/>',
+  // --- account / preferences (E0.3) ---
+  settings: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3"/>',
+  bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM9.5 20a2.5 2.5 0 0 0 5 0"/>',
+  volume: '<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4zM16 9.2a4 4 0 0 1 0 5.6M18.5 7a7 7 0 0 1 0 10"/>',
+  sparkles: '<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5zM18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  gauge: '<path d="M4 18a8 8 0 1 1 16 0M12 18l4-5"/><circle cx="12" cy="18" r="1.3"/>',
 }
 
 export function Glyph({

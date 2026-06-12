@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { TelegramLoginButton } from '@/components/auth/telegram-login-button'
 import { onBalanceChanged } from '@/lib/balance-events'
-import { VoznyaCoin, Glyph, type GlyphName } from '@/components/ds/icon'
+import { Glyph, type GlyphName } from '@/components/ds/icon'
 
 type Summary =
   | { authenticated: false }
@@ -17,6 +17,8 @@ type Summary =
       rank: number | null
       photoUrl?: string | null
       isAdmin?: boolean
+      mmrRank?: { name: string; emoji: string } | null
+      season?: { division?: { name: string } | null } | null
     }
 
 
@@ -27,79 +29,63 @@ interface UserMenuProps {
   oidcEnabled?: boolean
 }
 
-
-function formatEsh(n: number): string {
-  return n.toLocaleString('ru-RU')
-}
-
 type AuthedSummary = Extract<Summary, { authenticated: true }>
-type MenuEntry =
-  | { kind: 'link'; id: string; label: string; icon: GlyphName; href: string }
-  | { kind: 'divider'; id: string }
 
 /**
- * Builds the dropdown entries from the user summary. Every link points to a
- * route that already exists (no invented pages):
- *   - профиль и его якоря (#inventory / #achievements живут в PlayerCard);
- *   - кейсы / подарки — существующие страницы сайта;
- *   - админка — только при наличии роли.
- * Якоря профиля показываем лишь зарегистрированным игрокам (у незарегистрированных
- * карточки и этих секций нет).
- */
-function MENU_ITEMS(data: AuthedSummary): MenuEntry[] {
-  const profile = `/profile/${data.userId}`
-  const items: MenuEntry[] = [
-    { kind: 'link', id: 'profile', label: 'Профиль', icon: 'profile', href: profile },
-    { kind: 'link', id: 'season', label: 'Сезон', icon: 'season', href: '/season' },
-  ]
-
-
-  if (data.registered) {
-    items.push(
-      { kind: 'link', id: 'inventory', label: 'Инвентарь', icon: 'inventory', href: '/inventory' },
-      { kind: 'link', id: 'achievements', label: 'Достижения', icon: 'trophy', href: `${profile}#achievements` },
-    )
-  }
-
-  items.push(
-    { kind: 'divider', id: 'd-shop' },
-    { kind: 'link', id: 'cases', label: 'Кейсы', icon: 'case', href: '/cases' },
-    { kind: 'link', id: 'gifts', label: 'Магазин', icon: 'shop', href: '/gifts' },
-  )
-
-
-  if (data.isAdmin) {
-    items.push(
-      { kind: 'divider', id: 'd-admin' },
-      { kind: 'link', id: 'admin', label: 'Админка', icon: 'shield', href: '/admin' },
-    )
-  }
-
-  return items
-}
-
-
-/**
- * Header auth control — keeps the site feeling like part of Возня.
+ * Player Control Center (E0.3)
+ * ============================
+ * The avatar dropdown is the player's *account*, not a second navigation menu.
  *
- * - Logged out: branded "Войти через Telegram" button.
- * - Logged in: compact trigger (avatar + name) opening a small dropdown with
- *   the player's name, "Мой профиль" and "Выйти". Balance/rank appear as one
- *   subtle line in the dropdown header for registered players only.
+ * Hard rules enforced here (E0.3 + E0.4 "one info = one home"):
+ *   - NO bottom-nav destinations are repeated. Главная/Кейсы/Инвентарь/Магазин/
+ *     Лидеры/Профиль all live in the bottom nav; the menu never re-lists them as
+ *     plain links (Профиль is reachable by tapping the identity header itself).
+ *   - NO balance/#rank restatement. The shell pills own those numbers; the menu
+ *     header shows *status* (MMR rank / division), which is identity, not a
+ *     duplicated metric.
+ *   - Navigation and utilities are not mixed. Sections are grouped and labelled:
+ *     identity → Прогресс → Аккаунт → Выйти.
+ *   - Owned glyphs only, no emoji chrome.
  *
  * Reads /api/me/summary on the client so the layout stays a server component.
- * That endpoint is read-only and never mutates the game state. Balance and rank
- * come from the SAME users table / ranking as the public profile page, so the
- * numbers match what /profile/{uid} shows.
+ * That endpoint is read-only and never mutates game state.
+ */
+
+type MenuLink = { id: string; label: string; hint?: string; icon: GlyphName; href: string }
+type MenuGroup = { id: string; label: string; items: MenuLink[] }
+
+function MENU_GROUPS(data: AuthedSummary): MenuGroup[] {
+  const groups: MenuGroup[] = [
+    {
+      id: 'progress',
+      label: 'Прогресс',
+      items: [
+        { id: 'season', label: 'Сезон', hint: 'Дивизион и титулы', icon: 'season', href: '/season' },
+      ],
+    },
+  ]
+
+  const account: MenuLink[] = [
+    { id: 'settings', label: 'Настройки', hint: 'Аккаунт и предпочтения', icon: 'settings', href: '/settings' },
+  ]
+  if (data.isAdmin) {
+    account.push({ id: 'admin', label: 'Командный центр', hint: 'Управление Возней', icon: 'shield', href: '/admin' })
+  }
+  groups.push({ id: 'account', label: 'Аккаунт', items: account })
+
+  return groups
+}
+
+
+/**
+ * Header auth control. Logged out → branded Telegram button. Logged in →
+ * avatar trigger opening the Player Control Center described above.
  */
 export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
-
   const [data, setData] = useState<Summary | null>(null)
   const [open, setOpen] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
 
-  // Re-fetch the summary (balance/rank). Called on mount AND whenever a balance
-  // changing action fires notifyBalanceChanged() — so the header chip updates in
-  // real time after a case open / sell / shop buy, без F5 (P5).
   const refresh = useCallback(() => {
     let alive = true
     fetch('/api/me/summary', { cache: 'no-store' })
@@ -116,10 +102,17 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
   }, [])
 
   useEffect(() => refresh(), [refresh])
-
-  // Live balance updates: any action that changes eshki dispatches the event.
   useEffect(() => onBalanceChanged(refresh), [refresh])
 
+  // Close on Escape — premium menus respect the keyboard.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   // Initial state — render a spacer to avoid layout flash.
   if (data === null) {
@@ -130,9 +123,11 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
     return <TelegramLoginButton botId={botId} oidcEnabled={oidcEnabled} />
   }
 
-
   const displayName = data.name?.trim() || 'Игрок'
   const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || 'И'
+  const profileHref = `/profile/${data.userId}`
+  // Status line = identity (MMR rank / division), NOT balance/#rank (shell owns those).
+  const statusBits = [data.mmrRank?.name, data.season?.division?.name].filter(Boolean) as string[]
 
   return (
     <div className="relative">
@@ -141,27 +136,27 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex h-9 items-center gap-2 rounded-full border border-primary/50 bg-primary/20 pl-1 pr-2.5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-primary/30"
+        className="group inline-flex h-9 items-center gap-2 rounded-full border border-primary/40 bg-primary/15 pl-1 pr-2.5 text-sm font-semibold text-foreground shadow-sm transition-all duration-200 hover:border-primary/60 hover:bg-primary/25 active:scale-[0.97]"
       >
-        {/* Avatar: real Telegram photo when we have it, else gradient initial. */}
         {data.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={data.photoUrl}
             alt=""
             referrerPolicy="no-referrer"
-            className="h-8 w-8 rounded-full object-cover shadow-inner ring-1 ring-white/15"
+            className="h-8 w-8 rounded-full object-cover shadow-inner ring-1 ring-white/15 transition group-hover:ring-primary/40"
           />
         ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-inner">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-inner ring-1 ring-white/10">
             {initial}
           </span>
         )}
-        {/* Имя прячем на мобиле: в шапке важнее баланс (он живёт в отдельной
-            пилюле shell). */}
         <span className="hidden max-w-[6rem] truncate sm:inline sm:max-w-[9rem]">{displayName}</span>
+        <Glyph
+          name="chevronUp"
+          className={`hidden h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 sm:block ${open ? '' : 'rotate-180'}`}
+        />
       </button>
-
 
       {open && (
         <>
@@ -174,56 +169,95 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
             className="fixed inset-0 z-40 cursor-default"
           />
           <div
+            ref={panelRef}
             role="menu"
-            className="absolute right-0 z-50 mt-2 max-h-[calc(100svh-5rem)] w-60 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-md"
+            className="absolute right-0 z-50 mt-2 max-h-[calc(100svh-5rem)] w-[17rem] max-w-[calc(100vw-1.5rem)] origin-top-right animate-[menuIn_140ms_ease-out] overflow-y-auto rounded-2xl border border-border bg-background/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl"
           >
-            <div className="border-b border-border px-3 py-2.5">
-              <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-              {data.registered && (data.balance !== null || data.rank !== null) && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {data.balance !== null && <><span className="type-economy">{formatEsh(data.balance)}</span> <VoznyaCoin tone="muted" /></>}
-                  {data.balance !== null && data.rank !== null && <> · </>}
-                  {data.rank !== null && <>#{data.rank} в топе</>}
-                </p>
-              )}
-            </div>
-
-            {/* Профиль и его разделы. Для зарегистрированных игроков добавляем
-                быстрые якоря в карточку профиля (инвентарь/достижения), которые
-                реально существуют в PlayerCard. Магазинные разделы (кейсы,
-                подарки) ведут на существующие страницы сайта. «Настройки»
-                намеренно нет — для них нет страницы. */}
-            {MENU_ITEMS(data).map((item) =>
-              item.kind === 'divider' ? (
-                <div key={item.id} className="my-1 border-t border-border/60" />
+            {/* Identity header — the whole block is the link to my profile.
+                This is how Профиль stays reachable WITHOUT duplicating the nav
+                tab as a plain row. Shows status (rank/division), not balance. */}
+            <Link
+              href={profileHref}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="group/id flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-primary/10"
+            >
+              {data.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={data.photoUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-11 w-11 rounded-full object-cover ring-1 ring-white/15"
+                />
               ) : (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
-                >
-                  <Glyph name={item.icon} className="shrink-0 text-base text-muted-foreground" />
-                  {item.label}
-                </Link>
-              ),
-            )}
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-base font-bold text-primary-foreground ring-1 ring-white/10">
+                  {initial}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-foreground">{displayName}</span>
+                <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                  {statusBits.length > 0 ? (
+                    <>
+                      {data.mmrRank?.emoji && <span aria-hidden="true">{data.mmrRank.emoji}</span>}
+                      {statusBits.join(' · ')}
+                    </>
+                  ) : (
+                    'Мой профиль'
+                  )}
+                </span>
+              </span>
+              <Glyph
+                name="chevronUp"
+                className="h-4 w-4 shrink-0 rotate-90 text-muted-foreground/60 transition-transform group-hover/id:translate-x-0.5"
+              />
+            </Link>
 
-            <div className="my-1 border-t border-border/60" />
+            {/* Grouped destinations — labelled sections, navigation kept apart
+                from utilities. Only non-duplicated destinations appear. */}
+            {MENU_GROUPS(data).map((group) => (
+              <div key={group.id} className="mt-1.5">
+                <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+                  {group.label}
+                </p>
+                {group.items.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className="group/row flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.03] text-muted-foreground transition-colors group-hover/row:border-primary/40 group-hover/row:text-primary">
+                      <Glyph name={item.icon} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{item.label}</span>
+                      {item.hint && (
+                        <span className="block truncate text-[11px] text-muted-foreground">{item.hint}</span>
+                      )}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ))}
+
+            <div className="mx-2 my-1.5 border-t border-border/60" />
 
             <form action="/api/auth/logout" method="post">
               <button
                 type="submit"
                 role="menuitem"
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
+                className="group/out flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-200"
               >
-                <Glyph name="logout" className="shrink-0 text-base" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.03] transition-colors group-hover/out:border-rose-400/40 group-hover/out:text-rose-300">
+                  <Glyph name="logout" className="h-4 w-4" />
+                </span>
                 Выйти
               </button>
             </form>
           </div>
-
         </>
       )}
     </div>
