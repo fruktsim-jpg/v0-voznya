@@ -115,37 +115,49 @@
     padding-right: max(1rem, env(safe-area-inset-right));
   }
 
-  /* Pushes a page's first block below the fixed header (status-bar inset +
-     56px header + breathing room). Use on screens whose first block would
-     otherwise tuck under the header (profile, admin). PageHero pages use
-     .pt-hero-safe instead. */
-  .pt-header {
-    padding-top: calc(env(safe-area-inset-top) + 4.5rem);
+  /* ============================================================
+     UNIFIED SHELL CONTRACT (Phase E0.1) — ONE source of truth
+     ------------------------------------------------------------
+     The single top bar (UnifiedShell) replaces the old two stacked
+     bars (SiteHeader + PlayerContextBar). Every top offset, z-layer
+     and safe-area inset derives from these tokens — never magic
+     numbers, never a `has-context-bar` body-class that hand-syncs
+     two heights. The shell TRANSFORMS between an idle (taller) and a
+     scrolled (condensed) state; padding targets the IDLE height so
+     content never jumps when the bar condenses.
+
+       --shell-h        : idle bar height (the visual rest state)
+       --shell-h-min    : condensed (scrolled) bar height
+       --shell-safe-top : status-bar inset (notch / Dynamic Island)
+       --shell-total    : inset + idle height (what content clears)
+       --shell-z        : the shell's z-index (top of the stack)
+       --nav-z          : bottom nav z-index (same plane as shell)
+     ============================================================ */
+  :root {
+    --shell-h: 3.5rem;       /* 56px idle */
+    --shell-h-min: 3rem;     /* 48px condensed */
+    --shell-safe-top: env(safe-area-inset-top);
+    --shell-total: calc(env(safe-area-inset-top) + 3.5rem);
+    --shell-z: 50;
+    --nav-z: 50;
   }
 
-  /* PageHero top padding that also clears the status-bar inset. */
+  /* Pushes a page's first block below the single fixed shell (status-bar
+     inset + idle shell height + breathing room). Replaces the old
+     `.pt-header` + `has-context-bar` growth: now ONE value for everyone,
+     registered or guest, because there is only one bar. */
+  .pt-header {
+    padding-top: calc(var(--shell-total) + 1rem);
+  }
+
+  /* PageHero top padding that also clears the status-bar inset. Heroes get
+     a little more room so the full-bleed first block breathes under the bar. */
   .pt-hero-safe {
-    padding-top: calc(env(safe-area-inset-top) + 6rem);
+    padding-top: calc(var(--shell-total) + 2.5rem);
   }
   @media (min-width: 640px) {
     .pt-hero-safe {
-      padding-top: calc(env(safe-area-inset-top) + 8rem);
-    }
-  }
-
-  /* PlayerContextBar (Stage 1) — when present, a 3rem (h-12) bar sits below the
-     fixed header. The shell adds `has-context-bar` to <body> only while the bar
-     is shown (registered players), so the shared top-padding utilities grow by
-     exactly that height. Guests/unregistered keep the original layout. */
-  body.has-context-bar .pt-header {
-    padding-top: calc(env(safe-area-inset-top) + 4.5rem + 3rem);
-  }
-  body.has-context-bar .pt-hero-safe {
-    padding-top: calc(env(safe-area-inset-top) + 6rem + 3rem);
-  }
-  @media (min-width: 640px) {
-    body.has-context-bar .pt-hero-safe {
-      padding-top: calc(env(safe-area-inset-top) + 8rem + 3rem);
+      padding-top: calc(var(--shell-total) + 4.5rem);
     }
   }
 

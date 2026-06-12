@@ -132,7 +132,7 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
 
 
   const displayName = data.name?.trim() || 'Игрок'
-  const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || '👤'
+  const initial = displayName.replace(/^@/, '').charAt(0).toUpperCase() || 'И'
 
   return (
     <div className="relative">
@@ -157,16 +157,9 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
             {initial}
           </span>
         )}
-        {/* Имя прячем на мобиле, чтобы освободить место под баланс — в
-            приложении важнее видеть деньги, чем своё имя. */}
+        {/* Имя прячем на мобиле: в шапке важнее баланс (он живёт в отдельной
+            пилюле shell). */}
         <span className="hidden max-w-[6rem] truncate sm:inline sm:max-w-[9rem]">{displayName}</span>
-        {/* Balance chip — самое ценное число под рукой. Видно ВЕЗДЕ (в т.ч. на
-            мобиле): игрок не должен заходить в профиль, чтобы узнать баланс. */}
-        {data.registered && data.balance !== null && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
-            <span className="type-economy">{formatEsh(data.balance)}</span> <VoznyaCoin tone="gold" />
-          </span>
-        )}
       </button>
 
 
@@ -223,9 +216,10 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
               <button
                 type="submit"
                 role="menuitem"
-                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
               >
-                🚪 Выйти
+                <Glyph name="logout" className="shrink-0 text-base" />
+                Выйти
               </button>
             </form>
           </div>

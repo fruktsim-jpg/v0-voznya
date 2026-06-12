@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { PlayerStrip } from '@/components/home/player-strip'
 import { WorldPulse } from '@/components/home/world-pulse'
 import { WhileAway } from '@/components/home/while-away'
 import { HotToday } from '@/components/home/hot-today'
@@ -13,11 +12,14 @@ import type { HomeContext } from '@/lib/home-context'
  *
  * WORLD-FIRST command center. Home answers "what's happening in VOZNYA right
  * now / what did I miss / what's hot / who's winning" — NOT "who am I". Identity
- * lives on Profile and in the persistent shell bar; Home carries only one thin
- * personal anchor strip.
+ * lives on Profile and in the persistent UnifiedShell bar (avatar + balance +
+ * one rank pill), so Home does NOT restate it.
+ *
+ * E0.2 (identity deduplication): the old thin PlayerStrip — a fourth copy of
+ * balance/division/#place sitting right under the shell that already shows
+ * them — was REMOVED. Home now opens directly on the World Pulse hero.
  *
  * Zone order (world-first):
- *   0. PlayerStrip          — thin current-state anchor (the ONLY personal block)
  *   1. World Pulse          — live community heartbeat (the hero)
  *   2. While You Were Away   — world delta since last visit (+ your missed slice)
  *   3. Hot Today            — trending: featured opportunity + real superlatives
@@ -30,10 +32,7 @@ import type { HomeContext } from '@/lib/home-context'
 export function HomeHub({ ctx }: { ctx: HomeContext }) {
   return (
     <div className="pb-10">
-      {/* 0. Thin personal anchor — current state only */}
-      {ctx.player && <PlayerStrip player={ctx.player} />}
-
-      {/* 1. The heartbeat */}
+      {/* 1. The heartbeat — the hero (Home opens here; identity lives in shell) */}
       <WorldPulse events={ctx.worldFeed} />
 
       {/* 2. Re-entry hook (world-first) */}

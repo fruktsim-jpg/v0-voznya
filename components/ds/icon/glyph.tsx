@@ -59,6 +59,7 @@ export type GlyphName =
   | 'moon'
   | 'heart'
   | 'refresh'
+  | 'logout'
 
 /**
  * Path data per glyph. Each string is the inner markup of a 24×24 <svg>.
@@ -104,6 +105,7 @@ const GLYPHS: Record<GlyphName, string> = {
   moon: '<path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z"/>',
   heart: '<path d="M12 20s-7-4.5-7-9.5A3.8 3.8 0 0 1 12 7a3.8 3.8 0 0 1 7 3.5c0 5-7 9.5-7 9.5z"/>',
   refresh: '<path d="M20 11a8 8 0 0 0-14-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14 4.5L20 16M20 20v-4h-4"/>',
+  logout: '<path d="M14 4.5h-7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7M15 8.5l4 3.5-4 3.5M19 12H9"/>',
 }
 
 export function Glyph({
