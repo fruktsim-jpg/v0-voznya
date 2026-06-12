@@ -66,6 +66,8 @@ export type GlyphName =
   | 'sparkles'
   | 'eye'
   | 'gauge'
+  | 'share'
+  | 'copy'
 
 /**
  * Path data per glyph. Each string is the inner markup of a 24×24 <svg>.
@@ -119,6 +121,8 @@ const GLYPHS: Record<GlyphName, string> = {
   sparkles: '<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5zM18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/>',
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
   gauge: '<path d="M4 18a8 8 0 1 1 16 0M12 18l4-5"/><circle cx="12" cy="18" r="1.3"/>',
+  share: '<path d="M8.5 13.5 15 17M15 7 8.5 10.5"/><circle cx="17.5" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/>',
 }
 
 export function Glyph({

@@ -13,7 +13,7 @@
  * safe. Skippable (tap backdrop / close). Presentation only.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { rarityToken } from '@/lib/rarity'
 import {
   celebrationRarity,
@@ -22,6 +22,8 @@ import {
   type Celebration,
 } from '@/lib/celebration'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { shareWin } from '@/lib/share'
+import { Glyph } from '@/components/ds/icon'
 
 const KIND_LABEL: Record<Celebration['kind'], string> = {
   drop: 'Награда',
@@ -62,13 +64,28 @@ export function CelebrationOverlay({
   const big = isBigMoment(c.tier)
   const shards = !reduced ? buildShards(shardCount(c.tier), t.color) : []
 
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared'>('idle')
+
+  async function onShare() {
+    if (shareState === 'sharing') return
+    setShareState('sharing')
+    const payload = c.share ?? { title: c.title, special: big }
+    const res = await shareWin(payload)
+    if (res === 'copied') setShareState('copied')
+    else if (res === 'shared') setShareState('shared')
+    else setShareState('idle')
+  }
+
   // Auto-dismiss after a beat so the moment doesn't block forever; big moments
-  // linger a little longer. Tap anywhere still dismisses immediately.
+  // linger a little longer. Tap anywhere still dismisses immediately. We hold
+  // the timer while a share is in flight so the sheet/clipboard isn't cut off.
   useEffect(() => {
+    if (shareState === 'sharing') return
     const ms = big ? 5200 : 3600
     const id = window.setTimeout(onDismiss, ms)
     return () => window.clearTimeout(id)
-  }, [big, onDismiss])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [big, onDismiss, shareState])
 
   return (
     <div
@@ -178,10 +195,18 @@ export function CelebrationOverlay({
           {c.shareable && (
             <button
               type="button"
-              onClick={onDismiss}
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-white/10 active:scale-[0.97]"
+              onClick={onShare}
+              disabled={shareState === 'sharing'}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-white/10 active:scale-[0.97] disabled:opacity-60"
             >
-              Поделиться
+              <Glyph name={shareState === 'copied' ? 'check' : 'share'} className="h-4 w-4" />
+              {shareState === 'copied'
+                ? 'Скопировано'
+                : shareState === 'shared'
+                  ? 'Отправлено'
+                  : shareState === 'sharing'
+                    ? '…'
+                    : 'Поделиться'}
             </button>
           )}
           <button

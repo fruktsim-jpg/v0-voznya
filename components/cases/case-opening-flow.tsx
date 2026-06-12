@@ -21,7 +21,10 @@ import { resolveItemArt } from '@/lib/item-art/resolve'
 import { CaseRoulette, buildReel } from '@/components/cases/case-roulette'
 import { RewardReveal } from '@/components/cases/reward-reveal'
 import { GiftChoice } from '@/components/cases/gift-choice'
+import { OwnershipConfirm } from '@/components/cases/ownership-confirm'
 import { caseCostLabel } from '@/components/cases/case-meta'
+import { rarityToken } from '@/lib/rarity'
+import { shareWin } from '@/lib/share'
 
 /**
  * CaseOpeningFlow (Stage 3) — the full opening experience, orchestrated as a
@@ -61,6 +64,25 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
     duplicate: false,
     owned: 0,
   })
+
+  // Inline share state (for the calm reveals that don't trigger the full-screen
+  // moment — every win is still shareable from the afterglow).
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared'>('idle')
+
+  const onShareInline = useCallback(async () => {
+    if (!won || shareState === 'sharing') return
+    setShareState('sharing')
+    const res = await shareWin({
+      title: won.title,
+      rarityLabel: rarityToken(won.rarity).label,
+      caseName: c.name,
+      value: won.value,
+      special: won.isJackpot || won.isPremium,
+    })
+    if (res === 'copied') setShareState('copied')
+    else if (res === 'shared') setShareState('shared')
+    else setShareState('idle')
+  }, [won, shareState, c.name])
 
   const costLabel = caseCostLabel(c)
 
@@ -106,6 +128,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
     setWon(null)
     setError('')
     setSpinning(false)
+    setShareState('idle')
 
     fx.sound('open')
     fx.tap('medium')
@@ -185,6 +208,13 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
             art: art ?? undefined,
             rarity: w.rarity,
             shareable: true,
+            share: {
+              title: w.title,
+              rarityLabel: rarityToken(w.rarity).label,
+              caseName: c.name,
+              value: w.value,
+              special,
+            },
             flavor: w.qty > 1 ? `×${w.qty}` : undefined,
           })
         }
@@ -200,6 +230,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
 
   // ---- REVEAL ----
   if (phase === 'revealed' && won) {
+    const isCurrency = won.kind === 'currency'
     return (
       <div className="space-y-3">
         <RewardReveal
@@ -208,6 +239,10 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
           ownedQty={dupInfo.owned}
           reducedMotion={reducedMotion}
         />
+
+        {/* Ownership confirmation — the win is YOURS, stated in-place (no forced
+            trip to inventory). Currency merges into balance, so it's skipped. */}
+        <OwnershipConfirm won={won} />
 
         {/* Gift fate (frozen API): Keep / Sell / Withdraw */}
         {won.kind === 'tg_gift' && won.deliveryKey && (
@@ -229,13 +264,25 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
           </p>
         )}
 
+        {/* Primary actions: Share the win + open again (the next-itch CTA). */}
         <div className="grid grid-cols-2 gap-2">
-          <a
-            href="/inventory"
-            className="rounded-xl border border-white/15 bg-white/5 py-2.5 text-center text-sm font-bold text-foreground transition hover:bg-white/10 active:scale-[0.98]"
+          <button
+            onClick={onShareInline}
+            disabled={shareState === 'sharing'}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-bold text-foreground transition hover:bg-white/10 active:scale-[0.98] disabled:opacity-60"
           >
-            Инвентарь
-          </a>
+            <Glyph
+              name={shareState === 'copied' ? 'check' : 'share'}
+              className="h-4 w-4"
+            />
+            {shareState === 'copied'
+              ? 'Скопировано'
+              : shareState === 'shared'
+                ? 'Отправлено'
+                : shareState === 'sharing'
+                  ? '…'
+                  : 'Поделиться'}
+          </button>
           <button
             onClick={open}
             className="case-cta-pulse flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-primary/20 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/30 active:scale-[0.98]"
@@ -244,6 +291,18 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
             Ещё · {costLabel}
           </button>
         </div>
+
+        {/* Inventory is now a quiet destination, not a co-equal exit — the win
+            already lives there; we confirmed it above. */}
+        {!isCurrency && (
+          <a
+            href="/inventory"
+            className="flex items-center justify-center gap-1.5 py-0.5 text-center text-[12px] font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            <Glyph name="vault" className="h-3.5 w-3.5" />
+            Открыть хранилище
+          </a>
+        )}
       </div>
     )
   }

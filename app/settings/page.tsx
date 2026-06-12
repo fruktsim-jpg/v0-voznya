@@ -6,6 +6,7 @@ import { getIdentityProgression } from '@/lib/identity'
 import { ScreenHeader } from '@/components/v2/screen-header'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
 import { LogoutButton } from '@/components/auth/logout-button'
+import { FxSettings } from '@/components/settings/fx-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -185,12 +186,7 @@ export default async function SettingsPage() {
               desc="События, выигрыши, сезонные награды"
               state="soon"
             />
-            <PrefRow
-              icon="volume"
-              title="Звук и анимации"
-              desc="Эффекты открытия кейсов и интерфейса"
-              state="soon"
-            />
+            <FxSettings />
             <PrefRow
               icon="eye"
               title="Приватность"

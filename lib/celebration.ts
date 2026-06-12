@@ -44,6 +44,14 @@ export type Celebration = {
   rarity?: Rarity
   /** Show the "share this moment" affordance (a screenshot-ready card). */
   shareable?: boolean
+  /** Payload for real sharing (Web Share / clipboard) when shareable. */
+  share?: {
+    title: string
+    rarityLabel?: string
+    caseName?: string | null
+    value?: number | null
+    special?: boolean
+  }
   /** Small stat line under the title (e.g. "0.3% of players own this"). */
   flavor?: string
 }

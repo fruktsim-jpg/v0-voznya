@@ -1,21 +1,26 @@
-// Case FX architecture (Stage 3 — Opening Experience).
+// Case FX architecture (Stage 3 — Opening Experience; Cases Tier 1 — Sound).
 //
 // This is the SOUND + HAPTICS layer for the case-opening flow. It is built as a
-// thin, dependency-free engine so the experience feels premium WITHOUT shipping
-// any audio assets yet (Stage 3 brief: "Do not add actual audio assets. Create
-// the architecture and hooks required.").
+// thin, dependency-free engine so the experience feels premium.
 //
-// How it stays asset-free today but ready tomorrow:
-//   - Every FX cue is named (CaseSoundCue). A registry maps cue → asset URL.
-//   - The registry is EMPTY by default, so playSound() is a safe no-op until a
-//     future stage registers real files via registerCaseSounds().
-//   - Haptics use the Telegram Mini App HapticFeedback API when available
-//     (no asset needed) and silently degrade on desktop / web.
-//   - A user setting (sound on/off, haptics on/off) gates everything and is
-//     persisted in localStorage — future Settings UI can flip it with no code
-//     change here.
+// SOUND BACKENDS (in priority order, both opt-in via prefs.sound):
+//   1. Registered asset — if a future stage calls registerCaseSounds() with a
+//      real file URL for a cue, that file plays (highest fidelity).
+//   2. Procedural Web Audio synth (Cases Tier 1) — when NO asset is registered,
+//      the engine SYNTHESIZES the cue from oscillators + an envelope. This makes
+//      the platform genuinely audible TODAY without shipping/awaiting any audio
+//      assets, while staying honest: nothing fakes a missing file with a wrong
+//      one — the synth IS the real sound. Tiny, generated on the fly, no network.
+//   3. Haptics — Telegram Mini App HapticFeedback, the always-available tactile
+//      layer, fired alongside whichever audio backend is active.
 //
-// SSR-safe: all window/Telegram access is guarded. No `pg`, no fetch.
+// HONESTY + AUTOPLAY (governing docs §4.2): sound DEFAULT OFF — we never imply
+// audio the player didn't opt into; the first cue only fires after a user
+// gesture (the open button), so the AudioContext resumes within policy; all of
+// it respects the single Settings toggle (prefs.sound) and reduced-motion is
+// handled at the call sites.
+//
+// SSR-safe: all window/Telegram/AudioContext access is guarded. No `pg`, no fetch.
 
 export type CaseSoundCue =
   // flow cues
@@ -56,9 +61,10 @@ export type CaseFxPrefs = {
 const PREFS_KEY = 'voznya.fx.prefs.v1'
 export const FX_PREFS_EVENT = 'voznya:fx-prefs'
 
-// Default: haptics ON (free, native, expected in TG), sound OFF (no assets yet
-// — turning it on would do nothing until files are registered, and we avoid
-// implying audio that does not exist).
+// Default: haptics ON (free, native, expected in TG). Sound DEFAULT OFF — even
+// though the procedural synth means "on" now produces real audio, we never start
+// making noise without an explicit opt-in (no implied/auto audio). The Settings
+// toggle flips `sound` on; the first cue then plays after a user gesture.
 export const DEFAULT_FX_PREFS: CaseFxPrefs = { sound: false, haptics: true }
 
 export function readFxPrefs(): CaseFxPrefs {
@@ -105,6 +111,134 @@ export function rarityRevealCue(rarity: Rarity): CaseSoundCue {
   return (`reveal_${rarity}` as CaseSoundCue)
 }
 
+// --- Procedural Web Audio synth (Cases Tier 1) ------------------------------
+//
+// When a cue has no registered asset, we synthesize it. One shared, lazily
+// created AudioContext (resumed on first gesture). Each cue is a short envelope
+// over one or more oscillators — punchy, premium, and tiny. This is the audio
+// that makes the platform stop being silent without any asset files.
+
+type Tone = {
+  /** Oscillator type. */
+  type: OscillatorType
+  /** Start frequency (Hz). */
+  freq: number
+  /** Optional end frequency for a glide (Hz). */
+  to?: number
+  /** Start time offset from cue start (s). */
+  at?: number
+  /** Duration (s). */
+  dur: number
+  /** Peak gain (0..1) before the master volume. */
+  gain?: number
+}
+
+// Cue → tone recipe. Rarity stings climb in brightness/length with value; the
+// jackpot is a bright triad fanfare. Kept short (≤0.6s) for snappy feedback.
+const SYNTH: Partial<Record<CaseSoundCue, Tone[]>> = {
+  open: [{ type: 'triangle', freq: 180, to: 90, dur: 0.18, gain: 0.5 }],
+  rolling: [{ type: 'square', freq: 120, dur: 0.05, gain: 0.12 }],
+  tick: [{ type: 'square', freq: 320, dur: 0.03, gain: 0.1 }],
+  reveal: [{ type: 'triangle', freq: 520, to: 660, dur: 0.22, gain: 0.4 }],
+  reveal_common: [{ type: 'triangle', freq: 360, dur: 0.14, gain: 0.3 }],
+  reveal_uncommon: [{ type: 'triangle', freq: 440, to: 520, dur: 0.18, gain: 0.34 }],
+  reveal_rare: [{ type: 'triangle', freq: 523, to: 659, dur: 0.24, gain: 0.38 }],
+  reveal_epic: [
+    { type: 'triangle', freq: 587, to: 784, dur: 0.3, gain: 0.4 },
+    { type: 'sine', freq: 880, at: 0.08, dur: 0.26, gain: 0.22 },
+  ],
+  reveal_legendary: [
+    { type: 'triangle', freq: 659, to: 988, dur: 0.36, gain: 0.42 },
+    { type: 'sine', freq: 1319, at: 0.12, dur: 0.3, gain: 0.24 },
+  ],
+  reveal_mythic: [
+    { type: 'sawtooth', freq: 523, to: 1047, dur: 0.42, gain: 0.4 },
+    { type: 'triangle', freq: 784, at: 0.1, dur: 0.34, gain: 0.3 },
+    { type: 'sine', freq: 1568, at: 0.2, dur: 0.28, gain: 0.2 },
+  ],
+  jackpot: [
+    { type: 'triangle', freq: 523, dur: 0.5, gain: 0.4 }, // C
+    { type: 'triangle', freq: 659, at: 0.1, dur: 0.46, gain: 0.36 }, // E
+    { type: 'triangle', freq: 784, at: 0.2, dur: 0.42, gain: 0.34 }, // G
+    { type: 'sine', freq: 1047, at: 0.3, dur: 0.34, gain: 0.26 }, // C↑
+  ],
+  ui_tap: [{ type: 'sine', freq: 660, dur: 0.04, gain: 0.18 }],
+  achievement: [
+    { type: 'triangle', freq: 587, to: 880, dur: 0.26, gain: 0.36 },
+    { type: 'sine', freq: 1175, at: 0.1, dur: 0.2, gain: 0.2 },
+  ],
+  rankup: [
+    { type: 'triangle', freq: 440, to: 880, dur: 0.34, gain: 0.4 },
+    { type: 'sine', freq: 1320, at: 0.14, dur: 0.24, gain: 0.22 },
+  ],
+  division: [
+    { type: 'sawtooth', freq: 392, to: 784, dur: 0.4, gain: 0.4 },
+    { type: 'triangle', freq: 1175, at: 0.16, dur: 0.3, gain: 0.26 },
+  ],
+  season: [{ type: 'triangle', freq: 494, to: 740, dur: 0.3, gain: 0.36 }],
+  purchase: [{ type: 'sine', freq: 740, to: 988, dur: 0.16, gain: 0.3 }],
+  notify: [{ type: 'sine', freq: 880, dur: 0.12, gain: 0.24 }],
+  celebrate: [
+    { type: 'triangle', freq: 523, to: 784, dur: 0.3, gain: 0.4 },
+    { type: 'sine', freq: 1047, at: 0.1, dur: 0.24, gain: 0.22 },
+  ],
+}
+
+let audioCtx: AudioContext | null = null
+let warnedNoAudio = false
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) return null
+    if (!audioCtx) audioCtx = new Ctor()
+    // Autoplay policy: the context may start suspended until a gesture. We call
+    // this from within click handlers (open button), so resume() succeeds.
+    if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {})
+    return audioCtx
+  } catch {
+    if (!warnedNoAudio) warnedNoAudio = true
+    return null
+  }
+}
+
+/** Synthesize a cue from its tone recipe. Returns false if it couldn't play. */
+function playSynth(cue: CaseSoundCue, volume: number): boolean {
+  const recipe = SYNTH[cue]
+  if (!recipe) return false
+  const ctx = getAudioContext()
+  if (!ctx) return false
+  try {
+    const now = ctx.currentTime
+    const master = Math.max(0, Math.min(1, volume)) * 0.6 // headroom
+    for (const tone of recipe) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      const start = now + (tone.at ?? 0)
+      const end = start + tone.dur
+      const peak = (tone.gain ?? 0.3) * master
+      osc.type = tone.type
+      osc.frequency.setValueAtTime(tone.freq, start)
+      if (tone.to && tone.to !== tone.freq) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, tone.to), end)
+      }
+      // Fast attack → exponential decay (premium "pluck"), no clicks.
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), start + 0.012)
+      gain.gain.exponentialRampToValueAtTime(0.0001, end)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(start)
+      osc.stop(end + 0.02)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 // --- Telegram haptics --------------------------------------------------------
 
 type HapticImpact = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'
@@ -143,24 +277,33 @@ export class CaseFx {
     this.prefs = prefs
   }
 
-  /** Play a named cue. No-op unless an asset is registered AND sound is on. */
+  /**
+   * Play a named cue. No-op unless sound is on. A registered asset URL wins;
+   * otherwise the procedural synth generates the cue (so the platform is audible
+   * today without asset files). Both stay silent until the user opts in.
+   */
   sound(cue: CaseSoundCue, volume = 1): void {
     if (!this.prefs.sound) return
+    if (typeof window === 'undefined') return
     const url = soundRegistry[cue]
-    if (!url || typeof window === 'undefined') return
-    try {
-      let audio = audioCache.get(cue)
-      if (!audio) {
-        audio = new Audio(url)
-        audio.preload = 'auto'
-        audioCache.set(cue, audio)
+    if (url) {
+      try {
+        let audio = audioCache.get(cue)
+        if (!audio) {
+          audio = new Audio(url)
+          audio.preload = 'auto'
+          audioCache.set(cue, audio)
+        }
+        audio.volume = Math.max(0, Math.min(1, volume))
+        audio.currentTime = 0
+        void audio.play().catch(() => {})
+        return
+      } catch {
+        // autoplay blocked / decode error — fall through to synth.
       }
-      audio.volume = Math.max(0, Math.min(1, volume))
-      audio.currentTime = 0
-      void audio.play().catch(() => {})
-    } catch {
-      // autoplay blocked / decode error — non-critical.
     }
+    // No registered asset (or asset failed) → synthesize the cue.
+    playSynth(cue, volume)
   }
 
   /** Light tap (button presses, cell passes). */
