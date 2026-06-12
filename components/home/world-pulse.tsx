@@ -12,6 +12,7 @@ import {
   type EventFilterKey,
 } from '@/lib/events'
 import { rarityToken } from '@/lib/rarity'
+import { ItemArt } from '@/components/ds/item-art'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
 
 /**
@@ -236,17 +237,16 @@ function FeedRow({ event: e }: { event: CommunityEvent }) {
         }}
       >
         <div className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
-          <span
-            className="grid size-12 shrink-0 place-items-center rounded-2xl text-2xl ring-1 ring-inset"
-            style={{
-              background: token.capsule,
-              boxShadow: token.glow ? `0 0 22px -6px ${token.color}` : undefined,
-              borderColor: `${token.color}55`,
-            }}
-            aria-hidden
-          >
-            {e.icon}
-          </span>
+          {/* Funnelled through ItemArt (P0): the feed's headline object renders
+              in the ONE art capsule. Today it shows the event emoji as a glyph
+              fallback; once feed events carry an item code it upgrades to real
+              art automatically — no change here. */}
+          <ItemArt
+            glyph={e.icon}
+            rarity={e.rarity}
+            size="sm"
+            className="!h-12 !w-12 !rounded-2xl"
+          />
           <Link
             href={`/profile/${e.actor.id}`}
             className="flex min-w-0 items-center gap-2 transition hover:opacity-90"
@@ -293,13 +293,13 @@ function FeedRow({ event: e }: { event: CommunityEvent }) {
   return (
     <li>
       <div className={`flex items-center gap-3 px-5 sm:px-6 ${notable ? 'py-2.5' : 'py-2'}`}>
-        <span
-          className={`grid shrink-0 place-items-center rounded-xl ${notable ? 'size-10 text-xl' : 'size-8 text-base opacity-90'}`}
-          style={{ background: token.capsule }}
-          aria-hidden
-        >
-          {e.icon}
-        </span>
+        {/* Funnelled through ItemArt (P0) — one capsule, glyph fallback today. */}
+        <ItemArt
+          glyph={e.icon}
+          rarity={e.rarity}
+          size="sm"
+          className={notable ? '!h-10 !w-10 !rounded-xl' : '!h-8 !w-8 !rounded-lg !text-base'}
+        />
         <Link
           href={`/profile/${e.actor.id}`}
           className="flex min-w-0 items-center gap-2 transition hover:opacity-90"

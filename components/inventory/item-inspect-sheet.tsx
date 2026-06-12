@@ -536,7 +536,7 @@ export function ItemInspectSheet({
           style={{ background: 'radial-gradient(circle at 50% 20%, transparent, rgba(0,0,0,0.45))' }}
         />
         <div className="relative">
-          <ItemArt src={item.art} glyph={item.glyph} rarity={item.rarity} size="xl" />
+          <ItemArt code={item.code} itemClass={item.itemClass} glyph={item.glyph} rarity={item.rarity} size="xl" />
         </div>
         <h2 className="relative mt-3 text-center text-xl font-bold text-foreground">{item.name}</h2>
         <div className="relative mt-1.5 flex flex-wrap items-center justify-center gap-1.5">

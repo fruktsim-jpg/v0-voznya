@@ -50,7 +50,7 @@ export function ItemCard({
         aria-label={`Открыть ${item.name}`}
       >
         <div className="relative">
-          <ItemArt src={item.art} glyph={item.glyph} rarity={item.rarity} size="lg" className="!h-24 !w-24" />
+          <ItemArt code={item.code} itemClass={item.itemClass} glyph={item.glyph} rarity={item.rarity} size="lg" className="!h-24 !w-24" />
           {item.quantity > 1 && (
             <span className="absolute bottom-0 right-0 rounded-full bg-black/70 px-1.5 py-0.5 text-[11px] font-bold text-foreground backdrop-blur-sm">
               ×{item.quantity}

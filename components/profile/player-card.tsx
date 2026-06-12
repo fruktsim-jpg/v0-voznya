@@ -18,7 +18,11 @@ import { QuickLinks } from '@/components/profile/quick-links'
 import { RankBadge, TitleBadge } from '@/components/prestige'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
 import { prestigeForMmrRank } from '@/lib/ds/prestige'
-import { rarityStyle, typeEmoji } from '@/lib/inventory'
+import { rarityStyle } from '@/lib/inventory'
+import { rarityToken } from '@/lib/rarity'
+import { asRarity } from '@/lib/inventory-meta'
+import { ItemArt } from '@/components/ds/item-art'
+import type { ItemClass } from '@/lib/item-art/model'
 import { ActivityCard } from '@/components/v2/activity-card'
 import type { PlayerProfile } from '@/lib/queries'
 import type { CommunityEvent } from '@/lib/events'
@@ -522,20 +526,30 @@ export function PlayerCard({
 
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
               {collectionHighlights.map((item) => {
-                const style = rarityStyle(item.rarity)
+                const tok = rarityToken(asRarity(item.rarity))
                 return (
                   <div
                     key={item.itemCode}
-                    className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center ${style.className}`}
+                    className="relative flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center"
+                    style={{
+                      borderColor: item.rarity !== 'common' ? `${tok.color}55` : 'rgba(255,255,255,0.08)',
+                    }}
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-black/20 text-2xl">
-                      {typeEmoji(item.type)}
-                    </div>
+                    {/* Funnelled through ItemArt (P0): real/templated art when
+                        available, class glyph fallback today. Replaces the
+                        legacy typeEmoji + rarityStyle path. */}
+                    <ItemArt
+                      code={item.itemCode}
+                      itemClass={item.type as ItemClass}
+                      rarity={asRarity(item.rarity)}
+                      size="sm"
+                      className="!h-11 !w-11 !rounded-lg !text-2xl"
+                    />
                     <span className="line-clamp-1 w-full text-xs font-semibold text-foreground">
                       {item.name}
                     </span>
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {style.label}
+                      {tok.label}
                     </span>
                     {item.equipped && (
                       <span className="absolute right-1.5 top-1.5 rounded-full border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">

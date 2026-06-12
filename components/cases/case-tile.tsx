@@ -1,7 +1,7 @@
 'use client'
 
 import { rarityToken } from '@/lib/rarity'
-import { rewardGlyph, type CaseView } from '@/lib/cases-ux'
+import { rewardGlyph, rewardItemClass, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
 import { IndicatorChips } from '@/components/cases/indicator-chips'
@@ -53,6 +53,8 @@ export function CaseTile({
       <div className="relative flex items-start gap-3">
         {/* The DREAM: the actual top reward as rarity art, not a generic box. */}
         <ItemArt
+          code={top?.rewardItemCode ?? null}
+          itemClass={top ? rewardItemClass(top) : 'case'}
           glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />}
           rarity={c.topRarity}
           size="md"

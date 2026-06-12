@@ -7,6 +7,7 @@ import {
 } from '@/lib/rarity'
 import type { ShowcaseCase, ShowcaseReward } from '@/lib/cases'
 import type { GlyphName } from '@/components/ds/icon/glyph'
+import type { ItemClass } from '@/lib/item-art/model'
 
 /**
  * Cases UX helpers (VOZNYA EXPERIENCE V3 — поверхность №5). Кейсы — часть
@@ -92,6 +93,17 @@ export function rewardGlyph(r: ShowcaseReward): GlyphName {
   if (r.rewardKind === 'currency') return 'coin'
   if (r.isJackpot) return 'crown'
   return 'trophy'
+}
+
+/**
+ * Canonical ItemClass for a case reward — lets the ItemArt resolver fetch
+ * real/templated art for the reward's underlying item code (P0 funnel). The
+ * SVG `rewardGlyph` stays as the fallback when no asset exists yet.
+ */
+export function rewardItemClass(r: ShowcaseReward): ItemClass {
+  if (r.rewardKind === 'tg_gift') return 'gift'
+  if (r.rewardKind === 'currency') return 'currency'
+  return 'collectible'
 }
 
 /** Доля каждого тира в кейсе (по суммарному шансу). Для полосы распределения. */

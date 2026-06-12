@@ -1,18 +1,24 @@
 import type { ReactNode } from 'react'
 import { rarityToken, type Rarity } from '@/lib/rarity'
 import { cn } from '@/lib/utils'
+import { resolveItemArt } from '@/lib/item-art/resolve'
+import type { ItemArtRef, ItemArtResolution, ItemClass } from '@/lib/item-art/model'
 
 /**
- * ItemArt (DS) — арт-капсула коллекционного объекта (предмет инвентаря, подарок,
- * награда кейса). Заменяет «эмодзи-как-арт» единым премиальным контейнером.
+ * ItemArt (DS) — THE single art capsule for every desirable object in VOZNYA
+ * (inventory item, gift, case, case reward, achievement reward, collection
+ * piece). P0 makes this the ONE rendering path: all surfaces funnel through it.
  *
- * Прогрессивное улучшение, без блокеров по ассетам:
- *   1) если есть `src` (payload/изображение) — показываем картинку;
- *   2) иначе — глиф (эмодзи/иконка) на радиальной подложке цвета редкости.
- * Рамка и свечение — по тиру. Server component.
+ * Two ways to use it:
+ *   A) Resolved-by-ref (preferred): pass `code` / `itemClass` / `rarity` (or a
+ *      pre-resolved `resolution`) and ItemArt asks the resolver for art. The
+ *      resolver applies the fallback hierarchy: unique → template → glyph → box.
+ *   B) Legacy direct: pass `src` + `glyph` explicitly (kept so existing callers
+ *      keep working during the funnel migration).
  *
- * Это presentational-слой: компонент не знает о данных, ему передают готовые
- * src/glyph/rarity. Никаких сетевых запросов и записи.
+ * Rarity drives the capsule (border / glow / radial wash) in BOTH modes. The
+ * component is presentational and ownership-agnostic: `locked` only dims; it
+ * never changes which art is chosen. Server component (no hooks, no fetch).
  */
 const SIZES = {
   sm: 'h-14 w-14 text-2xl rounded-xl',
@@ -22,24 +28,53 @@ const SIZES = {
 } as const
 
 export function ItemArt({
+  // --- resolved-by-ref (preferred) ---
+  code,
+  itemClass,
+  resolution,
+  // --- legacy direct ---
   src,
   glyph,
+  // --- shared ---
   rarity = 'common',
   size = 'md',
   locked = false,
   className = '',
 }: {
-  /** URL арта предмета. Если задан — рендерится изображение. */
+  /** Item code — resolver looks up unique/template art for it. */
+  code?: string | null
+  /** Item class — drives the canonical glyph fallback + template lookup. */
+  itemClass?: ItemClass | null
+  /** Pre-resolved art (when a parent already called resolveItemArt). */
+  resolution?: ItemArtResolution | null
+  /** Legacy: explicit image URL. Overrides resolution if provided. */
   src?: string | null
-  /** Запасной глиф (эмодзи/иконка), когда арта нет. */
+  /** Legacy/override: fallback glyph (emoji/icon) when no art. */
   glyph?: ReactNode
   rarity?: Rarity
   size?: keyof typeof SIZES
   locked?: boolean
   className?: string
 }) {
-  const t = rarityToken(rarity)
-  const accent = rarity !== 'common' && !locked
+  // Resolve art unless an explicit legacy `src` was passed.
+  let resolved: ItemArtResolution | null = resolution ?? null
+  if (!resolved && src == null && (code != null || itemClass != null)) {
+    resolved = resolveItemArt({
+      code,
+      itemClass,
+      rarity,
+      glyph: typeof glyph === 'string' ? glyph : null,
+    })
+  }
+
+  const effectiveSrc = src ?? resolved?.src ?? null
+  const effectiveRarity = resolved?.rarity ?? rarity
+  // Glyph precedence: explicit prop → resolver glyph → box.
+  const effectiveGlyph: ReactNode = glyph ?? resolved?.glyph ?? '📦'
+  const placeholder = resolved?.placeholder ?? null
+
+  const t = rarityToken(effectiveRarity)
+  const accent = effectiveRarity !== 'common' && !locked
 
   return (
     <span
@@ -66,17 +101,24 @@ export function ItemArt({
 
       {locked ? (
         <span aria-hidden="true" className="relative">🔒</span>
-      ) : src ? (
+      ) : effectiveSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={effectiveSrc}
           alt=""
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           className="relative h-full w-full object-contain"
+          style={
+            placeholder
+              ? { backgroundImage: `url(${placeholder})`, backgroundSize: 'cover' }
+              : undefined
+          }
         />
       ) : (
         <span aria-hidden="true" className="relative">
-          {glyph ?? '📦'}
+          {effectiveGlyph}
         </span>
       )}
     </span>

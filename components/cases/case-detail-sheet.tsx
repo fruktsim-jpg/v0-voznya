@@ -2,7 +2,7 @@
 
 import { Drawer } from 'vaul'
 import { rarityToken } from '@/lib/rarity'
-import { chanceLabel, qtyLabel, rewardGlyph, type CaseView, type RewardView } from '@/lib/cases-ux'
+import { chanceLabel, qtyLabel, rewardGlyph, rewardItemClass, type CaseView, type RewardView } from '@/lib/cases-ux'
 import { Sheet } from '@/components/ds/sheet'
 import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
@@ -31,7 +31,7 @@ function RewardRow({ r }: { r: RewardView }) {
       className="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm"
       style={{ borderColor: r.rarity === 'common' ? 'rgba(255,255,255,0.08)' : `${t.color}55` }}
     >
-      <ItemArt glyph={<Glyph name={rewardGlyph(r)} />} rarity={r.rarity} size="sm" className="!h-9 !w-9" />
+      <ItemArt code={r.rewardItemCode ?? null} itemClass={rewardItemClass(r)} glyph={<Glyph name={rewardGlyph(r)} />} rarity={r.rarity} size="sm" className="!h-9 !w-9" />
       <span className="min-w-0 flex-1 truncate text-foreground">
         {r.label}
         {qty && <span className="ml-1 text-muted-foreground">{qty}</span>}
@@ -97,7 +97,7 @@ export function CaseDetailSheet({
           {c.name}
         </p>
         <div className="relative mt-2">
-          <ItemArt glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />} rarity={c.topRarity} size="xl" />
+          <ItemArt code={top?.rewardItemCode ?? null} itemClass={top ? rewardItemClass(top) : 'case'} glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />} rarity={c.topRarity} size="xl" />
         </div>
         {top && (
           <>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { CommunityEvent } from '@/lib/events'
 import { eventText, timeAgo } from '@/lib/events'
 import { rarityToken } from '@/lib/rarity'
+import { ItemArt } from '@/components/ds/item-art'
 import { readLastVisit, writeLastVisit } from '@/lib/last-visit'
 
 /**
@@ -147,13 +148,12 @@ export function WhileAway({
                       key={e.id}
                       className="flex items-center gap-2.5 rounded-xl bg-white/[0.03] p-2.5"
                     >
-                      <span
-                        className="grid size-8 shrink-0 place-items-center rounded-lg text-base"
-                        style={{ background: token.capsule }}
-                        aria-hidden
-                      >
-                        {e.icon}
-                      </span>
+                      <ItemArt
+                        glyph={e.icon}
+                        rarity={e.rarity}
+                        size="sm"
+                        className="!h-8 !w-8 !rounded-lg !text-base"
+                      />
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                         {eventText(e)}
                       </span>

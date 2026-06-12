@@ -45,7 +45,7 @@ export function InventoryShowcase({
               className="flex w-full flex-col items-center gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2 transition active:scale-[0.97]"
               title={i.name}
             >
-              <ItemArt src={i.art} glyph={i.glyph} rarity={i.rarity} size="md" />
+              <ItemArt code={i.code} itemClass={i.itemClass} glyph={i.glyph} rarity={i.rarity} size="md" />
               <span className="line-clamp-1 w-full text-center text-[10px] font-medium text-foreground">
                 {i.name}
               </span>

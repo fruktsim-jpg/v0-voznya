@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="45%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#B8860B"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6D5"/>
+      <stop offset="100%" stop-color="#9A6B05"/>
+    </linearGradient>
+  </defs>
+  <!-- staged relic: a faceted gem on a plinth, lit top-left -->
+  <ellipse cx="80" cy="132" rx="46" ry="10" fill="#000" opacity="0.35"/>
+  <g transform="translate(80 78)">
+    <polygon points="0,-46 40,-14 24,40 -24,40 -40,-14" fill="url(#g)" stroke="url(#rim)" stroke-width="3" stroke-linejoin="round"/>
+    <polygon points="0,-46 40,-14 0,-6 -40,-14" fill="#FFFFFF" opacity="0.35"/>
+    <polygon points="0,-6 24,40 -24,40" fill="#7A4E08" opacity="0.25"/>
+    <line x1="0" y1="-46" x2="0" y2="40" stroke="#7A4E08" stroke-width="1.5" opacity="0.4"/>
+    <line x1="-40" y1="-14" x2="40" y2="-14" stroke="#7A4E08" stroke-width="1.5" opacity="0.4"/>
+  </g>
+</svg>

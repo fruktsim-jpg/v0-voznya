@@ -16,6 +16,7 @@ import type { Rarity } from './rarity'
 import { rarityToken } from './rarity'
 import { typeEmoji } from './inventory'
 import { giftIcon } from './gifts-ux'
+import type { ItemClass } from './item-art/model'
 import type {
   InventoryItem,
   InventoryGiftItem,
@@ -65,6 +66,8 @@ export type CollectionKey =
 export type InvItem = {
   /** Stable per-render id: deliveryKey for gifts, itemCode for stacks. */
   id: string
+  /** Stable item CODE for art resolution (itemCode for both kinds). */
+  code: string
   kind: 'gift' | 'stack'
   name: string
   rarity: Rarity
@@ -72,6 +75,8 @@ export type InvItem = {
   glyph: string
   /** Future PNG/transparent/animated art URL. null today (artwork-first ready). */
   art: string | null
+  /** Canonical item class for the ItemArt resolver (template + glyph fallback). */
+  itemClass: ItemClass
   /** Human type label (RU) for chips/inspect. */
   typeKey: string
   typeLabel: string
@@ -148,6 +153,22 @@ function stackCollection(s: InventoryStackItem): CollectionKey {
   return 'other'
 }
 
+/** Map a catalog `type` to a canonical ItemClass for art resolution. */
+const STACK_CLASS: Record<string, ItemClass> = {
+  cosmetic: 'cosmetic',
+  title: 'title',
+  badge: 'badge',
+  frame: 'frame',
+  avatar: 'avatar',
+  collectible: 'collectible',
+  event: 'event',
+  case: 'case',
+  key: 'key',
+}
+function stackItemClass(type: string): ItemClass {
+  return STACK_CLASS[type] ?? 'collectible'
+}
+
 /** Normalise the read-only inventory into the redesign view-model. */
 export function toInvItems(items: InventoryItem[]): InvItem[] {
   return items.map((it) => {
@@ -155,11 +176,13 @@ export function toInvItems(items: InventoryItem[]): InvItem[] {
       const collection = giftCollection(it)
       return {
         id: `gift:${it.deliveryKey}`,
+        code: it.itemCode,
         kind: 'gift',
         name: it.name,
         rarity: asRarity(it.rarity),
         glyph: it.icon || giftIcon(it.itemCode),
         art: null,
+        itemClass: it.isPremium ? 'premium' : 'gift',
         typeKey: 'gift',
         typeLabel: it.isPremium ? 'Premium' : 'Подарок',
         collection,
@@ -178,11 +201,13 @@ export function toInvItems(items: InventoryItem[]): InvItem[] {
     const collection = stackCollection(it)
     return {
       id: `stack:${it.itemCode}`,
+      code: it.itemCode,
       kind: 'stack',
       name: it.name,
       rarity: asRarity(it.rarity),
       glyph: typeEmoji(it.type),
       art: null,
+      itemClass: stackItemClass(it.type),
       typeKey: it.type,
       typeLabel: TYPE_LABELS[it.type] ?? it.type,
       collection,

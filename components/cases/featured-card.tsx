@@ -1,7 +1,7 @@
 'use client'
 
 import { rarityToken } from '@/lib/rarity'
-import { rewardGlyph, chanceLabel, type CaseView } from '@/lib/cases-ux'
+import { rewardGlyph, rewardItemClass, chanceLabel, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
 import { IndicatorChips } from '@/components/cases/indicator-chips'
@@ -71,6 +71,8 @@ export function FeaturedCard({
       <div className="relative mt-3 flex items-center gap-4">
         {/* THE DREAM — the actual top reward, big, in its rarity capsule. */}
         <ItemArt
+          code={top?.rewardItemCode ?? null}
+          itemClass={top ? rewardItemClass(top) : 'case'}
           glyph={<Glyph name={top ? rewardGlyph(top) : 'case'} />}
           rarity={c.topRarity}
           size="xl"
@@ -100,6 +102,8 @@ export function FeaturedCard({
           {runnerUps.map((r, i) => (
             <ItemArt
               key={`${r.rewardItemCode ?? r.rewardKind}-${i}`}
+              code={r.rewardItemCode ?? null}
+              itemClass={rewardItemClass(r)}
               glyph={<Glyph name={rewardGlyph(r)} />}
               rarity={r.rarity}
               size="sm"

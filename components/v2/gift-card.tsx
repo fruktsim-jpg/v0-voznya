@@ -20,6 +20,8 @@ export function GiftCard({ gift }: { gift: ShowcaseGift }) {
   return (
     <CollectibleTile
       icon={gift.icon}
+      code={gift.code}
+      itemClass="gift"
       title={gift.name}
       rarity={gift.rarity}
       badge

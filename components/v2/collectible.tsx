@@ -1,19 +1,23 @@
 import type { ReactNode } from 'react'
-import { rarityToken, type Rarity } from '@/lib/rarity'
+import { type Rarity } from '@/lib/rarity'
 import { RarityBadge } from '@/components/v2/rarity-badge'
+import { ItemArt } from '@/components/ds/item-art'
+import type { ItemClass } from '@/lib/item-art/model'
 
 /**
- * CollectibleTile (V3, Polish Pass) — ЕДИНЫЙ визуальный язык коллекционных
+ * CollectibleTile (V3 → P0 funnel) — ЕДИНЫЙ визуальный язык коллекционных
  * объектов Возни: достижения, подарки, награды кейсов, предметы инвентаря.
- * Один мир — одна карточка. Капсула с радиальным свечением цвета редкости,
- * рамка/glow по тиру, опц. бейдж редкости, верхняя метка (лимит/джекпот),
- * заголовок, подзаголовок и низ (цена/шанс/значение). Server component.
+ * Один мир — одна карточка.
  *
- * Цель: чтобы Gift, Reward, Achievement и Item читались как часть одной
- * системы. Существующие карточки можно постепенно перевести на этот primitive.
+ * P0: the object capsule now renders through <ItemArt>, the ONE art path. Pass
+ * `code` / `itemClass` to get real/templated art; otherwise the `icon` glyph is
+ * used as the fallback (so nothing regresses before assets land). Rarity still
+ * drives border / glow / capsule. Server component.
  */
 export function CollectibleTile({
   icon,
+  code,
+  itemClass,
   title,
   subtitle,
   rarity = 'common',
@@ -24,6 +28,10 @@ export function CollectibleTile({
   size = 'md',
 }: {
   icon: ReactNode
+  /** Item code — lets ItemArt resolve real/templated art for this object. */
+  code?: string | null
+  /** Item class — drives canonical glyph fallback + template lookup. */
+  itemClass?: ItemClass | null
   title: string
   subtitle?: string
   rarity?: Rarity
@@ -36,38 +44,23 @@ export function CollectibleTile({
   locked?: boolean
   size?: 'sm' | 'md'
 }) {
-  const t = rarityToken(rarity)
-  const dim = size === 'sm' ? 'h-16 w-16 text-3xl' : 'h-24 w-24 text-5xl'
-  const accent = rarity !== 'common' && !locked
-
   return (
     <article
-      className={`glass group relative flex flex-col items-center overflow-hidden rounded-3xl border border-border p-4 text-center transition ${
-        locked ? 'opacity-50 grayscale' : 'hover:-translate-y-0.5'
-      }`}
-      style={{
-        borderColor: accent ? t.color : undefined,
-        boxShadow: accent ? t.glow || undefined : undefined,
-      }}
+      className="glass group relative flex flex-col items-center overflow-hidden rounded-3xl border border-border p-4 text-center transition hover:-translate-y-0.5 data-[locked=true]:opacity-50 data-[locked=true]:grayscale data-[locked=true]:hover:translate-y-0"
+      data-locked={locked}
     >
-
       {topRight && <div className="absolute right-2 top-2 z-10">{topRight}</div>}
 
-      {/* Свечение-фон */}
-      {accent && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-8 left-1/2 h-28 w-28 -translate-x-1/2 rounded-full opacity-40 blur-3xl transition group-hover:opacity-60"
-          style={{ backgroundColor: t.color }}
+      {/* Object capsule — funnelled through the ONE art path (P0). */}
+      <div className="relative mb-2">
+        <ItemArt
+          code={code}
+          itemClass={itemClass}
+          glyph={icon}
+          rarity={rarity}
+          locked={locked}
+          size={size === 'sm' ? 'sm' : 'md'}
         />
-      )}
-
-      {/* Капсула */}
-      <div
-        className={`relative mb-2 flex items-center justify-center rounded-2xl ${dim}`}
-        style={{ background: `radial-gradient(circle at 50% 35%, ${t.color}33, transparent 70%)` }}
-      >
-        <span aria-hidden="true">{locked ? '🔒' : icon}</span>
       </div>
 
       <h3 className="relative line-clamp-1 text-sm font-semibold text-foreground">{title}</h3>

@@ -1,4 +1,5 @@
 import { rarityToken } from '@/lib/rarity'
+import { ItemArt } from '@/components/ds/item-art'
 import type { CommunityEvent } from '@/lib/events'
 
 /**
@@ -35,9 +36,12 @@ export function DropTicker({ events }: { events: CommunityEvent[] }) {
                 background: accent ? `${t.color}12` : 'rgba(255,255,255,0.02)',
               }}
             >
-              <span aria-hidden="true" className="text-base">
-                {e.icon}
-              </span>
+              <ItemArt
+                glyph={e.icon}
+                rarity={e.rarity}
+                size="sm"
+                className="!h-7 !w-7 !rounded-md !border-0 !bg-transparent !text-base"
+              />
               <span className="min-w-0 flex-1 truncate text-foreground">
                 {e.actor.name}
               </span>
