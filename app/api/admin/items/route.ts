@@ -5,6 +5,7 @@ import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { itemBuilderSchema, firstZodError } from '@/lib/admin/schemas'
 import { isContentStatus, STATUS_META } from '@/lib/admin/lifecycle'
 import { invalidateAssetOverlay } from '@/lib/item-art/manifest-source'
+import { slugifyCode, generateUniqueCode } from '@/lib/admin/code-gen'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -76,28 +77,70 @@ export async function POST(req: NextRequest) {
   }
   const it = parsed.data
   const ip = ipOf(req)
-  const assetCode = it.code // shared-art model: art keyed by item code
 
   try {
     const result = await withTransaction(async (client) => {
       const exec = async <T extends Record<string, unknown>>(text: string, p?: unknown[]) =>
         (await client.query(text, p as never[])).rows as T[]
 
-      const existing = await exec<{ code: string }>(
-        'SELECT code FROM inventory_items WHERE code = $1 FOR UPDATE',
-        [it.code],
-      )
-      const isUpdate = existing.length > 0
+      // Workflow-first: on create, auto-generate the code from the name so the
+      // operator never invents a technical identifier. On edit, code is the
+      // immutable key the client sends back.
+      const isUpdate = !!it.code
+      const code = it.code
+        ? it.code
+        : await generateUniqueCode(exec, 'inventory_items', 'code', slugifyCode(it.name))
+      const assetCode = code // shared-art model: art keyed by item code
+
+      if (it.code) {
+        await exec<{ code: string }>(
+          'SELECT code FROM inventory_items WHERE code = $1 FOR UPDATE',
+          [code],
+        )
+      }
+
+      // Inline collection creation: a brand-new collection name authors the
+      // collection here (auto-code) and links the item to it — no separate trip.
+      let collectionCode = it.collectionCode
+      if (it.newCollectionName) {
+        const newCode = await generateUniqueCode(
+          exec,
+          'collections',
+          'code',
+          slugifyCode(it.newCollectionName),
+        )
+        await exec(
+          `INSERT INTO collections
+             (code, name, description, kind, season_code, sort_order, status,
+              created_by, updated_by, created_at, updated_at)
+           VALUES ($1,$2,NULL,'permanent',NULL,100,$3,$4,$4, now(), now())
+           ON CONFLICT (code) DO NOTHING`,
+          [newCode, it.newCollectionName, it.status, session.uid],
+        )
+        await writeAudit(
+          {
+            actorUserId: session.uid,
+            actorRole: session.role,
+            action: 'collection.create',
+            targetType: 'collection',
+            targetId: newCode,
+            meta: { via: 'item-builder-inline', name: it.newCollectionName },
+            ip,
+          },
+          exec,
+        )
+        collectionCode = newCode
+      }
 
       // Validate collection exists when set (items are collection-aware).
-      if (it.collectionCode) {
+      if (collectionCode) {
         const col = await exec<{ code: string }>(
           'SELECT code FROM collections WHERE code = $1',
-          [it.collectionCode],
+          [collectionCode],
         )
         if (col.length === 0) {
           throw Object.assign(
-            new Error(`коллекция «${it.collectionCode}» не найдена`),
+            new Error(`коллекция «${collectionCode}» не найдена`),
             { http: 400 },
           )
         }
@@ -130,12 +173,12 @@ export async function POST(req: NextRequest) {
            updated_by = EXCLUDED.updated_by,
            updated_at = now()`,
         [
-          it.code,
+          code,
           it.itemClass,
           it.rarity,
           it.name,
           it.description ?? null,
-          it.collectionCode,
+          collectionCode,
           it.seriesTotal ?? null,
           it.isLimited ?? false,
           it.maxSupply ?? null,
@@ -161,7 +204,7 @@ export async function POST(req: NextRequest) {
               created_at, updated_at)
            VALUES ($1, 'item', $2, $3, 100, $4, $4, now(), now())
            ON CONFLICT DO NOTHING`,
-          [it.featuredSlot, it.code, it.status, session.uid],
+          [it.featuredSlot, code, it.status, session.uid],
         )
       }
 
@@ -171,11 +214,11 @@ export async function POST(req: NextRequest) {
           actorRole: session.role,
           action: isUpdate ? 'item.update' : 'item.create',
           targetType: 'item',
-          targetId: it.code,
+          targetId: code,
           meta: {
             itemClass: it.itemClass,
             rarity: it.rarity,
-            collection: it.collectionCode,
+            collection: collectionCode,
             status: it.status,
             featuredSlot: it.featuredSlot,
           },
@@ -183,7 +226,7 @@ export async function POST(req: NextRequest) {
         },
         exec,
       )
-      return { code: it.code, isUpdate, auditId }
+      return { code, isUpdate, auditId }
     })
 
     invalidateAssetOverlay()

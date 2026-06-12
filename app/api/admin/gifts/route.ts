@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { query, withTransaction } from '@/lib/db'
 import { getAdminSession, writeAudit } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
+import { slugifyWithPrefix, generateUniqueCode } from '@/lib/admin/code-gen'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -97,7 +98,10 @@ export async function POST(req: NextRequest) {
   const isActive = body.isActive == null ? true : Boolean(body.isActive)
   const sortOrder = body.sortOrder == null ? 100 : Number(body.sortOrder)
 
-  if (!code || code.length > 64) {
+  // Workflow-first: code is optional. On create it is auto-generated from the
+  // name (operator never invents `gift_bear_rare`). If sent, it is validated as
+  // the immutable key for an update.
+  if (code && code.length > 64) {
     return NextResponse.json({ error: 'invalid code' }, { status: 400 })
   }
   if (!name || name.length > 128) {
@@ -137,11 +141,10 @@ export async function POST(req: NextRequest) {
         p?: unknown[],
       ) => (await client.query(text, p as never[])).rows as T[]
 
-      const existing = await exec<{ id: number }>(
-        'SELECT id FROM gift_catalog WHERE code = $1',
-        [code],
-      )
-      const isUpdate = existing.length > 0
+      const isUpdate = !!code
+      const finalCode = code
+        ? code
+        : await generateUniqueCode(exec, 'gift_catalog', 'code', slugifyWithPrefix('gift', name))
 
       await exec(
         `INSERT INTO gift_catalog
@@ -163,7 +166,7 @@ export async function POST(req: NextRequest) {
            sort_order = EXCLUDED.sort_order,
            updated_at = now()`,
         [
-          code,
+          finalCode,
           name,
           description,
           starCost,
@@ -181,14 +184,14 @@ export async function POST(req: NextRequest) {
           actorRole: session.role,
           action: isUpdate ? 'gift.catalog_update' : 'gift.catalog_create',
           targetType: 'gift',
-          targetId: code,
+          targetId: finalCode,
           meta: { starCost, priceEshki, stock, isActive, belowCost },
           ip,
         },
         exec,
       )
 
-      return { code, isUpdate, auditId, belowCost }
+      return { code: finalCode, isUpdate, auditId, belowCost }
     })
 
     return NextResponse.json({ ok: true, ...result })

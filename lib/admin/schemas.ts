@@ -48,9 +48,16 @@ export const optionalDate = z
   .optional()
   .transform((v) => (v ? v : null))
 
+/**
+ * Optional code: present on edit (immutable key), omitted on create so the
+ * server auto-generates it from the name (workflow-first: the operator never
+ * invents a technical identifier).
+ */
+export const optionalCodeSchema = codeSchema.optional().nullable().transform((v) => v || null)
+
 /** Item Builder (IA-2) payload — catalog/content only, never economy/grants. */
 export const itemBuilderSchema = z.object({
-  code: codeSchema,
+  code: optionalCodeSchema,
   name: nameSchema,
   description: descriptionSchema,
   itemClass: itemClassSchema,
@@ -63,6 +70,12 @@ export const itemBuilderSchema = z.object({
     .optional()
     .nullable()
     .transform((v) => (v ? v : null)),
+  /**
+   * Inline collection creation: when the operator types a brand-new collection
+   * name in the item editor, the server creates the collection (auto-code) and
+   * links the item to it — no separate `/admin/collections` trip.
+   */
+  newCollectionName: z.string().trim().min(1).max(128).optional().nullable().transform((v) => (v ? v : null)),
   seriesTotal: z.number().int().min(0).max(100000).optional().nullable(),
   isLimited: z.boolean().optional().default(false),
   maxSupply: z.number().int().min(0).max(100_000_000).optional().nullable(),

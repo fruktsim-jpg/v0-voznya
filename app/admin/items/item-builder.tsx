@@ -62,6 +62,7 @@ const EMPTY = {
   itemClass: 'collectible',
   rarity: 'rare' as Rarity,
   collectionCode: '',
+  newCollectionName: '',
   seriesTotal: '',
   isLimited: false,
   maxSupply: '',
@@ -74,6 +75,7 @@ const EMPTY = {
 }
 
 const NONE = '—'
+const NEW_COLLECTION = '__new__'
 
 export function ItemBuilder({
   initialItems,
@@ -109,6 +111,7 @@ export function ItemBuilder({
       itemClass: it.item_class,
       rarity: it.rarity as Rarity,
       collectionCode: it.collection_code ?? '',
+      newCollectionName: '',
       seriesTotal: it.series_total == null ? '' : String(it.series_total),
       isLimited: it.is_limited,
       maxSupply: it.max_supply == null ? '' : String(it.max_supply),
@@ -140,13 +143,17 @@ export function ItemBuilder({
 
   async function submit() {
     // Build the payload and validate client-side with the shared schema.
+    // Workflow-first: on create, omit code (server auto-generates from name);
+    // on edit, send the immutable code back.
+    const usingNewCollection = form.collectionCode === NEW_COLLECTION
     const payload = {
-      code: form.code.trim(),
+      code: editingCode || undefined,
       name: form.name.trim(),
       description: form.description.trim() || null,
       itemClass: form.itemClass,
       rarity: form.rarity,
-      collectionCode: form.collectionCode || null,
+      collectionCode: usingNewCollection ? null : form.collectionCode || null,
+      newCollectionName: usingNewCollection ? form.newCollectionName.trim() || null : null,
       seriesTotal: form.seriesTotal === '' ? null : Number(form.seriesTotal),
       isLimited: form.isLimited,
       maxSupply: form.maxSupply === '' ? null : Number(form.maxSupply),
@@ -162,33 +169,37 @@ export function ItemBuilder({
       setMsg({ ok: false, text: parsed.error.issues[0].message })
       return
     }
-
-    // Step 1: if a new art file was chosen, upload + publish it under the item
-    // code first, so the item is born with art.
-    if (file) {
-      const fd = new FormData()
-      fd.append('code', payload.code)
-      fd.append('file', file)
-      const up = await run('/api/admin/assets', { method: 'POST', form: fd })
-      if (!up) return // error already surfaced
-      if (canPublish) {
-        await run('/api/admin/assets', {
-          method: 'PATCH',
-          json: { code: payload.code, status: 'published' },
-        })
-      }
+    if (usingNewCollection && !form.newCollectionName.trim()) {
+      setMsg({ ok: false, text: 'Введи название новой коллекции.' })
+      return
     }
 
-    // Step 2: save the item definition.
-    const d = await run<{ isUpdate: boolean }>('/api/admin/items', {
+    // Step 1: save the item definition. The server resolves the final code
+    // (auto-generated on create) and returns it so art can be attached to it.
+    const d = await run<{ code: string; isUpdate: boolean }>('/api/admin/items', {
       method: 'POST',
       json: payload,
       success: editingCode ? 'Предмет обновлён.' : 'Предмет создан.',
     })
-    if (d) {
-      clearForm()
-      reload()
+    if (!d) return
+
+    // Step 2: if a new art file was chosen, upload + publish it under the
+    // resolved item code so art and item stay together.
+    if (file && d.code) {
+      const fd = new FormData()
+      fd.append('code', d.code)
+      fd.append('file', file)
+      const up = await run('/api/admin/assets', { method: 'POST', form: fd })
+      if (up && canPublish) {
+        await run('/api/admin/assets', {
+          method: 'PATCH',
+          json: { code: d.code, status: 'published' },
+        })
+      }
     }
+
+    clearForm()
+    reload()
   }
 
   async function transition(code: string, next: ContentStatus) {
@@ -212,6 +223,7 @@ export function ItemBuilder({
   const collectionOptions = [
     { value: '', label: NONE },
     ...collections.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` })),
+    { value: NEW_COLLECTION, label: '+ Новая коллекция…' },
   ]
   const featuredOptions = [
     { value: '', label: NONE },
@@ -245,17 +257,16 @@ export function ItemBuilder({
           <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
             <AdminForm onSubmit={submit}>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Код" required hint="латиница/цифры/_, неизменяемый ключ">
-                  <TextInput
-                    value={form.code}
-                    onChange={(v) => set('code', v)}
-                    placeholder="relic_utrecht"
-                    mono
-                    disabled={!!editingCode}
-                  />
-                </Field>
-                <Field label="Название" required>
+                <Field label="Название" required hint="код сгенерируется автоматически">
                   <TextInput value={form.name} onChange={(v) => set('name', v)} placeholder="Реликвия Утрехта" />
+                </Field>
+                <Field label="Код" hint={editingCode ? 'неизменяемый ключ' : 'создаётся из названия'}>
+                  <TextInput
+                    value={editingCode ?? '— сгенерируется —'}
+                    onChange={() => {}}
+                    mono
+                    disabled
+                  />
                 </Field>
               </div>
 
@@ -285,6 +296,15 @@ export function ItemBuilder({
                     options={collectionOptions}
                   />
                 </Field>
+                {form.collectionCode === NEW_COLLECTION && (
+                  <Field label="Название новой коллекции" required hint="код создастся автоматически">
+                    <TextInput
+                      value={form.newCollectionName}
+                      onChange={(v) => set('newCollectionName', v)}
+                      placeholder="Города Нидерландов"
+                    />
+                  </Field>
+                )}
                 <Field label="Слот «избранного»" hint="герой-поверхность (опц.)">
                   <SelectInput
                     value={form.featuredSlot}
