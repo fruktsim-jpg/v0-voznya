@@ -4,6 +4,7 @@ import { getAdminSession, writeAudit } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { validateImage, isValidationError } from '@/lib/item-art/image-validate'
 import { invalidateAssetOverlay } from '@/lib/item-art/manifest-source'
+import { isContentStatus, STATUS_META } from '@/lib/admin/lifecycle'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,8 +29,6 @@ export const revalidate = 0
 // PATCH→published flips it live and invalidates the runtime overlay so the art
 // appears across every surface within the next render. No code, no deploy.
 // =============================================================================
-
-const VALID_STATUS = new Set(['draft', 'published', 'retired'])
 
 function ipOf(req: NextRequest): string | null {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
@@ -189,7 +188,7 @@ export async function PATCH(req: NextRequest) {
   const code = (body.code ?? '').toString().trim()
   const status = (body.status ?? '').toString().trim()
   if (!code) return NextResponse.json({ error: 'code required' }, { status: 400 })
-  if (!VALID_STATUS.has(status)) {
+  if (!isContentStatus(status)) {
     return NextResponse.json({ error: 'invalid status' }, { status: 400 })
   }
 
@@ -213,10 +212,10 @@ export async function PATCH(req: NextRequest) {
         {
           actorUserId: session.uid,
           actorRole: session.role,
-          action: `asset.${status === 'published' ? 'publish' : status === 'retired' ? 'retire' : 'unpublish'}`,
+          action: `asset.status.${status}`,
           targetType: 'item_asset',
           targetId: code,
-          meta: { status, version: upd[0].version },
+          meta: { status, isLive: STATUS_META[status].isLive, version: upd[0].version },
           ip,
         },
         exec,

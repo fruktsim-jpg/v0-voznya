@@ -65,9 +65,13 @@ export default async function AdminLayout({
     { href: '/admin/season', label: 'Сезон', emoji: '🏆' },
     { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
 
+    { href: '/admin/items', label: 'Предметы', emoji: '🧩' },
+    { href: '/admin/collections', label: 'Коллекции', emoji: '📚' },
+    { href: '/admin/assets', label: 'Арт', emoji: '🎨' },
+    { href: '/admin/featured', label: 'Избранное', emoji: '⭐' },
+
     { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
     { href: '/admin/shop', label: 'Магазин', emoji: '🛒' },
-    { href: '/admin/assets', label: 'Арт', emoji: '🎨' },
     { href: '/admin/deliveries', label: 'Доставки', emoji: '📦' },
     { href: '/admin/settings', label: 'Настройки', emoji: '⚙️' },
 

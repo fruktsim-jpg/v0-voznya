@@ -1,18 +1,31 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ItemArt } from '@/components/ds/item-art'
 import type { Rarity } from '@/lib/rarity'
+import type { ContentStatus } from '@/lib/admin/lifecycle'
+import { codeSchema } from '@/lib/admin/schemas'
+import {
+  DataTable,
+  AdminForm,
+  Field,
+  TextInput,
+  SelectInput,
+  SubmitButton,
+  AssetUpload,
+  PublishControl,
+  StatusPill,
+  AdminModal,
+  Feedback,
+  useAdminMutation,
+} from '@/components/admin/kit'
 
 /**
- * Asset Studio manager (client, IA-1). Upload → preview → publish lifecycle for
- * item art. Every mutation hits /api/admin/assets (re-checks perms, writes
- * audit). Preview renders through the REAL <ItemArt> (legacy `src` mode, since a
- * draft isn't in the published manifest yet), so what you see is what ships.
- *
- * NOTE: this is intentionally self-contained. CC Foundation (next milestone)
- * will extract the table/form/upload/publish/feedback patterns proven here into
- * a shared admin kit so the next editor isn't a hand copy.
+ * Asset Studio manager (client) — REBUILT on the CC Foundation kit (IA-1 → CC
+ * Foundation proof of reuse). Same behavior as before, now assembled entirely
+ * from shared primitives: AssetUpload + DataTable + PublishControl + StatusPill
+ * + AdminForm + AdminModal + useAdminMutation. This is the test that the kit is
+ * real — the next editor (IA-2) is built the same way, not hand-copied.
  */
 
 export type AdminAsset = {
@@ -26,38 +39,8 @@ export type AdminAsset = {
   updated_at: string
 }
 
-const inputClass =
-  'w-full rounded-xl border border-input bg-white/[0.04] px-3 py-2 text-sm text-foreground outline-none ring-primary/40 transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2'
-
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
-
-function kb(bytes: number): string {
-  return `${(bytes / 1024).toFixed(0)} KB`
-}
-
-function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === 'published'
-      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-      : status === 'retired'
-        ? 'bg-white/[0.04] text-muted-foreground border-white/10'
-        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-  const label = status === 'published' ? 'Опубликован' : status === 'retired' ? 'Снят' : 'Черновик'
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`}>
-      {label}
-    </span>
-  )
-}
-
-function Feedback({ msg }: { msg: { ok: boolean; text: string } | null }) {
-  if (!msg) return null
-  return (
-    <p className={`mt-2 text-xs ${msg.ok ? 'text-emerald-300' : 'text-destructive-foreground'}`}>
-      {msg.text}
-    </p>
-  )
-}
+const kb = (bytes: number) => `${(bytes / 1024).toFixed(0)} KB`
 
 export function AssetsManager({
   initialAssets,
@@ -71,230 +54,158 @@ export function AssetsManager({
   const [assets, setAssets] = useState<AdminAsset[]>(initialAssets)
   const [code, setCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [previewRarity, setPreviewRarity] = useState<Rarity>('legendary')
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const { run, busy, msg, setMsg } = useAdminMutation()
 
   async function reload() {
-    const res = await fetch('/api/admin/assets')
-    if (res.ok) {
-      const d = await res.json()
-      setAssets(Array.isArray(d.assets) ? d.assets : [])
-    }
-  }
-
-  function pickFile(f: File | null) {
-    setFile(f)
-    setMsg(null)
-    if (localPreview) URL.revokeObjectURL(localPreview)
-    setLocalPreview(f ? URL.createObjectURL(f) : null)
+    const d = await run<{ assets: AdminAsset[] }>('/api/admin/assets', { method: 'GET' })
+    if (d) setAssets(Array.isArray(d.assets) ? d.assets : [])
   }
 
   async function upload() {
-    const c = code.trim()
-    if (!/^[a-z0-9_]+$/i.test(c)) {
-      setMsg({ ok: false, text: 'Код: только латиница, цифры и _' })
+    const parsed = codeSchema.safeParse(code)
+    if (!parsed.success) {
+      setMsg({ ok: false, text: parsed.error.issues[0].message })
       return
     }
     if (!file) {
       setMsg({ ok: false, text: 'Выбери PNG или WebP файл.' })
       return
     }
-    setBusy(true)
-    setMsg(null)
-    try {
-      const fd = new FormData()
-      fd.append('code', c)
-      fd.append('file', file)
-      const res = await fetch('/api/admin/assets', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка загрузки')
+    const fd = new FormData()
+    fd.append('code', parsed.data)
+    fd.append('file', file)
+    const d = await run<{ version: number; width: number | null; height: number | null }>(
+      '/api/admin/assets',
+      { method: 'POST', form: fd },
+    )
+    if (d) {
       setMsg({
         ok: true,
-        text: `Загружено как черновик (v${data.version}${
-          data.width ? `, ${data.width}×${data.height}` : ''
-        }). Опубликуй, чтобы показать везде.`,
+        text: `Загружено как черновик (v${d.version}${d.width ? `, ${d.width}×${d.height}` : ''}). Опубликуй, чтобы показать везде.`,
       })
       setCode('')
-      pickFile(null)
-      if (fileRef.current) fileRef.current.value = ''
+      setFile(null)
       reload()
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
-    } finally {
-      setBusy(false)
     }
   }
 
-  async function setStatus(assetCode: string, status: string) {
-    setBusy(true)
-    try {
-      const res = await fetch('/api/admin/assets', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: assetCode, status }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка')
-      setMsg({ ok: true, text: `«${assetCode}» → ${status}.` })
-      reload()
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
-    } finally {
-      setBusy(false)
-    }
+  async function transition(assetCode: string, next: ContentStatus) {
+    const d = await run('/api/admin/assets', {
+      method: 'PATCH',
+      json: { code: assetCode, status: next },
+      success: `«${assetCode}» → ${next}.`,
+    })
+    if (d) reload()
   }
 
-  async function remove(assetCode: string) {
-    if (!confirm(`Удалить арт «${assetCode}»? Предмет вернётся к глифу-заглушке.`)) return
-    setBusy(true)
-    try {
-      await fetch(`/api/admin/assets?code=${encodeURIComponent(assetCode)}`, {
-        method: 'DELETE',
-      })
-      setMsg({ ok: true, text: `«${assetCode}» удалён.` })
-      reload()
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
-    } finally {
-      setBusy(false)
-    }
+  async function doDelete(assetCode: string) {
+    const d = await run(`/api/admin/assets?code=${encodeURIComponent(assetCode)}`, {
+      method: 'DELETE',
+      success: `«${assetCode}» удалён.`,
+    })
+    setConfirmDelete(null)
+    if (d) reload()
   }
 
   return (
     <div className="space-y-6">
-      {/* Upload + live preview */}
       {canManage && (
-        <div className="glass grid gap-4 rounded-2xl border border-border p-4 sm:grid-cols-[1fr_auto]">
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Код предмета</label>
-              <input
-                className={inputClass}
-                placeholder="например relic_zwolle"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
+        <div className="glass rounded-2xl border border-border p-4">
+          <AdminForm onSubmit={upload}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-3">
+                <Field label="Код предмета" required hint="например relic_zwolle">
+                  <TextInput value={code} onChange={setCode} placeholder="relic_zwolle" mono />
+                </Field>
+                <Field label="Редкость превью" hint="только для просмотра капсулы">
+                  <SelectInput
+                    value={previewRarity}
+                    onChange={(v) => setPreviewRarity(v as Rarity)}
+                    options={RARITIES}
+                  />
+                </Field>
+                <SubmitButton busy={busy}>Загрузить черновик</SubmitButton>
+                <Feedback msg={msg} />
+              </div>
+              <AssetUpload
+                file={file}
+                onFile={setFile}
+                previewRarity={previewRarity}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">
-                Файл (PNG / WebP, до 2 МБ)
-              </label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/webp"
-                className={inputClass}
-                onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">
-                Редкость превью (только для просмотра капсулы)
-              </label>
-              <select
-                className={inputClass}
-                value={previewRarity}
-                onChange={(e) => setPreviewRarity(e.target.value as Rarity)}
-              >
-                {RARITIES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={upload}
-              disabled={busy}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? 'Загрузка…' : 'Загрузить черновик'}
-            </button>
-            <Feedback msg={msg} />
-          </div>
-
-          {/* Live preview through the real ItemArt capsule */}
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/5 bg-black/20 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Превью
-            </span>
-            <ItemArt
-              src={localPreview ?? undefined}
-              rarity={previewRarity}
-              size="xl"
-            />
-            <span className="text-[11px] text-muted-foreground">
-              как в кейсах / магазине
-            </span>
-          </div>
+          </AdminForm>
         </div>
       )}
 
-      {/* Asset list */}
-      <div className="glass overflow-hidden rounded-2xl border border-border">
-        <div className="border-b border-white/5 px-4 py-2 text-xs font-medium text-muted-foreground">
-          Загруженный арт ({assets.length})
-        </div>
-        {assets.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Пока ничего не загружено. Первый арт появится здесь.
-          </div>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {assets.map((a) => (
-              <li key={a.code} className="flex items-center gap-3 px-4 py-3">
-                <ItemArt
-                  src={`/api/items/asset/${encodeURIComponent(a.code)}?preview=1&v=${a.version}`}
-                  rarity="rare"
-                  size="sm"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-mono text-sm text-foreground">{a.code}</span>
-                    <StatusPill status={a.status} />
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {a.mime.replace('image/', '').toUpperCase()}
-                    {a.width ? ` · ${a.width}×${a.height}` : ''} · {kb(a.byte_size)} · v{a.version}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {canPublish && a.status !== 'published' && (
-                    <button
-                      onClick={() => setStatus(a.code, 'published')}
-                      disabled={busy}
-                      className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                    >
-                      Опубликовать
-                    </button>
-                  )}
-                  {canPublish && a.status === 'published' && (
-                    <button
-                      onClick={() => setStatus(a.code, 'retired')}
-                      disabled={busy}
-                      className="rounded-lg bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-white/[0.08] disabled:opacity-50"
-                    >
-                      Снять
-                    </button>
-                  )}
-                  {canManage && (
-                    <button
-                      onClick={() => remove(a.code)}
-                      disabled={busy}
-                      className="rounded-lg px-2.5 py-1 text-xs font-medium text-destructive-foreground/80 transition hover:bg-destructive/10 disabled:opacity-50"
-                    >
-                      Удалить
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+      <DataTable<AdminAsset>
+        title="Загруженный арт"
+        rows={assets}
+        rowKey={(a) => a.code}
+        empty="Пока ничего не загружено. Первый арт появится здесь."
+        leading={(a) => (
+          <ItemArt
+            src={`/api/items/asset/${encodeURIComponent(a.code)}?preview=1&v=${a.version}`}
+            rarity="rare"
+            size="sm"
+          />
         )}
-      </div>
+        columns={[
+          {
+            key: 'code',
+            header: 'Код',
+            cell: (a) => (
+              <div className="flex items-center gap-2">
+                <span className="truncate font-mono text-sm text-foreground">{a.code}</span>
+                <StatusPill status={a.status} />
+              </div>
+            ),
+          },
+          {
+            key: 'meta',
+            header: 'Файл',
+            cell: (a) => (
+              <span className="text-[11px] text-muted-foreground">
+                {a.mime.replace('image/', '').toUpperCase()}
+                {a.width ? ` · ${a.width}×${a.height}` : ''} · {kb(a.byte_size)} · v{a.version}
+              </span>
+            ),
+          },
+        ]}
+        actions={(a) => (
+          <>
+            <PublishControl
+              status={a.status as ContentStatus}
+              canPublish={canPublish}
+              busy={busy}
+              onTransition={(next) => transition(a.code, next)}
+              compact
+            />
+            {canManage && (
+              <button
+                onClick={() => setConfirmDelete(a.code)}
+                disabled={busy}
+                className="rounded-lg px-2.5 py-1 text-xs font-medium text-destructive-foreground/80 transition hover:bg-destructive/10 disabled:opacity-50"
+              >
+                Удалить
+              </button>
+            )}
+          </>
+        )}
+      />
+
+      <AdminModal
+        open={confirmDelete !== null}
+        title="Удалить арт?"
+        tone="danger"
+        confirmLabel="Удалить"
+        busy={busy}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && doDelete(confirmDelete)}
+      >
+        Арт «{confirmDelete}» будет удалён. Предмет вернётся к глифу-заглушке.
+      </AdminModal>
     </div>
   )
 }
