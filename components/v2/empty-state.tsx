@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import { Glyph } from '@/components/ds/icon'
 
 /**
  * Пустой экран (EmptyState) дизайн-системы V2. Иконка + текст + опц. действие.
  * Server component. Используется вместо «нет данных».
  */
 export function EmptyState({
-  icon = '✨',
+  icon = <Glyph name="sparkles" />,
   title,
   description,
   action,

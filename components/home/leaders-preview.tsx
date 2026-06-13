@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { SectionTitle } from '@/components/ds/section-title'
 import { VoznyaCoin } from '@/components/ds/icon'
+import { Avatar } from '@/components/ds/avatar'
 import type { RichUser } from '@/lib/queries'
 
 /**
@@ -8,38 +9,12 @@ import type { RichUser } from '@/lib/queries'
  *
  * Social-status / community teaser on real data (`getTopRich`). Compact top-5
  * with the podium emphasized; full rankings live on the leaderboard surface.
- * Links currently point at the existing `/live#top-rich` destination (the
- * dedicated `/leaderboards` page is a later stage) to stay route-honest.
+ * Links currently point at the existing `/live#top-rich` destination to stay
+ * route-honest. Uses the DS Avatar (real TG photo + fallback) and the shared
+ * PODIUM tinted-ordinal pattern instead of emoji medals.
  */
 const fmt = (n: number) => n.toLocaleString('ru-RU')
-const MEDAL = ['🥇', '🥈', '🥉']
-
-function MemberAvatar({
-  name,
-  photoUrl,
-}: {
-  name: string
-  photoUrl: string | null
-}) {
-  if (photoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={photoUrl}
-        alt=""
-        className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-      />
-    )
-  }
-  return (
-    <span
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/20 text-xs font-semibold text-primary ring-1 ring-primary/30"
-      aria-hidden
-    >
-      {name.trim().charAt(0).toUpperCase() || '?'}
-    </span>
-  )
-}
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 export function LeadersPreview({ leaders }: { leaders: RichUser[] }) {
   if (leaders.length === 0) return null
@@ -68,12 +43,12 @@ export function LeadersPreview({ leaders }: { leaders: RichUser[] }) {
             >
               <span className="w-6 shrink-0 text-center text-sm">
                 {i < 3 ? (
-                  <span aria-hidden>{MEDAL[i]}</span>
+                  <span className="font-extrabold" style={{ color: PODIUM[i] }}>{u.rank}</span>
                 ) : (
                   <span className="font-bold text-muted-foreground">{u.rank}</span>
                 )}
               </span>
-              <MemberAvatar name={u.name} photoUrl={u.photoUrl} />
+              <Avatar src={u.photoUrl} name={u.name} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {u.name}
               </span>

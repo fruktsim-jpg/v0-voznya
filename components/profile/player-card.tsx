@@ -35,7 +35,7 @@ import type { CommunityEvent } from '@/lib/events'
 type EliteTier = {
   key: 'gold' | 'silver' | 'bronze' | 'top10'
   label: string
-  medal: string
+  medal: GlyphName
   /** Класс рамки карточки личности. */
   ring: string
   /** Цвет свечения (inline, мягкое). */
@@ -52,7 +52,7 @@ function eliteTierFor(rank: number | null): EliteTier | null {
     return {
       key: 'gold',
       label: 'Легенда сообщества',
-      medal: '👑',
+      medal: 'crown',
       ring: 'border-amber-300/60',
       glow: '0 0 60px -12px rgba(251,191,36,0.45)',
       avatar: 'from-amber-300/30 to-amber-500/20',
@@ -62,7 +62,7 @@ function eliteTierFor(rank: number | null): EliteTier | null {
     return {
       key: 'silver',
       label: 'Серебро Возни',
-      medal: '🥈',
+      medal: 'medal',
       ring: 'border-slate-200/50',
       glow: '0 0 50px -14px rgba(226,232,240,0.35)',
       avatar: 'from-slate-200/25 to-slate-400/15',
@@ -72,7 +72,7 @@ function eliteTierFor(rank: number | null): EliteTier | null {
     return {
       key: 'bronze',
       label: 'Бронза Возни',
-      medal: '🥉',
+      medal: 'medal',
       ring: 'border-orange-400/50',
       glow: '0 0 50px -14px rgba(251,146,60,0.32)',
       avatar: 'from-orange-400/25 to-amber-700/15',
@@ -81,7 +81,7 @@ function eliteTierFor(rank: number | null): EliteTier | null {
   return {
     key: 'top10',
     label: 'Топ-10 сообщества',
-    medal: '⭐',
+    medal: 'star',
     ring: 'border-primary/45',
     glow: '0 0 44px -16px rgba(139,92,246,0.3)',
     avatar: 'from-primary/25 to-accent/20',
@@ -215,7 +215,7 @@ export function PlayerCard({
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${elite.ring} ${elite.accent}`}
             >
-              <span className="text-sm">{elite.medal}</span>
+              <span className="text-sm"><Glyph name={elite.medal} /></span>
               {elite.label}
               <span className="opacity-70">· #{profile.rankInTop}</span>
             </span>
