@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   let body: {
     userId?: number
     amount?: number
-    direction?: 'add' | 'remove'
+    direction?: 'add' | 'remove' | 'set'
     reason?: string
   }
   try {
@@ -44,19 +44,20 @@ export async function POST(req: NextRequest) {
   if (!Number.isInteger(userId) || userId <= 0) {
     return NextResponse.json({ error: 'invalid userId' }, { status: 400 })
   }
-  if (!Number.isInteger(amount) || amount <= 0) {
+  if (direction !== 'add' && direction !== 'remove' && direction !== 'set') {
+    return NextResponse.json({ error: 'direction must be add, remove or set' }, { status: 400 })
+  }
+  // add/remove need a positive amount; "set" is a target balance and allows 0.
+  if (direction === 'set') {
+    if (!Number.isInteger(amount) || amount < 0) {
+      return NextResponse.json({ error: 'target must be a non-negative integer' }, { status: 400 })
+    }
+  } else if (!Number.isInteger(amount) || amount <= 0) {
     return NextResponse.json({ error: 'amount must be a positive integer' }, { status: 400 })
   }
-  if (direction !== 'add' && direction !== 'remove') {
-    return NextResponse.json({ error: 'direction must be add or remove' }, { status: 400 })
-  }
 
-  const perm = direction === 'add' ? PERM.ECONOMY_ADD : PERM.ECONOMY_REMOVE
-  if (!hasPermission(session.role, perm)) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-  }
-
-  const delta = direction === 'add' ? amount : -amount
+  // Permission is checked AFTER we know the signed delta (set can go either way).
+  // For add/remove the sign is known now; for set it is resolved under the lock.
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
 
   try {
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
         p?: unknown[],
       ) => (await client.query(text, p as never[])).rows as T[]
 
-      // Lock the player row; refuse debit that would go negative.
+      // Lock the player row; resolve the signed delta for each mode.
       const users = await exec<{ balance: string }>(
         'SELECT balance FROM users WHERE user_id = $1 FOR UPDATE',
         [userId],
@@ -75,10 +76,51 @@ export async function POST(req: NextRequest) {
         throw Object.assign(new Error('player not found'), { http: 404 })
       }
       const balance = BigInt(users[0].balance)
-      if (direction === 'remove' && balance < BigInt(amount)) {
-        throw Object.assign(new Error('insufficient balance'), { http: 409 })
+
+      let delta: bigint
+      if (direction === 'set') {
+        delta = BigInt(amount) - balance // delta-to-target; stays ledger-true
+      } else if (direction === 'add') {
+        delta = BigInt(amount)
+      } else {
+        if (balance < BigInt(amount)) {
+          throw Object.assign(new Error('insufficient balance'), { http: 409 })
+        }
+        delta = -BigInt(amount)
       }
 
+      // Permission by net sign: credit→economy.add, debit→economy.remove.
+      if (delta !== BigInt(0)) {
+        const perm = delta > BigInt(0) ? PERM.ECONOMY_ADD : PERM.ECONOMY_REMOVE
+        if (!hasPermission(session.role, perm)) {
+          throw Object.assign(new Error('forbidden'), { http: 403 })
+        }
+      }
+
+      const auditAction =
+        direction === 'set' ? 'economy.set' : direction === 'add' ? 'economy.add' : 'economy.remove'
+
+      // No-op set (already at target): audit for traceability, no ledger row.
+      if (delta === BigInt(0)) {
+        const auditId = await writeAudit(
+          {
+            actorUserId: session.uid,
+            actorRole: session.role,
+            action: auditAction,
+            targetUserId: userId,
+            targetType: 'user',
+            targetId: String(userId),
+            amount: 0,
+            reason,
+            meta: { mode: direction, target: amount, noop: true },
+            ip,
+          },
+          exec,
+        )
+        return { balance: balance.toString(), transactionId: null, auditId }
+      }
+
+      const deltaNum = Number(delta)
       const updated = await exec<{ balance: string }>(
         `UPDATE users
             SET balance = balance + $2,
@@ -86,7 +128,7 @@ export async function POST(req: NextRequest) {
                 total_spent = total_spent + GREATEST(-$2, 0)
           WHERE user_id = $1
         RETURNING balance`,
-        [userId, delta],
+        [userId, deltaNum],
       )
 
       const tx = await exec<{ id: string }>(
@@ -94,9 +136,9 @@ export async function POST(req: NextRequest) {
          VALUES ($1, $2, $3, $4) RETURNING id`,
         [
           userId,
-          delta,
+          deltaNum,
           'admin',
-          JSON.stringify({ via: 'admin_panel', actor: session.uid }),
+          JSON.stringify({ via: 'admin_panel', actor: session.uid, mode: direction }),
         ],
 
       )
@@ -105,13 +147,16 @@ export async function POST(req: NextRequest) {
         {
           actorUserId: session.uid,
           actorRole: session.role,
-          action: direction === 'add' ? 'economy.add' : 'economy.remove',
+          action: auditAction,
           targetUserId: userId,
           targetType: 'transaction',
           targetId: tx[0].id,
-          amount: delta,
+          amount: deltaNum,
           reason,
-          meta: { transaction_id: Number(tx[0].id) },
+          meta: {
+            transaction_id: Number(tx[0].id),
+            ...(direction === 'set' ? { target: amount } : {}),
+          },
           ip,
         },
         exec,

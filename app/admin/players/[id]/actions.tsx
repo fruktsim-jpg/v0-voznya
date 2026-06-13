@@ -23,7 +23,10 @@ export function PlayerActions({
   canMmr,
   canReputation,
   canAchievements,
+  canCooldowns,
+  canGifts,
   initialStats,
+  initialCooldowns,
 }: {
   userId: number
   canEconomy: boolean
@@ -31,7 +34,10 @@ export function PlayerActions({
   canMmr: boolean
   canReputation: boolean
   canAchievements: boolean
+  canCooldowns: boolean
+  canGifts: boolean
   initialStats: LiveStats
+  initialCooldowns: { action: string; remaining: number }[]
 }) {
   const [stats, setStats] = useState<LiveStats>(initialStats)
   const fmt = (n: number) => n.toLocaleString('ru-RU')
@@ -79,6 +85,7 @@ export function PlayerActions({
             resultKey="balance"
             resultLabel="Баланс"
             onResult={(v) => setStats((s) => ({ ...s, balance: v }))}
+            allowSet
           />
         )}
         {canMmr && (
@@ -111,6 +118,8 @@ export function PlayerActions({
         )}
         {canInventory && <InventoryCard userId={userId} />}
         {canAchievements && <AchievementsCard userId={userId} />}
+        {canCooldowns && <CooldownsCard userId={userId} initial={initialCooldowns} />}
+        {canGifts && <GiftGrantCard userId={userId} />}
       </div>
     </div>
   )
@@ -169,6 +178,7 @@ function PointsCard({
   resultKey,
   resultLabel,
   onResult,
+  allowSet = false,
 }: {
   userId: number
   emoji: string
@@ -180,6 +190,7 @@ function PointsCard({
   resultKey: string
   resultLabel: string
   onResult: (total: number) => void
+  allowSet?: boolean
 }) {
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
@@ -187,10 +198,18 @@ function PointsCard({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const a = ACCENT[accent]
 
-  async function send(value: number, direction: 'add' | 'remove') {
-    if (!Number.isInteger(value) || value <= 0) {
-      setMsg({ ok: false, text: 'Введите положительное целое число.' })
+  async function send(value: number, direction: 'add' | 'remove' | 'set') {
+    // add/remove need a positive integer; "set" accepts 0+ (target balance).
+    const valid =
+      direction === 'set'
+        ? Number.isInteger(value) && value >= 0
+        : Number.isInteger(value) && value > 0
+    if (!valid) {
+      setMsg({ ok: false, text: 'Введите корректное число.' })
       return
+    }
+    if (direction === 'set' && typeof window !== 'undefined') {
+      if (!window.confirm(`Установить ${title} = ${value.toLocaleString('ru-RU')}?`)) return
     }
     setBusy(true)
     setMsg(null)
@@ -278,6 +297,16 @@ function PointsCard({
           Снять
         </button>
       </div>
+      {allowSet && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => send(Number(amount), 'set')}
+          className="mt-2 w-full rounded-xl border border-sky-400/40 bg-sky-400/10 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-400/20 disabled:opacity-50"
+        >
+          Установить баланс = значению
+        </button>
+      )}
       <Feedback msg={msg} />
     </div>
   )
@@ -607,6 +636,272 @@ function AchievementsCard({ userId }: { userId: number }) {
           Отозвать
         </button>
       </div>
+      <Feedback msg={msg} />
+    </div>
+  )
+}
+
+/** Human labels for cooldown actions (operator never sees raw keys). */
+const COOLDOWN_LABELS: Record<string, string> = {
+  farm: '🌾 Ферма',
+  casino: '🎰 Казино',
+  duel: '⚔️ Дуэль',
+}
+
+const fmtRemaining = (sec: number): string => {
+  if (sec <= 0) return 'готово'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  if (h > 0) return `${h} ч ${m} мин`
+  if (m > 0) return `${m} мин`
+  return `${Math.floor(sec)} сек`
+}
+
+/**
+ * Cooldowns card — reset farm/casino/duel (or all) for a player. Mirrors the
+ * bot's clear_cooldown by deleting `cooldowns` rows; the bot reads that table
+ * live, so the player can act again immediately. Confirm + optional reason +
+ * audit; refreshes the remaining-time list from the API after each reset.
+ */
+function CooldownsCard({
+  userId,
+  initial,
+}: {
+  userId: number
+  initial: { action: string; remaining: number }[]
+}) {
+  const [cooldowns, setCooldowns] = useState(initial)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const a = ACCENT.sky
+
+  const byAction = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of cooldowns) m.set(c.action, c.remaining)
+    return m
+  }, [cooldowns])
+
+  async function refresh() {
+    try {
+      const r = await fetch(`/api/admin/cooldowns?userId=${userId}`)
+      const d = r.ok ? await r.json() : { cooldowns: [] }
+      setCooldowns(Array.isArray(d.cooldowns) ? d.cooldowns : [])
+    } catch {
+      /* keep stale list */
+    }
+  }
+
+  async function reset(action: 'farm' | 'casino' | 'duel' | 'all') {
+    const label = action === 'all' ? 'все кулдауны' : COOLDOWN_LABELS[action] ?? action
+    if (!confirm(`Сбросить ${label} для игрока?`)) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch('/api/admin/cooldowns', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId, action, reason: reason.trim() || undefined }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'ошибка')
+      const cleared: string[] = Array.isArray(d.cleared) ? d.cleared : []
+      setMsg({
+        ok: true,
+        text: cleared.length ? `Сброшено: ${cleared.join(', ')}` : 'Активных кулдаунов не было',
+      })
+      setReason('')
+      await refresh()
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'ошибка' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={cardClass(a.border)}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-lg">⏱️</span>
+        <h3 className="text-sm font-semibold text-foreground">Кулдауны</h3>
+      </div>
+
+      <div className="mb-3 space-y-1.5">
+        {(['farm', 'casino', 'duel'] as const).map((act) => {
+          const remaining = byAction.get(act) ?? 0
+          const active = remaining > 0
+          return (
+            <div
+              key={act}
+              className="flex items-center justify-between rounded-xl border border-border bg-white/[0.02] px-3 py-2"
+            >
+              <span className="text-xs text-foreground">{COOLDOWN_LABELS[act]}</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-[11px] ${active ? 'text-amber-300' : 'text-muted-foreground'}`}>
+                  {fmtRemaining(remaining)}
+                </span>
+                <button
+                  type="button"
+                  disabled={busy || !active}
+                  onClick={() => reset(act)}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition disabled:opacity-40 ${a.chip}`}
+                >
+                  Сбросить
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <input
+        className={inputClass}
+        placeholder="Причина (необязательно)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+      />
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => reset('all')}
+        className="mt-3 w-full rounded-xl border border-destructive/40 bg-destructive/10 py-2 text-xs font-semibold text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
+      >
+        Сбросить всё
+      </button>
+      <Feedback msg={msg} />
+    </div>
+  )
+}
+
+type GrantableGift = {
+  code: string
+  name: string
+  starCost: number
+  priceEshki: number
+  remaining: number | null
+  isPremium: boolean
+}
+
+/**
+ * Gift grant card — grant a gift (incl. Telegram Premium) to a player. Creates
+ * a PENDING gift_transactions row via /api/admin/gifts/grant (the bot's grant
+ * contract); delivery/refund then happen in the player's Подарки block (which
+ * reuses the bot's deliver/refund). Premium is just a gift with a premium code,
+ * so it needs no separate flow. Confirm + reason + audit.
+ */
+function GiftGrantCard({ userId }: { userId: number }) {
+  const [gifts, setGifts] = useState<GrantableGift[]>([])
+  const [code, setCode] = useState('')
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const a = ACCENT.amber
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/gifts/grant')
+      .then((r) => (r.ok ? r.json() : { gifts: [] }))
+      .then((d) => {
+        if (!alive) return
+        const list: GrantableGift[] = Array.isArray(d.gifts) ? d.gifts : []
+        setGifts(list)
+        setLoaded(true)
+      })
+      .catch(() => alive && setLoaded(true))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const selected = gifts.find((g) => g.code === code)
+
+  async function grant() {
+    if (!code) {
+      setMsg({ ok: false, text: 'Выбери подарок.' })
+      return
+    }
+    const label = selected?.name ?? code
+    if (typeof window !== 'undefined' && !window.confirm(`Выдать «${label}» игроку?`)) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch('/api/admin/gifts/grant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code, reason: reason.trim() || undefined }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'ошибка')
+      setMsg({
+        ok: true,
+        text: `Выдан «${d.name ?? label}» (ожидает доставки — см. блок «Подарки»).`,
+      })
+      setReason('')
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'ошибка' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={cardClass(a.border)}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-lg">🎁</span>
+        <h3 className="text-sm font-semibold text-foreground">Выдать подарок / Premium</h3>
+      </div>
+
+      <select
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        className={inputClass}
+        disabled={busy || !loaded}
+      >
+        <option value="">{loaded ? '— выбери подарок —' : 'загрузка…'}</option>
+        {gifts.filter((g) => g.isPremium).length > 0 && (
+          <optgroup label="⭐ Telegram Premium">
+            {gifts
+              .filter((g) => g.isPremium)
+              .map((g) => (
+                <option key={g.code} value={g.code} disabled={g.remaining === 0}>
+                  {g.name}
+                  {g.remaining != null ? ` (${g.remaining} шт.)` : ''}
+                </option>
+              ))}
+          </optgroup>
+        )}
+        <optgroup label="🎀 Подарки">
+          {gifts
+            .filter((g) => !g.isPremium)
+            .map((g) => (
+              <option key={g.code} value={g.code} disabled={g.remaining === 0}>
+                {g.name}
+                {g.remaining != null ? ` (${g.remaining} шт.)` : ''}
+              </option>
+            ))}
+        </optgroup>
+      </select>
+
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Причина (необязательно)"
+        className={`mt-2 ${inputClass}`}
+      />
+
+      <button
+        type="button"
+        disabled={busy || !code}
+        onClick={grant}
+        className="mt-2 w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/25 disabled:opacity-50"
+      >
+        Выдать
+      </button>
+      <p className="mt-1 text-[10px] text-muted-foreground/70">
+        Создаёт ожидающую доставку. Отметить выданным/вернуть — в блоке «Подарки».
+      </p>
       <Feedback msg={msg} />
     </div>
   )

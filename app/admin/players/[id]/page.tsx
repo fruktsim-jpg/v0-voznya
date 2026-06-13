@@ -181,6 +181,22 @@ export default async function PlayerPage({
   const canAchievements =
     hasPermission(session.role, PERM.ACHIEVEMENTS_GRANT) ||
     hasPermission(session.role, PERM.ACHIEVEMENTS_REVOKE)
+  const canCooldowns = hasPermission(session.role, PERM.PLAYERS_EDIT)
+  const canGiftGrant = hasPermission(session.role, PERM.GIFT_MANAGE)
+
+  // Current cooldowns (remaining seconds per action) — read-only, degrade to [].
+  const cooldownRows = await safe(
+    query<{ action: string; remaining: string }>(
+      `SELECT action,
+              GREATEST(0, EXTRACT(EPOCH FROM (available_at - now())))::bigint::text AS remaining
+         FROM cooldowns WHERE user_id = $1`,
+      [userId],
+    ),
+  )
+  const initialCooldowns = cooldownRows.map((r) => ({
+    action: r.action,
+    remaining: Number(r.remaining),
+  }))
 
   const fmt = (n: number) => n.toLocaleString('ru-RU')
 
@@ -291,7 +307,7 @@ export default async function PlayerPage({
       </div>
 
       {/* Actions */}
-      {(canEconomy || canInventory || canMmr || canReputation || canAchievements) && (
+      {(canEconomy || canInventory || canMmr || canReputation || canAchievements || canCooldowns || canGiftGrant) && (
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Действия
@@ -303,7 +319,10 @@ export default async function PlayerPage({
             canMmr={canMmr}
             canReputation={canReputation}
             canAchievements={canAchievements}
+            canCooldowns={canCooldowns}
+            canGifts={canGiftGrant}
             initialStats={{ balance: p.balance, mmr, reputation }}
+            initialCooldowns={initialCooldowns}
           />
         </section>
 
