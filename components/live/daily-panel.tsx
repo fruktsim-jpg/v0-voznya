@@ -13,9 +13,9 @@ export function DailyPanel() {
   if (!hasPara && !hasPidor) return null
 
   return (
-    <section className="px-6 py-10 sm:py-14">
+    <section className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
           Номинации <span className="text-gradient">дня</span>
         </h2>
 

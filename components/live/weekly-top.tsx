@@ -6,15 +6,15 @@ import { formatCurrency } from '@/lib/pluralize'
 import { PlayerLink } from '@/components/ui/player-link'
 import type { WeeklyEarner } from '@/lib/queries'
 
-const MEDALS = ['🥇', '🥈', '🥉']
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 export function WeeklyTop() {
   const { data, error } = useApi<WeeklyEarner[]>('/api/top-weekly?limit=10', 30_000)
 
   return (
-    <section id="top-weekly" className="px-6 py-10 sm:py-14">
+    <section id="top-weekly" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
           Топ <span className="text-gradient">недели</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Больше всех заработали за последние 7 дней</p>
@@ -45,7 +45,13 @@ export function WeeklyTop() {
                 }`}
               >
                 <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
-                  {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
+                  {top3 ? (
+                  <span className="text-sm font-extrabold" style={{ color: PODIUM[u.rank - 1] }}>
+                    {u.rank}
+                  </span>
+                ) : (
+                  <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>
+                )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />

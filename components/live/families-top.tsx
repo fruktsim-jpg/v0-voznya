@@ -6,16 +6,16 @@ import { formatDays } from '@/lib/pluralize'
 import { useApi } from '@/hooks/use-api'
 import type { Family } from '@/lib/queries'
 
-const MEDALS = ['🥇', '🥈', '🥉']
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 export function FamiliesTop() {
   const { data, error } = useApi<Family[]>('/api/families', 30_000)
 
   return (
-    <section id="families" className="px-6 py-10 sm:py-14">
+    <section id="families" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
-          <span className="text-gradient">💍 Рейтинг семей</span>
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
+          <span className="text-gradient">Рейтинг семей</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Самые крепкие браки сообщества
@@ -46,9 +46,9 @@ export function FamiliesTop() {
                   top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
                 }`}
               >
-                <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
+                <div className="flex w-9 shrink-0 justify-center text-base font-extrabold">
                   {top3 ? (
-                    MEDALS[family.rank - 1]
+                    <span style={{ color: PODIUM[family.rank - 1] }}>{family.rank}</span>
                   ) : (
                     <span className="text-sm font-bold text-muted-foreground">{family.rank}</span>
                   )}

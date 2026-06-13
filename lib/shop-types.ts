@@ -12,11 +12,11 @@ export const SHOP_CATEGORY_META: Record<
   ShopCategory,
   { label: string; glyph: string; blurb: string }
 > = {
-  premium: { label: 'Premium', glyph: '⭐', blurb: 'Telegram Premium — вершина желания' },
-  romance: { label: 'Романтика', glyph: '💍', blurb: 'Подарить чувства' },
-  seasonal: { label: 'Сезонные', glyph: '🎄', blurb: 'Коллекционные, пока сезон' },
-  celebration: { label: 'Праздник', glyph: '🥂', blurb: 'Отметить момент' },
-  classic: { label: 'Классика', glyph: '🎁', blurb: 'Вечные подарки сообщества' },
+  premium: { label: 'Premium', glyph: 'star', blurb: 'Telegram Premium — вершина желания' },
+  romance: { label: 'Романтика', glyph: 'heart', blurb: 'Подарить чувства' },
+  seasonal: { label: 'Сезонные', glyph: 'season', blurb: 'Коллекционные, пока сезон' },
+  celebration: { label: 'Праздник', glyph: 'spark', blurb: 'Отметить момент' },
+  classic: { label: 'Классика', glyph: 'gift', blurb: 'Вечные подарки сообщества' },
 }
 
 export const SHOP_CATEGORY_ORDER: ShopCategory[] = [

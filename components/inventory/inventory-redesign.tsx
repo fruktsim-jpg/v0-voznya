@@ -11,6 +11,7 @@ import {
   type InvItem,
 } from '@/lib/inventory-meta'
 import { useFavorites, useShowcase } from '@/hooks/use-inventory-prefs'
+import { Glyph } from '@/components/ds/icon'
 import { InventoryHeader } from '@/components/inventory/inventory-header'
 import { InventoryShowcase } from '@/components/inventory/inventory-showcase'
 import { InventoryCollections } from '@/components/inventory/inventory-collections'
@@ -140,7 +141,9 @@ export function InventoryRedesign({
   if (items.length === 0) {
     return (
       <div className="glass mx-auto mt-6 max-w-md rounded-2xl border border-border p-8 text-center">
-        <div className="mb-2 text-4xl">🎒</div>
+        <div className="mb-3 flex justify-center text-4xl text-muted-foreground/70">
+          <Glyph name="inventory" />
+        </div>
         <p className="text-sm text-muted-foreground">
           Инвентарь пуст. Открывай кейсы и покупай в магазине — всё попадёт сюда.
         </p>
@@ -177,7 +180,9 @@ export function InventoryRedesign({
 
       {visible.length === 0 ? (
         <div className="rounded-2xl border border-border bg-white/[0.02] p-8 text-center">
-          <div className="mb-2 text-2xl">🔍</div>
+            <div className="mb-2 flex justify-center text-2xl text-muted-foreground/70">
+              <Glyph name="search" />
+            </div>
           <p className="text-sm text-muted-foreground">Ничего не найдено по этим фильтрам.</p>
           <button
             type="button"

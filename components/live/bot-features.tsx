@@ -5,9 +5,9 @@ import { BOT_SYSTEMS } from '@/lib/voznya-bot'
 
 export function BotFeatures() {
   return (
-    <section className="px-6 py-10 sm:py-14">
+    <section className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
           Системы <span className="text-gradient">бота</span>
         </h2>
 

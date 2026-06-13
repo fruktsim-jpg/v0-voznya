@@ -26,9 +26,9 @@ export function AchievementsCatalog() {
   const totalPlayers = data?.totalPlayers ?? 0
 
   return (
-    <section id="achievements" className="px-6 py-10 sm:py-14">
+    <section id="achievements" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
           <span className="text-gradient">Ачивки</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">

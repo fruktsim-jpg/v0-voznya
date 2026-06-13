@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { onBalanceChanged } from '@/lib/balance-events'
 import { CoinAmount } from '@/components/ds/coin'
+import { Glyph, type GlyphName } from '@/components/ds/icon'
 import { ShopFeaturedRail } from '@/components/shop/shop-featured-rail'
 import { ShopCard } from '@/components/shop/shop-card'
 import { RARITY_ORDER } from '@/lib/rarity'
@@ -139,7 +140,7 @@ export function ShopExperience({
           <CategoryPill
             active={category === 'all'}
             onClick={() => setCategory('all')}
-            glyph="🛍"
+            glyph="shop"
             label="Всё"
             count={counts.all}
           />
@@ -148,7 +149,7 @@ export function ShopExperience({
               key={c}
               active={category === c}
               onClick={() => setCategory(c)}
-              glyph={SHOP_CATEGORY_META[c].glyph}
+              glyph={SHOP_CATEGORY_META[c].glyph as GlyphName}
               label={SHOP_CATEGORY_META[c].label}
               count={counts[c]}
             />
@@ -245,7 +246,7 @@ function CategoryPill({
 }: {
   active: boolean
   onClick: () => void
-  glyph: string
+  glyph: GlyphName
   label: string
   count?: number
 }) {
@@ -258,7 +259,7 @@ function CategoryPill({
           : 'border-border bg-white/[0.02] text-muted-foreground hover:text-foreground'
       }`}
     >
-      <span aria-hidden>{glyph}</span>
+      <span aria-hidden><Glyph name={glyph} /></span>
       {label}
       {count != null && <span className="text-[11px] opacity-60">{count}</span>}
     </button>

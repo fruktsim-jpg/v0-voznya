@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SectionTitle } from '@/components/ds/section-title'
-import { VoznyaCoin } from '@/components/ds/icon'
+import { VoznyaCoin, Glyph } from '@/components/ds/icon'
 import { ItemArt } from '@/components/ds/item-art'
 import { rarityToken } from '@/lib/rarity'
 import type { FeaturedOpportunity, HotToday as HotTodayData } from '@/lib/home-context'
@@ -46,7 +46,7 @@ export function HotToday({
   return (
     <section className="px-4 pt-5 sm:px-6">
       <div className="mx-auto max-w-5xl">
-        <SectionTitle eyebrow="Trending" icon="🔥" size="md" className="mb-4">
+        <SectionTitle eyebrow="Trending" icon={<Glyph name="flame" />} size="md" className="mb-4">
           Что горячо сейчас
         </SectionTitle>
 

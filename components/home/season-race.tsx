@@ -104,7 +104,7 @@ export function SeasonRace({
           {/* Weekly movers — who's rising right now (real 7d window) */}
           {movers.length > 0 && (
             <div className="glass overflow-hidden rounded-2xl border border-border p-5">
-              <SectionTitle eyebrow="За 7 дней" icon="📈" size="md" className="mb-4">
+              <SectionTitle eyebrow="За 7 дней" icon={<Glyph name="chart" />} size="md" className="mb-4">
                 Кто поднимается
               </SectionTitle>
               <ol className="space-y-1.5">

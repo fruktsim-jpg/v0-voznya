@@ -8,7 +8,7 @@ import { useApi } from '@/hooks/use-api'
 import { AreaTrend } from '@/components/ds/charts'
 import type { MessageStats } from '@/lib/queries'
 
-const MEDALS = ['🥇', '🥈', '🥉']
+const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 function ActivityChart({ activity }: { activity: MessageStats['activity'] }) {
   if (activity.length === 0) return null
@@ -37,9 +37,9 @@ export function MessagesPanel() {
   if (!data) return null
 
   return (
-    <section id="top-messages" className="px-6 py-10 sm:py-14">
+    <section id="top-messages" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
           <span className="text-gradient">Сообщения</span>
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Активность чата сообщества</p>
@@ -77,7 +77,13 @@ export function MessagesPanel() {
                     }`}
                   >
                     <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
-                      {top3 ? MEDALS[u.rank - 1] : <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>}
+                      {top3 ? (
+                  <span className="text-sm font-extrabold" style={{ color: PODIUM[u.rank - 1] }}>
+                    {u.rank}
+                  </span>
+                ) : (
+                  <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>
+                )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <PlayerLink

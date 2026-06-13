@@ -4,6 +4,7 @@ import { rarityToken } from '@/lib/rarity'
 import type { WonReward } from '@/lib/case-open-ux'
 import { isHighTier } from '@/lib/case-open-ux'
 import { ItemArt } from '@/components/ds/item-art'
+import { Glyph } from '@/components/ds/icon'
 import { RarityBadge } from '@/components/v2/rarity-badge'
 
 /**
@@ -107,16 +108,16 @@ export function RewardReveal({
 
       {/* Event banner */}
       {won.isJackpot && (
-        <span className="relative z-10 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
-          💎 Джекпот
+        <span className="relative z-10 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
+          <Glyph name="spark" /> Джекпот
         </span>
       )}
       {won.isPremium && !won.isJackpot && (
         <span
-          className="relative z-10 text-[11px] font-bold uppercase tracking-[0.2em]"
+          className="relative z-10 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em]"
           style={{ color: t.color }}
         >
-          ⭐ Telegram Premium
+          <Glyph name="star" /> Telegram Premium
         </span>
       )}
 

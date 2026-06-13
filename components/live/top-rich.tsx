@@ -17,9 +17,9 @@ export function TopRich() {
   const { data, error } = useApi<RichUser[]>('/api/top-rich?limit=10', 30_000)
 
   return (
-    <section id="top-rich" className="px-6 py-10 sm:py-14">
+    <section id="top-rich" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="type-display text-center text-2xl sm:text-4xl">
+        <h2 className="type-display text-center text-xl sm:text-2xl">
           <span className="text-gradient">Топ</span> богачей
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Самые богатые участники по балансу ешек</p>

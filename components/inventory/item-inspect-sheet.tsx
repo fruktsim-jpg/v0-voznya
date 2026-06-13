@@ -446,36 +446,8 @@ function GiftActions({
   )
 }
 
-// --- Future actions (UX prepared only — disabled) ---------------------------
-function FutureActions() {
-  const items: { icon: string; label: string }[] = [
-    { icon: '🎀', label: 'Подарить на профиль' },
-    { icon: '🔁', label: 'Обмен' },
-    { icon: '🏪', label: 'Маркет' },
-  ]
-  return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Скоро
-      </p>
-      <div className="grid grid-cols-3 gap-2">
-        {items.map((a) => (
-          <button
-            key={a.label}
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="Появится в следующих обновлениях"
-            className="flex cursor-not-allowed flex-col items-center gap-1 rounded-xl border border-dashed border-white/10 bg-white/[0.02] py-2.5 text-[11px] font-medium text-muted-foreground opacity-70"
-          >
-            <span aria-hidden="true" className="text-base">{a.icon}</span>
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
+// --- Future actions block removed (disabled "Скоро" placeholders cheapened the
+// transactional sheet). Re-add real actions here when they ship, not stubs. ---
 
 export function ItemInspectSheet({
   item,
@@ -629,8 +601,6 @@ export function ItemInspectSheet({
           />
         </div>
       )}
-
-      <FutureActions />
     </Sheet>
   )
 }

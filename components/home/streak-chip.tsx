@@ -1,6 +1,7 @@
 'use client'
 
 import { useApi } from '@/hooks/use-api'
+import { Glyph } from '@/components/ds/icon'
 
 type MeSummary = {
   authenticated: boolean
@@ -41,9 +42,9 @@ export function StreakChip() {
               'linear-gradient(110deg, rgba(255,138,61,0.14), rgba(255,193,61,0.06) 70%, transparent)',
           }}
         >
-          <span className="text-2xl" aria-hidden>
-            🔥
-          </span>
+        <span className="text-2xl text-[var(--accent-gold)]" aria-hidden>
+          <Glyph name="flame" />
+        </span>
           <div className="min-w-0">
             <div className="text-sm font-bold text-foreground">
               Серия {streak} {plural(streak, 'день', 'дня', 'дней')} подряд
