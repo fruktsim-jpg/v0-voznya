@@ -4,7 +4,5 @@
  * презентационные: принимают готовые данные. Потребляются админ-аналитикой.
  */
 export { AreaTrend } from './area-trend'
-export { BarSeries } from './bar-series'
 export { RadialGauge } from './radial-gauge'
 export { Sparkline } from './sparkline'
-export { Donut } from './donut'
