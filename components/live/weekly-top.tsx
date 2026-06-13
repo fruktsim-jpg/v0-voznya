@@ -33,6 +33,7 @@ export function WeeklyTop() {
         <div className="mt-8 space-y-2.5">
           {data.map((u, i) => {
             const top3 = u.rank <= 3
+            const podium = top3 ? PODIUM[u.rank - 1] : null
             return (
               <motion.div
                 key={u.rank}
@@ -40,23 +41,29 @@ export function WeeklyTop() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: '-30px' }}
                 transition={{ duration: 0.4, delay: i * 0.04 }}
-                className={`glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4 ${
-                  top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
-                }`}
+                className="glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4"
+                style={{
+                  borderColor: podium ? `${podium}66` : 'rgba(255,255,255,0.08)',
+                  background: podium
+                    ? `linear-gradient(100deg, ${podium}14, transparent 60%)`
+                    : undefined,
+                }}
               >
-                <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
-                  {top3 ? (
-                  <span className="text-sm font-extrabold" style={{ color: PODIUM[u.rank - 1] }}>
+                <div className="flex w-9 shrink-0 justify-center">
+                  <span
+                    className="text-lg font-extrabold sm:text-xl"
+                    style={{ color: podium ?? 'var(--muted-foreground)' }}
+                  >
                     {u.rank}
                   </span>
-                ) : (
-                  <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>
-                )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
                 </div>
-                <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
+                <div
+                  className="shrink-0 text-sm font-bold sm:text-base"
+                  style={{ color: podium ?? 'var(--primary)' }}
+                >
                   +{formatCurrency(u.earned)}
                 </div>
               </motion.div>

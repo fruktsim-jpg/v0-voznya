@@ -44,6 +44,7 @@ export function ReputationTop() {
           <div className="mt-8 space-y-2.5">
             {data.map((u, i) => {
               const top3 = u.rank <= 3
+              const podium = top3 ? PODIUM[u.rank - 1] : null
               return (
                 <motion.div
                   key={u.rank}
@@ -51,14 +52,18 @@ export function ReputationTop() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '-30px' }}
                   transition={{ duration: 0.4, delay: i * 0.04 }}
-                  className={`glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4 ${
-                    top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
-                  }`}
+                  className="glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4"
+                  style={{
+                    borderColor: podium ? `${podium}66` : 'rgba(255,255,255,0.08)',
+                    background: podium
+                      ? `linear-gradient(100deg, ${podium}14, transparent 60%)`
+                      : undefined,
+                  }}
                 >
                   <div className="flex w-9 shrink-0 justify-center">
                     <span
                       className="type-stat text-lg font-bold sm:text-xl"
-                      style={{ color: top3 ? PODIUM[u.rank - 1] : 'var(--muted-foreground)' }}
+                      style={{ color: podium ?? 'var(--muted-foreground)' }}
                     >
                       {u.rank}
                     </span>
