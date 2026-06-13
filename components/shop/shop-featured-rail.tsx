@@ -3,6 +3,7 @@
 import { CoinAmount } from '@/components/ds/coin'
 import { ItemArt } from '@/components/ds/item-art'
 import { rarityToken } from '@/lib/rarity'
+import { Glyph } from '@/components/ds/icon'
 import { GiftBuyButton } from '@/components/v2/gift-buy-button'
 import type { ShopItem } from '@/lib/shop-types'
 
@@ -36,19 +37,23 @@ export function ShopFeaturedRail({
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[1.3fr_1fr]">
-          {/* Hero — the single most prestigious object */}
+          {/* Hero — the single most prestigious object. Calm Settings-grade
+              surface: the OBJECT (rarity-glowing ItemArt) is the focus; rarity
+              lives in a thin border tint + a label pill, not a full-card acid
+              wash. */}
           <div
-            className="glass relative overflow-hidden rounded-3xl border p-5"
-            style={{
-              borderColor: `${ht.color}55`,
-              boxShadow: ht.glow || undefined,
-              backgroundImage: ht.gradient,
-            }}
+            className="glass relative overflow-hidden rounded-3xl border border-border p-5"
+            style={{ borderColor: `${ht.color}40` }}
           >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px"
+              style={{ background: `linear-gradient(to right, ${ht.color}80, transparent 70%)` }}
+            />
             <div className="flex items-center gap-2">
               <span
                 className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
-                style={{ background: `${ht.color}22`, color: ht.color }}
+                style={{ background: `${ht.color}1a`, color: ht.color }}
               >
                 {ht.label}
               </span>
@@ -77,8 +82,9 @@ export function ShopFeaturedRail({
                   <CoinAmount value={hero.priceEshki} size="lg" />
                 </div>
                 {hero.remaining != null && hero.remaining <= 5 && (
-                  <p className="mt-1 text-xs font-semibold text-amber-300">
-                    🔥 осталось {hero.remaining.toLocaleString('ru-RU')}
+                  <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-300">
+                    <Glyph name="flame" className="h-3.5 w-3.5" />
+                    осталось {hero.remaining.toLocaleString('ru-RU')}
                   </p>
                 )}
                 <div className="mt-3 max-w-[220px]">
