@@ -6,6 +6,7 @@ import type { CommunityEvent } from '@/lib/events'
 import { eventText, timeAgo } from '@/lib/events'
 import { rarityToken } from '@/lib/rarity'
 import { ItemArt } from '@/components/ds/item-art'
+import { Glyph, type GlyphName } from '@/components/ds/icon'
 import { readLastVisit, writeLastVisit } from '@/lib/last-visit'
 
 /**
@@ -88,11 +89,11 @@ export function WhileAway({
   if (!state) return null
 
   const w = state.world
-  const chips: { icon: string; text: string }[] = []
-  if (w.jackpots > 0) chips.push({ icon: '💎', text: `${w.jackpots} ${plural(w.jackpots, 'джекпот', 'джекпота', 'джекпотов')}` })
-  if (w.giftDrops > 0) chips.push({ icon: '🎁', text: `${w.giftDrops} ${plural(w.giftDrops, 'подарок', 'подарка', 'подарков')}` })
-  if (w.marriages > 0) chips.push({ icon: '💍', text: `${w.marriages} ${plural(w.marriages, 'новая семья', 'новых семьи', 'новых семей')}` })
-  if (w.rankUps > 0) chips.push({ icon: '⬆️', text: `${w.rankUps} ${plural(w.rankUps, 'ап ранга', 'апа ранга', 'апов ранга')}` })
+  const chips: { icon: GlyphName; text: string }[] = []
+  if (w.jackpots > 0) chips.push({ icon: 'spark', text: `${w.jackpots} ${plural(w.jackpots, 'джекпот', 'джекпота', 'джекпотов')}` })
+  if (w.giftDrops > 0) chips.push({ icon: 'gift', text: `${w.giftDrops} ${plural(w.giftDrops, 'подарок', 'подарка', 'подарков')}` })
+  if (w.marriages > 0) chips.push({ icon: 'heart', text: `${w.marriages} ${plural(w.marriages, 'новая семья', 'новых семьи', 'новых семей')}` })
+  if (w.rankUps > 0) chips.push({ icon: 'chevronUp', text: `${w.rankUps} ${plural(w.rankUps, 'ап ранга', 'апа ранга', 'апов ранга')}` })
 
   return (
     <section className="px-4 pt-5 sm:px-6">
@@ -121,7 +122,7 @@ export function WhileAway({
                       key={c.text}
                       className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1.5 text-sm font-semibold text-foreground"
                     >
-                      <span aria-hidden>{c.icon}</span>
+                      <Glyph name={c.icon} className="text-[#7C93FF]" aria-hidden />
                       {c.text}
                     </span>
                   ))}
