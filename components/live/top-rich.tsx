@@ -24,7 +24,7 @@ export function TopRich() {
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">Самые богатые участники по балансу ешек</p>
 
-        <YouAreHere label="Твоё место по богатству" />
+        <YouAreHere label="Твоё место по богатству" endpoint="/api/top-rich/me" />
 
         {error && !data ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>

@@ -229,6 +229,66 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
   }))
 }
 
+export type WealthStanding = {
+  /** the viewer's 1-based position by balance (1 = richest) */
+  rank: number
+  /** total ranked players, for "#43 из 1280" */
+  total: number
+  balance: number
+  /** how much more eshki to pass the next player above (0 if already #1) */
+  toNext: number
+  /** name of the player directly above (the chase target), if any */
+  nextName: string | null
+}
+
+/**
+ * The viewer's OWN standing on the wealth leaderboard — "Где я?" for the same
+ * `users.balance` data the top list uses. No new source: one window query gives
+ * rank, the total, and the gap to the player directly above (the curiosity/chase
+ * hook). Returns null if the user has no row.
+ */
+export async function getMyWealthStanding(userId: number): Promise<WealthStanding | null> {
+  const rows = await query<{
+    rank: string
+    total: string
+    balance: string
+    to_next: string | null
+    next_name_first: string | null
+    next_name_user: string | null
+  }>(
+    `WITH ranked AS (
+       SELECT user_id, first_name, username, balance,
+              ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rn
+         FROM users
+     ),
+     me AS (SELECT rn, balance FROM ranked WHERE user_id = $1),
+     above AS (
+       SELECT r.balance, r.first_name, r.username
+         FROM ranked r, me
+        WHERE r.rn = me.rn - 1
+     )
+     SELECT me.rn::text AS rank,
+            (SELECT COUNT(*) FROM users)::text AS total,
+            me.balance::text AS balance,
+            (SELECT (balance - me.balance) FROM above)::text AS to_next,
+            (SELECT first_name FROM above) AS next_name_first,
+            (SELECT username FROM above) AS next_name_user
+       FROM me`,
+    [userId],
+  )
+  const r = rows[0]
+  if (!r) return null
+  return {
+    rank: Number(r.rank),
+    total: Number(r.total),
+    balance: Number(r.balance),
+    toNext: r.to_next == null ? 0 : Math.max(0, Number(r.to_next)),
+    nextName:
+      r.next_name_first || r.next_name_user
+        ? displayName(r.next_name_first, r.next_name_user)
+        : null,
+  }
+}
 
 export type WeeklyEarner = {
   rank: number
@@ -915,6 +975,59 @@ export async function getTopReputation(limit = 10): Promise<ReputationLeader[]> 
     name: displayName(r.first_name, r.username),
     reputation: Number(r.rep),
   }))
+}
+
+/**
+ * The viewer's OWN reputation standing ("Где я?") — same `reputation_entries`
+ * aggregation + ordering as getTopReputation, so the rank matches the board.
+ * Returns null if the user has no positive reputation (not on the board).
+ */
+export async function getMyReputationStanding(userId: number): Promise<WealthStanding | null> {
+  if (!(await tableExists('reputation_entries'))) return null
+  const rows = await query<{
+    rank: string
+    total: string
+    rep: string
+    to_next: string | null
+    next_name_first: string | null
+    next_name_user: string | null
+  }>(
+    `WITH sums AS (
+       SELECT r.target_user_id AS uid, SUM(r.value) AS rep
+         FROM reputation_entries r
+        GROUP BY r.target_user_id
+        HAVING SUM(r.value) > 0
+     ),
+     ranked AS (
+       SELECT s.uid, s.rep, u.first_name, u.username,
+              ROW_NUMBER() OVER (ORDER BY s.rep DESC, s.uid ASC) AS rn
+         FROM sums s JOIN users u ON u.user_id = s.uid
+     ),
+     me AS (SELECT rn, rep FROM ranked WHERE uid = $1),
+     above AS (
+       SELECT r.rep, r.first_name, r.username FROM ranked r, me WHERE r.rn = me.rn - 1
+     )
+     SELECT me.rn::text AS rank,
+            (SELECT COUNT(*) FROM ranked)::text AS total,
+            me.rep::text AS rep,
+            (SELECT (rep - me.rep) FROM above)::text AS to_next,
+            (SELECT first_name FROM above) AS next_name_first,
+            (SELECT username FROM above) AS next_name_user
+       FROM me`,
+    [userId],
+  )
+  const r = rows[0]
+  if (!r) return null
+  return {
+    rank: Number(r.rank),
+    total: Number(r.total),
+    balance: Number(r.rep),
+    toNext: r.to_next == null ? 0 : Math.max(0, Number(r.to_next)),
+    nextName:
+      r.next_name_first || r.next_name_user
+        ? displayName(r.next_name_first, r.next_name_user)
+        : null,
+  }
 }
 
 export type Daily = {

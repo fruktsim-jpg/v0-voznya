@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { PlayerLink } from '@/components/ui/player-link'
 import { useApi } from '@/hooks/use-api'
+import { YouAreHere } from '@/components/live/you-are-here'
 import type { ReputationLeader } from '@/lib/queries'
 
 const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
@@ -30,6 +31,8 @@ export function ReputationTop() {
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Самые уважаемые участники сообщества
         </p>
+
+        <YouAreHere label="Твоё место по репутации" endpoint="/api/reputation/me" unit="репутации" />
 
         {!data ? (
           <div className="mt-8 space-y-2.5">
