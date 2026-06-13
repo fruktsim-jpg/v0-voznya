@@ -44,11 +44,17 @@ export function ShopCard({
   const lowStock = item.remaining != null && item.remaining <= 5
   const cantAfford = affordable === false
   const shortBy = cantAfford && balance != null ? item.priceEshki - balance : null
+  // Shared card language with the case tile: rounded-2xl + a rarity-driven
+  // border/glow so a Mythic gift reads as Mythic exactly like a Mythic case.
+  const accent = item.rarity !== 'common'
 
   return (
     <article
-      className="glass group relative flex flex-col items-center overflow-hidden rounded-3xl border p-4 text-center transition hover:-translate-y-0.5"
-      style={{ borderColor: `${t.color}33` }}
+      className="glass group relative flex flex-col items-center overflow-hidden rounded-2xl border p-4 text-center transition hover:-translate-y-0.5"
+      style={{
+        borderColor: accent ? `${t.color}66` : 'rgba(255,255,255,0.08)',
+        boxShadow: accent ? t.glow || undefined : undefined,
+      }}
     >
       {/* Status flags — top corners */}
       <div className="absolute left-2 top-2 z-10 flex flex-col items-start gap-1">
