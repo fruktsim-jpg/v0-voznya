@@ -1,87 +1,97 @@
 import Link from 'next/link'
 import { getAdminSession } from '@/lib/auth/admin-session'
-import { loadDashboardCounters, loadRecentAudit } from '@/lib/admin-stats'
+import { loadRecentAudit } from '@/lib/admin-stats'
 import { loadPulse } from '@/lib/command-center-pulse'
+import { loadEconomyOverview, loadGiftsOverview } from '@/lib/economy-analytics'
+import { query } from '@/lib/db'
 import { CommandCenterPulse } from '@/components/admin/command-center-pulse'
+import { WorldState, type WorldStateData } from '@/components/admin/world-state'
 import { PlayerSearch } from '@/components/admin/player-search'
 import { humanizeAudit, roleLabel } from '@/lib/admin-format'
 
 export const dynamic = 'force-dynamic'
 
-const fmt = (n: number | null) => (n == null ? '—' : n.toLocaleString('ru-RU'))
-
-type StatCard = {
-  emoji: string
-  label: string
-  value: number | null
-  tone: string // border + glow tint
+async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await p
+  } catch {
+    return fallback
+  }
 }
 
 /**
- * Admin dashboard. Search-first, with a grid of glass stat cards and a
- * humanized recent-activity feed. Counters degrade gracefully (show —) when a
- * foundation table is missing on the target DB, so the page never 500s.
+ * Command Center home — the owner's screen. Reads top-to-bottom as a cockpit:
+ *   1. WorldState — the living platform in four glances (economy/players/season/gifts).
+ *   2. Pulse — what needs you now, action-first (deep findings + action chips).
+ *   3. Player search — the highest-frequency tool.
+ *   4. Recent activity — the audit tail, demoted.
+ * The old flat 8-counter grid was removed: WorldState answers the same questions
+ * with hierarchy, and Pulse answers "what to do" — no duplicate "here are totals".
  */
 export default async function AdminDashboardPage() {
   const session = await getAdminSession()
   if (!session) return null
 
-  const [counters, recent, pulse] = await Promise.all([
-    loadDashboardCounters(),
-    loadRecentAudit(15),
+  const [recent, pulse, eco, gifts, seasonRows] = await Promise.all([
+    safe(loadRecentAudit(12), []),
     loadPulse(),
+    safe(loadEconomyOverview(), {
+      totalEshki: null, players: null, activePlayers7d: null,
+      avgBalance: null, mintedToday: null, burnedToday: null, netToday: null,
+    }),
+    safe(loadGiftsOverview(), null),
+    safe(
+      query<{ name: string; ends_at: string | null; is_active: boolean }>(
+        `SELECT name, ends_at, is_active FROM seasons WHERE is_active = true ORDER BY started_at DESC LIMIT 1`,
+      ),
+      [] as { name: string; ends_at: string | null; is_active: boolean }[],
+    ),
   ])
 
-  const cards: StatCard[] = [
-    { emoji: '👥', label: 'Игроков', value: counters.players, tone: 'border-primary/30 from-primary/[0.08]' },
-    { emoji: '💰', label: 'Всего ешек', value: counters.ezhki, tone: 'border-amber-400/25 from-amber-400/[0.08]' },
-    { emoji: '🏆', label: 'Всего MMR', value: counters.mmr, tone: 'border-primary/30 from-primary/[0.08]' },
-    { emoji: '❤️', label: 'Всего репутации', value: counters.reputation, tone: 'border-rose-400/25 from-rose-400/[0.08]' },
-    { emoji: '🎒', label: 'Предметов в каталоге', value: counters.catalogItems, tone: 'border-sky-400/25 from-sky-400/[0.08]' },
-    { emoji: '🏅', label: 'Выдано достижений', value: counters.achievementsGranted, tone: 'border-emerald-400/25 from-emerald-400/[0.08]' },
-    { emoji: '📦', label: 'Предметов в инвентарях', value: counters.itemsInInventories, tone: 'border-sky-400/25 from-sky-400/[0.08]' },
-    { emoji: '📜', label: 'Записей аудита', value: counters.auditRecords, tone: 'border-border from-white/[0.04]' },
-  ]
+  const season = seasonRows[0]
+  const daysLeft = season?.ends_at
+    ? Math.ceil((new Date(season.ends_at).getTime() - Date.now()) / 86_400_000)
+    : null
+
+  const world: WorldStateData = {
+    economy: {
+      totalEshki: eco.totalEshki,
+      netToday: eco.netToday,
+      activePlayers7d: eco.activePlayers7d,
+    },
+    players: { total: eco.players, active7d: eco.activePlayers7d },
+    season: { name: season?.name ?? null, daysLeft, active: !!season },
+    gifts: {
+      pending: gifts?.pending ?? null,
+      completed: gifts?.completed ?? null,
+    },
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Pulse — the hero: what needs attention right now (cross-system) */}
+    <div className="space-y-7">
+      {/* Hero: state of the world */}
       <section>
         <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Командный центр</h1>
         <p className="mb-4 text-sm text-muted-foreground">
-          Состояние всей экосистемы VOZNYA одним взглядом. Ниже — поиск игрока и сводка.
+          Состояние VOZNYA одним взглядом — и что требует твоего внимания.
         </p>
+        <WorldState data={world} />
+      </section>
+
+      {/* What needs you now */}
+      <section>
         <CommandCenterPulse report={pulse} />
       </section>
 
-      {/* Search — now a tool, not the hero */}
+      {/* Search — the primary tool */}
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Поиск игрока
+          Найти игрока
         </h2>
         <PlayerSearch />
       </section>
 
-      {/* Counters */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Сводка
-        </h2>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
-          {cards.map((c) => (
-            <div
-              key={c.label}
-              className={`glass rounded-2xl border bg-gradient-to-br to-transparent p-4 ${c.tone}`}
-            >
-              <div className="text-xl sm:text-2xl">{c.emoji}</div>
-              <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">{fmt(c.value)}</div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">{c.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Recent activity */}
+      {/* Recent activity — demoted tail */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -113,9 +123,7 @@ export default async function AdminDashboardPage() {
                       {r.target_name ?? (r.target_user_id ? `id ${r.target_user_id}` : 'Система')}
                     </span>{' '}
                     <span className={h.tone}>{h.text}</span>
-                    {r.reason && (
-                      <span className="text-muted-foreground"> · {r.reason}</span>
-                    )}
+                    {r.reason && <span className="text-muted-foreground"> · {r.reason}</span>}
                     <div className="text-[11px] text-muted-foreground">
                       {roleLabel(r.actor_role)} {r.actor_name ?? `id ${r.actor_user_id}`} ·{' '}
                       {new Date(r.created_at).toLocaleString('ru-RU')}

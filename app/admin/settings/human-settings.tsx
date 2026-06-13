@@ -20,6 +20,21 @@ import { SettingsManager } from './settings-manager'
  * legacy raw editor below, so nothing is hidden.
  */
 
+/**
+ * Per-domain visual identity — turns each settings group from a plain card into
+ * a self-contained control module (icon + accent rail + header summary). This is
+ * the Settings V2 "panels, not a form" step: same registry, same writes, richer
+ * surface so the operator reads it as Казино / Ферма / Экономика modules.
+ */
+const GROUP_META: Record<string, { emoji: string; accent: string; rail: string }> = {
+  casino: { emoji: '🎰', accent: 'from-rose-400/[0.10]', rail: 'bg-rose-400/60' },
+  farm: { emoji: '🌾', accent: 'from-emerald-400/[0.10]', rail: 'bg-emerald-400/60' },
+  daily: { emoji: '📅', accent: 'from-sky-400/[0.10]', rail: 'bg-sky-400/60' },
+  duels: { emoji: '⚔️', accent: 'from-amber-400/[0.10]', rail: 'bg-amber-400/60' },
+  season: { emoji: '🏆', accent: 'from-primary/[0.10]', rail: 'bg-primary/60' },
+  economy: { emoji: '💹', accent: 'from-violet-400/[0.10]', rail: 'bg-violet-400/60' },
+}
+
 const fmtVal = (def: SettingDef, v: number | boolean | string): string => {
   if (def.control === 'toggle') return v ? 'вкл' : 'выкл'
   if (def.control === 'percent') return `${Math.round(Number(v) * 100)}%`
@@ -91,13 +106,13 @@ function ControlRow({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground">{def.label}</span>
           {def.liveNow ? (
-            <span className="rounded-full border border-emerald-400/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-emerald-300">live</span>
+            <span className="rounded-full border border-emerald-400/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-emerald-300">живой</span>
           ) : (
             <span
-              className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground/70"
+              className="rounded-full border border-amber-400/30 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-amber-300/90"
               title="Бот применит значение, когда начнёт читать этот ключ. Сохранение безопасно."
             >
-              готово
+              готов
             </span>
           )}
           {isOverride && (
@@ -234,28 +249,57 @@ export function HumanSettings({
         <p className={`text-xs ${msg.ok ? 'text-emerald-300' : 'text-destructive-foreground'}`}>{msg.text}</p>
       )}
 
-      {SETTINGS_REGISTRY.map((group) => (
-        <div key={group.id} className="glass rounded-2xl border border-border p-4">
-          <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
-            {group.blurb && <p className="text-[11px] text-muted-foreground">{group.blurb}</p>}
+      {SETTINGS_REGISTRY.map((group) => {
+        const meta = GROUP_META[group.id] ?? { emoji: '⚙️', accent: 'from-white/[0.04]', rail: 'bg-white/20' }
+        const liveCount = group.settings.filter((s) => s.liveNow).length
+        const overrideCount = group.settings.filter((s) => stored.has(s.key)).length
+        return (
+          <div
+            key={group.id}
+            className={`glass relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br to-transparent p-4 pl-5 ${meta.accent}`}
+          >
+            {/* accent rail */}
+            <span className={`absolute inset-y-0 left-0 w-1 ${meta.rail}`} />
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] text-lg">
+                  {meta.emoji}
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
+                  {group.blurb && <p className="text-[11px] text-muted-foreground">{group.blurb}</p>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {liveCount > 0 && (
+                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                    {liveCount} живых
+                  </span>
+                )}
+                {overrideCount > 0 && (
+                  <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                    {overrideCount} изменено
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {group.settings.map((def) => (
+                <ControlRow
+                  key={def.key}
+                  def={def}
+                  stored={stored}
+                  isOverride={stored.has(def.key)}
+                  canManage={canManage}
+                  onSave={onSave}
+                  onReset={onReset}
+                  busy={busy}
+                />
+              ))}
+            </div>
           </div>
-          <div className="space-y-2">
-            {group.settings.map((def) => (
-              <ControlRow
-                key={def.key}
-                def={def}
-                stored={stored}
-                isOverride={stored.has(def.key)}
-                canManage={canManage}
-                onSave={onSave}
-                onReset={onReset}
-                busy={busy}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
       {/* Anything not in the registry stays editable via the raw editor. */}
       {unknown.length > 0 && (

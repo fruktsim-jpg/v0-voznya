@@ -1,40 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  SERVICE_TOGGLES,
-  GLOBAL_MODIFIERS,
-  type Enforcement,
-} from '@/lib/admin/operations-registry'
+import { SERVICE_TOGGLES, GLOBAL_MODIFIERS } from '@/lib/admin/operations-registry'
+import { EnforcementBadge } from '@/components/admin/ui'
 
 /**
  * Operations board (client) — global service toggles + global modifiers.
  *
  * Writes go to /api/admin/operations (app_settings rows the bot reads ≤60s).
- * Each lever shows an HONEST enforcement badge:
- *   • «живой» (enforced) — the bot honors it now.
- *   • «готов» (armed)    — stored, but the bot doesn't read it yet (needs bot
- *                          work). We never fake a working switch.
+ * Each lever shows an HONEST enforcement badge (живой/готов) from the shared
+ * <EnforcementBadge> — same component everywhere, no bespoke status spans.
  * Optimistic UI with rollback on error. Owner-gated by the API.
  */
-
-function EnforcementBadge({ enforcement }: { enforcement: Enforcement }) {
-  if (enforcement === 'enforced') {
-    return (
-      <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-        живой
-      </span>
-    )
-  }
-  return (
-    <span
-      title="Флаг сохраняется, но бот его пока не читает — требуется доработка бота."
-      className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
-    >
-      готов
-    </span>
-  )
-}
 
 export function OperationsBoard({
   canManage,

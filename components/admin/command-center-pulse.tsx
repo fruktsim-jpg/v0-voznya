@@ -23,26 +23,50 @@ const SYSTEM_LABEL: Record<string, string> = {
 
 function Row({ s }: { s: PulseSignal }) {
   const st = SEV_STYLE[s.severity]
-  const body = (
-    <div className={`flex items-start gap-3 rounded-xl border bg-gradient-to-br to-transparent p-3 ${st.ring}`}>
-      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${st.dot}`} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{s.title}</span>
-          <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
-            {SYSTEM_LABEL[s.system] ?? s.system}
-          </span>
+  const hasActions = !!s.actions && s.actions.length > 0
+  // Title links to the module (if href) but is NOT a wrapping anchor, so the
+  // action chips below can be their own links (no nested <a>).
+  return (
+    <div className={`rounded-xl border bg-gradient-to-br to-transparent p-3 ${st.ring}`}>
+      <div className="flex items-start gap-3">
+        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${st.dot}`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {s.href ? (
+              <Link
+                href={s.href}
+                className="truncate text-sm font-semibold text-foreground hover:text-primary"
+              >
+                {s.title}
+              </Link>
+            ) : (
+              <span className="truncate text-sm font-semibold text-foreground">{s.title}</span>
+            )}
+            <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+              {SYSTEM_LABEL[s.system] ?? s.system}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{s.detail}</p>
+          {hasActions && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {s.actions!.map((a, i) => (
+                <Link
+                  key={i}
+                  href={a.href}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
+                    a.kind === 'primary'
+                      ? 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/25'
+                      : 'border-border bg-white/[0.04] text-foreground hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {a.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{s.detail}</p>
       </div>
     </div>
-  )
-  return s.href ? (
-    <Link href={s.href} className="block transition active:scale-[0.99]">
-      {body}
-    </Link>
-  ) : (
-    body
   )
 }
 

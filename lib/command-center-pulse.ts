@@ -19,6 +19,15 @@ import { query } from './db'
 
 export type PulseSeverity = 'critical' | 'warning' | 'good' | 'info'
 
+export type PulseAction = {
+  /** button label, e.g. "Открыть экономику" */
+  label: string
+  /** where it goes (deep link today; one-click ops can come later) */
+  href: string
+  /** primary = filled accent; secondary = outline */
+  kind?: 'primary' | 'secondary'
+}
+
 export type PulseSignal = {
   /** system this came from, e.g. 'economy' | 'cases' | 'gifts' | 'season' */
   system: string
@@ -27,8 +36,14 @@ export type PulseSignal = {
   title: string
   /** one-line interpretation/reason */
   detail: string
-  /** optional deep link into the relevant module */
+  /** optional deep link into the relevant module (row click) */
   href?: string
+  /**
+   * Action-first: concrete next steps for this finding. A finding is not just a
+   * link — it offers what to DO. Today these are deep links to the right screen;
+   * the contract allows real one-click ops later without changing callers.
+   */
+  actions?: PulseAction[]
 }
 
 const SEVERITY_RANK: Record<PulseSeverity, number> = { critical: 0, warning: 1, good: 2, info: 3 }
@@ -53,6 +68,11 @@ const economyPulse: PulseProvider = async () => {
         title: 'Сильная инфляция',
         detail: `Денежная масса выросла на ${Math.round(pressure * 100)}% за 14 дней.`,
         href: '/admin/economy',
+        actions: [
+          { label: 'Открыть экономику', href: '/admin/economy', kind: 'primary' },
+          { label: 'Источники потока', href: '/admin/economy#flow' },
+          { label: 'Модификаторы', href: '/admin/operations' },
+        ],
       })
     } else if (pressure >= 0.05) {
       out.push({
@@ -61,6 +81,10 @@ const economyPulse: PulseProvider = async () => {
         title: 'Инфляционное давление',
         detail: `Масса растёт (${Math.round(pressure * 100)}% / 14д). Следи за источниками.`,
         href: '/admin/economy',
+        actions: [
+          { label: 'Открыть экономику', href: '/admin/economy', kind: 'primary' },
+          { label: 'Источники потока', href: '/admin/economy#flow' },
+        ],
       })
     } else if (pressure <= -0.05) {
       out.push({
@@ -108,6 +132,7 @@ const casesPulse: PulseProvider = async () => {
         title: `${generous.length} кейс(ов) слишком щедрые`,
         detail: `${generous.map((c) => c.name).slice(0, 3).join(', ')} отдают больше, чем берут.`,
         href: '/admin/cases',
+        actions: [{ label: 'Настроить кейсы', href: '/admin/cases', kind: 'primary' }],
       })
     }
     if (lowEng.length > 0) {
@@ -139,6 +164,7 @@ const giftsPulse: PulseProvider = async () => {
         title: `${g.pending} подарков в очереди`,
         detail: 'Ожидают доставки в Telegram.',
         href: '/admin/gifts/deliveries',
+        actions: [{ label: 'Открыть очередь', href: '/admin/gifts/deliveries', kind: 'primary' }],
       })
     }
     if (g.cancelled > 0) {
@@ -148,6 +174,7 @@ const giftsPulse: PulseProvider = async () => {
         title: `${g.cancelled} отменённых доставок`,
         detail: 'Возможны возвраты/жалобы — проверь очередь.',
         href: '/admin/gifts/deliveries',
+        actions: [{ label: 'Проверить очередь', href: '/admin/gifts/deliveries', kind: 'primary' }],
       })
     }
     return out
@@ -166,10 +193,10 @@ const seasonPulse: PulseProvider = async () => {
     if (s.ends_at) {
       const days = Math.ceil((new Date(s.ends_at).getTime() - Date.now()) / 86_400_000)
       if (days <= 0) {
-        return [{ system: 'season', severity: 'warning', title: 'Сезон завершился', detail: `«${s.name}» пора финализировать.`, href: '/admin/season' }]
+        return [{ system: 'season', severity: 'warning', title: 'Сезон завершился', detail: `«${s.name}» пора финализировать.`, href: '/admin/season', actions: [{ label: 'Финализировать сезон', href: '/admin/season', kind: 'primary' }] }]
       }
       if (days <= 3) {
-        return [{ system: 'season', severity: 'info', title: `Сезон заканчивается через ${days} дн.`, detail: `«${s.name}» скоро финал — подготовь награды.`, href: '/admin/season' }]
+        return [{ system: 'season', severity: 'info', title: `Сезон заканчивается через ${days} дн.`, detail: `«${s.name}» скоро финал — подготовь награды.`, href: '/admin/season', actions: [{ label: 'Открыть сезон', href: '/admin/season' }] }]
       }
     }
     return [{ system: 'season', severity: 'good', title: 'Сезон идёт', detail: `«${s.name}» активен.`, href: '/admin/season' }]

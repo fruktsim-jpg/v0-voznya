@@ -6,6 +6,7 @@ import { getActiveSeason } from '@/lib/season'
 import { OPERATIONS_KEYS } from '@/lib/admin/operations-registry'
 import { SeasonManager } from '../season/season-manager'
 import { OperationsBoard } from './operations-board'
+import { AdminPageHeader } from '@/components/admin/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,14 +61,11 @@ export default async function OperationsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">
-          ⚙️ Управление VOZNYA
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Сезон, сервисы и глобальные модификаторы — без SQL и консоли.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="⚙️ Управление VOZNYA"
+        subtitle="Сезон, сервисы и глобальные модификаторы — без SQL и консоли."
+        status={{ tone: active ? 'ok' : 'idle', text: active ? `Сезон: ${active.name}` : 'Сезон не идёт' }}
+      />
 
       {/* Status strip — the success test: see state at a glance */}
       <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">

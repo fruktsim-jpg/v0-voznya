@@ -58,61 +58,89 @@ export default async function AdminLayout({
     )
   }
 
-  // Live sections + foundation placeholders (shown disabled until they ship).
-  const nav: { href: string; label: string; emoji: string }[] = [
-    { href: '/admin', label: 'Дашборд', emoji: '📊' },
-    { href: '/admin/operations', label: 'Управление', emoji: '⚙️' },
-    { href: '/admin/economy', label: 'Экономика', emoji: '💹' },
-    { href: '/admin/season', label: 'Сезон', emoji: '🏆' },
-    { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
-
-    { href: '/admin/items', label: 'Предметы', emoji: '🧩' },
-    { href: '/admin/collections', label: 'Коллекции', emoji: '📚' },
-    { href: '/admin/assets', label: 'Арт', emoji: '🎨' },
-    { href: '/admin/featured', label: 'Избранное', emoji: '⭐' },
-
-    { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
-    { href: '/admin/shop', label: 'Магазин', emoji: '🛒' },
-    { href: '/admin/deliveries', label: 'Доставки', emoji: '📦' },
-    { href: '/admin/settings', label: 'Настройки', emoji: '🎛️' },
-
-    { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
+  // Grouped, ranked navigation. COCKPIT = the owner's daily "run the project"
+  // surfaces; MANAGE = content/operations; SYSTEM = configuration/history.
+  // Infrastructure routes (items/collections/assets/featured) stay reachable by
+  // URL + in-context pickers but are intentionally OUT of the primary nav so
+  // they don't compete with the main operator jobs.
+  type NavItem = { href: string; label: string; emoji: string }
+  const groups: { id: string; label: string; items: NavItem[] }[] = [
+    {
+      id: 'cockpit',
+      label: 'Центр',
+      items: [
+        { href: '/admin', label: 'Пульс', emoji: '📡' },
+        { href: '/admin/players', label: 'Игроки', emoji: '👥' },
+        { href: '/admin/operations', label: 'Управление', emoji: '⚙️' },
+        { href: '/admin/economy', label: 'Экономика', emoji: '💹' },
+      ],
+    },
+    {
+      id: 'manage',
+      label: 'Контент',
+      items: [
+        { href: '/admin/cases', label: 'Кейсы', emoji: '🎁' },
+        { href: '/admin/gifts', label: 'Подарки', emoji: '🎀' },
+        { href: '/admin/shop', label: 'Магазин', emoji: '🛒' },
+        { href: '/admin/season', label: 'Сезон', emoji: '🏆' },
+      ],
+    },
+    {
+      id: 'system',
+      label: 'Система',
+      items: [
+        { href: '/admin/settings', label: 'Настройки', emoji: '🎛️' },
+        { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
+      ],
+    },
   ]
-  const soon: { label: string; emoji: string }[] = [
-    { label: 'Роли', emoji: '🔑' },
-  ]
-
-
+  const soon: { label: string; emoji: string }[] = [{ label: 'Роли', emoji: '🔑' }]
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-header pb-10">
       {/* Top bar */}
-      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="mb-6 flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold tracking-tight text-foreground">
+            VOZNYA <span className="text-muted-foreground">OS</span>
+          </span>
+          <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+            {roleLabel(session.role)}
+          </span>
+        </div>
 
-        <nav className="flex flex-wrap items-center gap-1.5">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-full border border-border bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/[0.08] sm:text-sm"
-            >
-              {item.emoji} {item.label}
-            </Link>
-          ))}
-          {soon.map((item) => (
-            <span
-              key={item.label}
-              title="Скоро"
-              className="cursor-default rounded-full border border-border/60 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-muted-foreground/60 sm:text-sm"
-            >
-              {item.emoji} {item.label}
-            </span>
+        <nav className="flex flex-col gap-2">
+          {groups.map((g) => (
+            <div key={g.id} className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 sm:w-auto">
+                {g.label}
+              </span>
+              {g.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                    g.id === 'cockpit'
+                      ? 'border-primary/30 bg-primary/[0.08] text-foreground hover:border-primary/50 hover:bg-primary/[0.14]'
+                      : 'border-border bg-white/[0.04] text-foreground hover:border-primary/40 hover:bg-primary/[0.08]'
+                  }`}
+                >
+                  {item.emoji} {item.label}
+                </Link>
+              ))}
+              {g.id === 'system' &&
+                soon.map((item) => (
+                  <span
+                    key={item.label}
+                    title="Скоро"
+                    className="cursor-default rounded-full border border-border/60 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-muted-foreground/60 sm:text-sm"
+                  >
+                    {item.emoji} {item.label}
+                  </span>
+                ))}
+            </div>
           ))}
         </nav>
-        <span className="shrink-0 self-start rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary sm:self-auto">
-          {roleLabel(session.role)}
-        </span>
-
       </header>
 
       {children}

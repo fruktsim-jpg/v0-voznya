@@ -3,10 +3,9 @@ import { redirect } from 'next/navigation'
 export const dynamic = 'force-dynamic'
 
 /**
- * Canonical delivery-center URL (Admin V2 P0). The implementation lives under
- * /admin/gifts/deliveries; this is the short, discoverable alias the operator
- * asked for. Single source of truth — no duplicated logic, just a redirect.
+ * Canonical short alias for the delivery center, which now lives as a tab inside
+ * the unified Gifts screen. Single source of truth — just a redirect.
  */
 export default function AdminDeliveriesAlias() {
-  redirect('/admin/gifts/deliveries')
+  redirect('/admin/gifts?tab=deliveries')
 }

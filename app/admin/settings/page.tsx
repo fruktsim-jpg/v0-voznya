@@ -3,6 +3,7 @@ import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { query } from '@/lib/db'
 import type { AdminSetting } from './settings-manager'
 import { HumanSettings } from './human-settings'
+import { AdminPageHeader } from '@/components/admin/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,12 +43,10 @@ export default async function AdminSettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Настройки</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Человеческие параметры экономики и игр — без кодов и JSON. Бот
-        подхватывает изменения в течение ~60 секунд; «live» применяется сразу,
-        «готово» — когда бот начнёт читать ключ. Сброс возвращает значение из кода.
-      </p>
+      <AdminPageHeader
+        title="Настройки"
+        subtitle="Человеческие параметры экономики и игр — без кодов и JSON. Бот подхватывает изменения за ~60 секунд; «живой» применяется сразу, «готов» — когда бот начнёт читать ключ."
+      />
       <HumanSettings initialSettings={settings} canManage={canManage} />
     </div>
   )
