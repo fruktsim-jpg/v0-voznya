@@ -60,6 +60,7 @@ function MENU_GROUPS(data: AuthedSummary): MenuGroup[] {
       id: 'progress',
       label: 'Прогресс',
       items: [
+        { id: 'stats', label: 'Моя статистика', hint: 'Кто я и как расту', icon: 'chart', href: '/stats' },
         { id: 'season', label: 'Сезон', hint: 'Дивизион и титулы', icon: 'season', href: '/season' },
       ],
     },
