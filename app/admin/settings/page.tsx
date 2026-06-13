@@ -1,7 +1,8 @@
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { query } from '@/lib/db'
-import { SettingsManager, type AdminSetting } from './settings-manager'
+import type { AdminSetting } from './settings-manager'
+import { HumanSettings } from './human-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,11 +44,11 @@ export default async function AdminSettingsPage() {
     <div>
       <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">Настройки</h1>
       <p className="mb-4 text-sm text-muted-foreground">
-        Параметры экономики, кейсов и магазина, редактируемые без деплоя и
-        миграций. Бот подхватывает изменения в течение ~60 секунд. Если ключа
-        здесь нет — используется значение из кода.
+        Человеческие параметры экономики и игр — без кодов и JSON. Бот
+        подхватывает изменения в течение ~60 секунд; «live» применяется сразу,
+        «готово» — когда бот начнёт читать ключ. Сброс возвращает значение из кода.
       </p>
-      <SettingsManager initialSettings={settings} canManage={canManage} />
+      <HumanSettings initialSettings={settings} canManage={canManage} />
     </div>
   )
 }
