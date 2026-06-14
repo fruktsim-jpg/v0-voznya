@@ -1,7 +1,8 @@
 import { UserBadge } from '@/components/v2/user-badge'
-import { eventText, timeAgo, eventHeat, type CommunityEvent } from '@/lib/events'
+import { eventText, timeAgo, eventHeat, eventGlyph, type CommunityEvent } from '@/lib/events'
 import { rarityToken } from '@/lib/rarity'
 import { ItemArt } from '@/components/ds/item-art'
+import { Glyph } from '@/components/ds/icon/glyph'
 
 /**
  * ActivityCard — one Live Feed row, weighted by IMPORTANCE, not chronology.
@@ -38,7 +39,7 @@ export function ActivityCard({ event: e }: { event: CommunityEvent }) {
         <ItemArt
           code={e.itemCode}
           itemClass={e.itemClass}
-          glyph={e.icon}
+          glyph={<Glyph name={eventGlyph(e.code)} />}
           rarity={e.rarity}
           size="md"
           className="!h-12 !w-12 !rounded-2xl shrink-0"
@@ -73,7 +74,7 @@ export function ActivityCard({ event: e }: { event: CommunityEvent }) {
         <ItemArt
           code={e.itemCode}
           itemClass={e.itemClass}
-          glyph={e.icon}
+          glyph={<Glyph name={eventGlyph(e.code)} />}
           rarity={e.rarity}
           size="sm"
           className="!h-9 !w-9 !rounded-xl shrink-0"
@@ -102,7 +103,7 @@ export function ActivityCard({ event: e }: { event: CommunityEvent }) {
       <ItemArt
         code={e.itemCode}
         itemClass={e.itemClass}
-        glyph={e.icon}
+        glyph={<Glyph name={eventGlyph(e.code)} />}
         rarity={e.rarity}
         size="sm"
         className="!h-6 !w-6 !rounded-lg !text-sm shrink-0"

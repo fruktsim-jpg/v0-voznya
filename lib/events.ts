@@ -7,6 +7,7 @@
 
 import type { Rarity } from '@/lib/rarity'
 import type { ItemClass } from '@/lib/item-art/model'
+import type { GlyphName } from '@/components/ds/icon/glyph'
 
 export type EventCode =
   | 'CASE_OPEN'
@@ -64,6 +65,36 @@ export function eventItemClass(code: EventCode): ItemClass | null {
       return 'collectible'
     default:
       return null
+  }
+}
+
+/**
+ * Event code → owned Glyph (SVG icon), replacing raw emoji in the feed so the
+ * live stream reads as one premium product, not a mix of emoji.
+ */
+export function eventGlyph(code: EventCode): GlyphName {
+  switch (code) {
+    case 'CASE_OPEN':
+      return 'case'
+    case 'CASE_JACKPOT':
+      return 'spark'
+    case 'CASE_GIFT_DROP':
+    case 'GIFT_DELIVERED':
+    case 'GIFT_PURCHASE':
+    case 'GIFT_PLAYER':
+      return 'gift'
+    case 'ACHIEVEMENT_UNLOCKED':
+      return 'trophy'
+    case 'MMR_RANK_UP':
+      return 'chevronUp'
+    case 'MARRIAGE_CREATED':
+      return 'heart'
+    case 'CASINO_BIG_WIN':
+      return 'dice'
+    case 'TREASURE_FOUND':
+      return 'vault'
+    default:
+      return 'spark'
   }
 }
 
