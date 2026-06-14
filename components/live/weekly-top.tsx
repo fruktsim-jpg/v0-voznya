@@ -1,75 +1,68 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import { formatCurrency } from '@/lib/pluralize'
-import { PlayerLink } from '@/components/ui/player-link'
+import { Avatar } from '@/components/ds/avatar'
 import type { WeeklyEarner } from '@/lib/queries'
 
 const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
+/**
+ * WeeklyTop — biggest earners of the last 7 days. Same Settings-quality list as
+ * TopRich: left-aligned header, one dense glass list, real Avatar per row
+ * (Telegram photo → initials), rank colour = podium only. Read-only.
+ */
 export function WeeklyTop() {
   const { data, error } = useApi<WeeklyEarner[]>('/api/top-weekly?limit=10', 30_000)
 
   return (
-    <section id="top-weekly" className="px-4 py-5 sm:py-6">
+    <section id="top-weekly" className="px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
-          Топ <span className="text-gradient">недели</span>
+        <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+          Топ недели
         </h2>
-        <p className="mt-2 text-center text-sm text-muted-foreground">Больше всех заработали за последние 7 дней</p>
 
         {error && !data ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Рейтинг временно недоступен</p>
+          <p className="mt-4 text-sm text-muted-foreground">Рейтинг временно недоступен</p>
         ) : !data ? (
-          <div className="mt-8 space-y-2.5">
+          <div className="mt-3 space-y-1.5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/5" />
+              <div key={i} className="h-12 animate-pulse rounded-xl bg-white/5" />
             ))}
           </div>
         ) : data.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Пока нет активности за последние 7 дней</p>
+          <p className="mt-4 text-sm text-muted-foreground">Пока нет активности за последние 7 дней</p>
         ) : (
-        <div className="mt-8 space-y-2.5">
-          {data.map((u, i) => {
-            const top3 = u.rank <= 3
-            const podium = top3 ? PODIUM[u.rank - 1] : null
-            return (
-              <motion.div
-                key={u.rank}
-                initial={{ opacity: 0, x: -16 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-30px' }}
-                transition={{ duration: 0.4, delay: i * 0.04 }}
-                className="glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4"
-                style={{
-                  borderColor: podium ? `${podium}66` : 'rgba(255,255,255,0.08)',
-                  background: podium
-                    ? `linear-gradient(100deg, ${podium}14, transparent 60%)`
-                    : undefined,
-                }}
-              >
-                <div className="flex w-9 shrink-0 justify-center">
+          <div className="glass mt-3 overflow-hidden rounded-2xl border border-border">
+            {data.map((u) => {
+              const top3 = u.rank <= 3
+              const podium = top3 ? PODIUM[u.rank - 1] : null
+              return (
+                <a
+                  key={u.rank}
+                  href={`/profile/${u.userId}`}
+                  className="flex items-center gap-3 border-b border-border/50 px-3 py-2.5 transition last:border-0 hover:bg-white/[0.03] sm:px-4"
+                >
                   <span
-                    className="text-lg font-extrabold sm:text-xl"
+                    className="type-stat w-6 shrink-0 text-center text-sm"
                     style={{ color: podium ?? 'var(--muted-foreground)' }}
                   >
                     {u.rank}
                   </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <PlayerLink userId={u.userId} name={u.name} className="truncate text-sm font-semibold text-foreground sm:text-base block" />
-                </div>
-                <div
-                  className="shrink-0 text-sm font-bold sm:text-base"
-                  style={{ color: podium ?? 'var(--primary)' }}
-                >
-                  +{formatCurrency(u.earned)}
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
+                  <Avatar src={u.photoUrl} name={u.name} size="sm" />
+                  <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                    {u.name}
+                  </div>
+                  <div
+                    className="type-economy shrink-0 text-sm"
+                    style={{ color: podium ?? 'var(--primary)' }}
+                  >
+                    +{formatCurrency(u.earned)}
+                  </div>
+                </a>
+              )
+            })}
+          </div>
         )}
       </div>
     </section>

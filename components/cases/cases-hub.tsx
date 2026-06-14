@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react'
 import { layoutCases, CASE_CATEGORY_META, type CaseView, type CaseCategory } from '@/lib/cases-ux'
 import { Chip, ChipGroup } from '@/components/ds/chip'
 import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
-import { FeaturedCard } from '@/components/cases/featured-card'
 import { CaseTile } from '@/components/cases/case-tile'
 import { CaseDetailSheet } from '@/components/cases/case-detail-sheet'
 import { RecentWins } from '@/components/cases/recent-wins'
@@ -34,7 +33,7 @@ export function CasesHub({
   const [selected, setSelected] = useState<CaseView | null>(null)
   const [open, setOpen] = useState(false)
 
-  const { featured, groups } = useMemo(() => layoutCases(cases), [cases])
+  const { groups } = useMemo(() => layoutCases(cases), [cases])
 
   const categories = useMemo(() => groups.map((g) => g.category), [groups])
 
@@ -49,17 +48,10 @@ export function CasesHub({
   }
 
   return (
-    <div className="space-y-5">
-      {/* Featured hero — the dream, only on the unfiltered view (it's the anchor). */}
-      {featured && category === 'all' && (
-        <FeaturedCard
-          caseView={featured}
-          opens={openCounts[featured.itemCode]}
-          onOpenDetail={openDetail}
-        />
-      )}
-
-      {/* Category filters */}
+    <div className="space-y-4">
+      {/* Category filters — the screen opens directly on the catalog (App Store /
+          Steam pattern). No featured stage dominates the first viewport; the top
+          case still leads its category group as a normal row. */}
       {categories.length > 1 && (
         <ChipGroup>
           <Chip active={category === 'all'} onClick={() => setCategory('all')}>

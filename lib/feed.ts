@@ -3,6 +3,29 @@ import { query } from '@/lib/db'
 import { eventItemClass, type CommunityEvent, type EventCode } from '@/lib/events'
 import type { Rarity } from '@/lib/rarity'
 
+// Memoized schema probe — older DBs may lack the cosmetic `photo_url` column, so
+// avatar selects are guarded (same pattern as lib/queries.ts). Cached per process.
+const columnPresence = new Map<string, boolean>()
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`
+  const cached = columnPresence.get(key)
+  if (cached !== undefined) return cached
+  try {
+    const rows = await query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_name = $1 AND column_name = $2
+       ) AS exists`,
+      [table, column],
+    )
+    const present = Boolean(rows[0]?.exists)
+    columnPresence.set(key, present)
+    return present
+  } catch {
+    return false
+  }
+}
+
 /**
  * Community feed V1 — РЕАЛЬНЫЕ события из существующих таблиц (read-only),
  * по VOZNYA_EVENTS_SYSTEM. Никаких новых таблиц/БД/API. UNION существующих
@@ -18,6 +41,7 @@ type FeedRow = {
   ev_id: string
   actor_id: string | null
   actor_name: string | null
+  actor_photo: string | null
   target_id: string | null
   target_name: string | null
   value: string | null
@@ -67,6 +91,12 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
   // Имя игрока: first_name → username → «Игрок». В каждой подвыборке свой LIMIT,
   // чтобы UNION не сканировал лишнее; финальная сортировка/срез — снаружи.
   const per = Math.max(limit, 20)
+  // Real Telegram photo for the actor avatar (P4). Guarded: older DBs without
+  // the cosmetic `photo_url` column fall back to NULL → initial avatar.
+  const hasPhoto = await columnExists('users', 'photo_url')
+  const aP = hasPhoto ? 'u.photo_url' : 'NULL'
+  const giftP = hasPhoto ? 'COALESCE(su.photo_url, ru.photo_url)' : 'NULL'
+  const m1P = hasPhoto ? 'u1.photo_url' : 'NULL'
   const sql = `
     WITH feed AS (
       -- Открытия кейсов. Джекпот и Telegram Gift/Premium выделяем отдельными
@@ -80,6 +110,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              co.id AS ev_id,
              co.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              -- Для подарка показываем его ценность в Stars, иначе сумму ешек.
              CASE WHEN co.reward_kind = 'tg_gift' THEN gc.star_cost
@@ -109,6 +140,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              COALESCE(g.sender_user_id, g.recipient_user_id) AS actor_id,
              COALESCE(NULLIF(su.first_name,''), NULLIF(su.username,''),
                       NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок') AS actor_name,
+             ${giftP} AS actor_photo,
              g.recipient_user_id AS target_id,
              COALESCE(NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок') AS target_name,
              g.amount AS value,
@@ -128,6 +160,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
       SELECT 'CASINO_BIG_WIN' AS code, t.id AS ev_id,
              t.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              (t.meta->>'payout')::bigint AS value,
              'epic' AS rarity,
@@ -145,6 +178,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
       SELECT 'TREASURE_FOUND' AS code, t.id AS ev_id,
              t.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              t.amount AS value,
              'uncommon' AS rarity,
@@ -161,6 +195,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
       SELECT 'ACHIEVEMENT_UNLOCKED' AS code, ua.user_id AS ev_id,
              ua.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              NULL::bigint AS value,
              'uncommon' AS rarity,
@@ -176,6 +211,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
       SELECT 'MARRIAGE_CREATED' AS code, m.id AS ev_id,
              m.user_id_1 AS actor_id,
              COALESCE(NULLIF(u1.first_name,''), NULLIF(u1.username,''), 'Игрок') AS actor_name,
+             ${m1P} AS actor_photo,
              m.user_id_2 AS target_id,
              COALESCE(NULLIF(u2.first_name,''), NULLIF(u2.username,''), 'Игрок') AS target_name,
              NULL::bigint AS value,
@@ -193,6 +229,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
       SELECT 'MMR_RANK_UP' AS code, me.id AS ev_id,
              me.player_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              me.amount AS value,
              'epic' AS rarity,
@@ -205,7 +242,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
        ORDER BY me.created_at DESC
        LIMIT ${per}
     )
-    SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name,
+    SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name, actor_photo,
            target_id::text AS target_id, target_name,
            value::text AS value, rarity, created_at, item_code, item_name
       FROM (
@@ -241,6 +278,7 @@ function mapRow(r: FeedRow): CommunityEvent {
     actor: {
       id: r.actor_id ? Number(r.actor_id) : 0,
       name: r.actor_name ?? 'Игрок',
+      avatar: r.actor_photo ?? null,
     },
     target:
       r.target_id != null
@@ -265,6 +303,9 @@ export async function getUserFeed(
   userId: number,
   limit = 30,
 ): Promise<CommunityEvent[]> {
+  const hasPhoto = await columnExists('users', 'photo_url')
+  const aP = hasPhoto ? 'u.photo_url' : 'NULL'
+  const giftP = hasPhoto ? 'COALESCE(su.photo_url, ru.photo_url)' : 'NULL'
   const sql = `
     WITH ev AS (
       SELECT CASE
@@ -274,6 +315,7 @@ export async function getUserFeed(
              END AS code,
              co.id AS ev_id, co.user_id AS actor_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок') AS actor_name,
+             ${aP} AS actor_photo,
              NULL::bigint AS target_id, NULL::text AS target_name,
              CASE WHEN co.reward_kind = 'tg_gift' THEN gc.star_cost
                   ELSE co.amount END AS value,
@@ -295,6 +337,7 @@ export async function getUserFeed(
       UNION ALL
       SELECT 'ACHIEVEMENT_UNLOCKED', ua.user_id, ua.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),
+             ${aP},
              NULL::bigint, NULL::text, NULL::bigint, 'uncommon', ua.unlocked_at,
              NULL::text, NULL::text
         FROM user_achievements ua
@@ -305,6 +348,7 @@ export async function getUserFeed(
              g.id, COALESCE(g.sender_user_id, g.recipient_user_id),
              COALESCE(NULLIF(su.first_name,''), NULLIF(su.username,''),
                       NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок'),
+             ${giftP},
              g.recipient_user_id,
              COALESCE(NULLIF(ru.first_name,''), NULLIF(ru.username,''), 'Игрок'),
              g.amount, CASE WHEN g.kind='tg_gift' THEN 'legendary' ELSE 'rare' END, g.created_at,
@@ -317,6 +361,7 @@ export async function getUserFeed(
       UNION ALL
       SELECT 'CASINO_BIG_WIN', t.id, t.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),
+             ${aP},
              NULL::bigint, NULL::text, (t.meta->>'payout')::bigint, 'epic', t.created_at,
              NULL::text, NULL::text
         FROM transactions t
@@ -324,7 +369,7 @@ export async function getUserFeed(
        WHERE t.user_id = $1 AND t.reason='casino' AND t.meta ? 'payout'
          AND (t.meta->>'payout')::bigint >= ${CASINO_BIG_WIN_MIN}
     )
-    SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name,
+    SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name, actor_photo,
            target_id::text AS target_id, target_name,
            value::text AS value, rarity, created_at, item_code, item_name
       FROM ev

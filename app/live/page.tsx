@@ -35,7 +35,7 @@ export const dynamic = 'force-dynamic'
  *   • Справочник — ачивки, титулы, фичи бота, команды.
  */
 export default async function LivePage() {
-  const feed = await getCommunityFeed(6)
+  const feed = await getCommunityFeed(40)
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">
@@ -55,7 +55,6 @@ export default async function LivePage() {
                 <LiveCommunityStats />
                 <CommunityActivity
                   events={feed}
-                  limit={6}
                   title="Прямо сейчас в Возне"
                   subtitle="Последние события сообщества"
                 />

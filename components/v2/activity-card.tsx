@@ -51,7 +51,7 @@ export function ActivityCard({ event: e }: { event: CommunityEvent }) {
             >
               Момент
             </span>
-            <UserBadge name={e.actor.name} userId={e.actor.id} size="sm" />
+            <UserBadge name={e.actor.name} userId={e.actor.id} avatar={e.actor.avatar} size="sm" />
           </div>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">{eventText(e)}</p>
         </div>
@@ -80,7 +80,7 @@ export function ActivityCard({ event: e }: { event: CommunityEvent }) {
         />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm">
-            <UserBadge name={e.actor.name} userId={e.actor.id} size="sm" />
+            <UserBadge name={e.actor.name} userId={e.actor.id} avatar={e.actor.avatar} size="sm" />
           </div>
           <p className="truncate text-xs text-muted-foreground">{eventText(e)}</p>
         </div>

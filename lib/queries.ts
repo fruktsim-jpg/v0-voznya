@@ -295,20 +295,25 @@ export type WeeklyEarner = {
   userId: number
   name: string
   earned: number
+  photoUrl: string | null
 }
 
 export async function getWeeklyTop(days = 7, limit = 10): Promise<WeeklyEarner[]> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id: string
     first_name: string | null
     username: string | null
     earned: string
+    photo_url: string | null
   }>(
-    `SELECT u.user_id, u.first_name, u.username, SUM(t.amount) AS earned
+    `SELECT u.user_id, u.first_name, u.username,
+            ${hasPhoto ? 'u.photo_url' : 'NULL AS photo_url'},
+            SUM(t.amount) AS earned
        FROM transactions t
        JOIN users u ON u.user_id = t.user_id
       WHERE t.amount > 0 AND t.created_at >= now() - make_interval(days => $1)
-      GROUP BY u.user_id, u.first_name, u.username
+      GROUP BY u.user_id, u.first_name, u.username${hasPhoto ? ', u.photo_url' : ''}
       ORDER BY earned DESC
       LIMIT $2`,
     [days, limit],
@@ -318,6 +323,7 @@ export async function getWeeklyTop(days = 7, limit = 10): Promise<WeeklyEarner[]
     userId: Number(r.user_id),
     name: displayName(r.first_name, r.username),
     earned: Number(r.earned),
+    photoUrl: r.photo_url ?? null,
   }))
 }
 

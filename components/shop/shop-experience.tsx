@@ -5,7 +5,6 @@ import { useApi } from '@/hooks/use-api'
 import { onBalanceChanged } from '@/lib/balance-events'
 import { CoinAmount } from '@/components/ds/coin'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
-import { ShopFeaturedRail } from '@/components/shop/shop-featured-rail'
 import { ShopCard } from '@/components/shop/shop-card'
 import { RARITY_ORDER } from '@/lib/rarity'
 import {
@@ -122,11 +121,8 @@ export function ShopExperience({
   }, [catalog, featured, category, search, sort, onlyAffordable, onlyLimited, balance, collection])
 
   return (
-    <div className="space-y-5">
-      {/* HERO — create desire first */}
-      <ShopFeaturedRail items={featured} ownedCodes={ownedCodes} balance={balance} />
-
-      <div className="mx-auto max-w-5xl space-y-4 px-4 sm:px-6">
+    <div className="space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4 px-4 pt-2 sm:px-6">
         {/* Balance line — anchors "what can I afford" */}
         {balance != null && (
           <div className="flex items-center justify-between rounded-2xl border border-border bg-white/[0.02] px-4 py-2.5">
