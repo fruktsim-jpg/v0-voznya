@@ -365,7 +365,7 @@ export async function getAchievementsProgress(): Promise<AchievementsResult> {
   return { totalUnlocked, totalPlayers, items }
 }
 
-export type MessageTop = { rank: number; userId: number; name: string; count: number }
+export type MessageTop = { rank: number; userId: number; name: string; count: number; photoUrl: string | null }
 export type MessageActivityPoint = { day: string; count: number }
 export type MessageStats = {
   total: number
@@ -444,6 +444,7 @@ async function columnExists(table: string, column: string): Promise<boolean> {
  */
 export async function getMessageStats(topLimit = 10, activityDays = 14): Promise<MessageStats> {
   const withCombot = await hasCombotUserStats()
+  const hasPhoto = await columnExists('users', 'photo_url')
 
   const totalRows = await query<{ total: string | null }>(
     withCombot
@@ -457,16 +458,20 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
     first_name: string | null
     username: string | null
     messages_count: string
+    photo_url: string | null
   }>(
     withCombot
       ? `SELECT u.user_id, u.first_name, u.username,
+                ${hasPhoto ? 'u.photo_url' : 'NULL AS photo_url'},
                 (u.messages_count + COALESCE(c.messages, 0)) AS messages_count
            FROM users u
            LEFT JOIN combot_user_stats c ON c.user_id = u.user_id
           WHERE (u.messages_count + COALESCE(c.messages, 0)) > 0
           ORDER BY (u.messages_count + COALESCE(c.messages, 0)) DESC, u.user_id ASC
           LIMIT $1`
-      : `SELECT user_id, first_name, username, messages_count
+      : `SELECT user_id, first_name, username,
+                ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'},
+                messages_count
            FROM users
           WHERE messages_count > 0
           ORDER BY messages_count DESC, user_id ASC
@@ -489,6 +494,7 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
       userId: Number(r.user_id),
       name: displayName(r.first_name, r.username),
       count: Number(r.messages_count),
+      photoUrl: r.photo_url ?? null,
     })),
     activity: activityRows.map((r) => ({ day: String(r.day).slice(0, 10), count: Number(r.count) })),
   }
@@ -903,27 +909,34 @@ export type Family = {
   rank: number
   user1Id: number
   user1Name: string
+  user1Photo: string | null
   user2Id: number
   user2Name: string
+  user2Photo: string | null
   marriedAt: string
   days: number
 }
 
 export async function getTopFamilies(limit = 10): Promise<Family[]> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id_1: string
     user_id_2: string
     f1: string | null
     u1: string | null
+    p1: string | null
     f2: string | null
     u2: string | null
+    p2: string | null
     married_at: string
     days: string
   }>(
     `SELECT 
        m.user_id_1, m.user_id_2,
        u1.first_name AS f1, u1.username AS u1,
+       ${hasPhoto ? 'u1.photo_url' : 'NULL'} AS p1,
        u2.first_name AS f2, u2.username AS u2,
+       ${hasPhoto ? 'u2.photo_url' : 'NULL'} AS p2,
        m.married_at,
        EXTRACT(DAY FROM NOW() - m.married_at) AS days
      FROM marriages m
@@ -938,8 +951,10 @@ export async function getTopFamilies(limit = 10): Promise<Family[]> {
     rank: i + 1,
     user1Id: Number(r.user_id_1),
     user1Name: displayName(r.f1, r.u1),
+    user1Photo: r.p1 ?? null,
     user2Id: Number(r.user_id_2),
     user2Name: displayName(r.f2, r.u2),
+    user2Photo: r.p2 ?? null,
     marriedAt: String(r.married_at),
     days: Number(r.days),
   }))
@@ -950,6 +965,7 @@ export type ReputationLeader = {
   userId: number
   name: string
   reputation: number
+  photoUrl: string | null
 }
 
 /**
@@ -960,16 +976,20 @@ export type ReputationLeader = {
  * без новых данных/таблиц. Возвращаем только тех, у кого положительная репа.
  */
 export async function getTopReputation(limit = 10): Promise<ReputationLeader[]> {
+  const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     target_user_id: string
     first_name: string | null
     username: string | null
+    photo_url: string | null
     rep: string
   }>(
-    `SELECT r.target_user_id, u.first_name, u.username, SUM(r.value) AS rep
+    `SELECT r.target_user_id, u.first_name, u.username,
+            ${hasPhoto ? 'u.photo_url' : 'NULL AS photo_url'},
+            SUM(r.value) AS rep
        FROM reputation_entries r
        JOIN users u ON u.user_id = r.target_user_id
-      GROUP BY r.target_user_id, u.first_name, u.username
+      GROUP BY r.target_user_id, u.first_name, u.username${hasPhoto ? ', u.photo_url' : ''}
      HAVING SUM(r.value) > 0
       ORDER BY rep DESC, r.target_user_id ASC
       LIMIT $1`,
@@ -980,6 +1000,7 @@ export async function getTopReputation(limit = 10): Promise<ReputationLeader[]> 
     userId: Number(r.target_user_id),
     name: displayName(r.first_name, r.username),
     reputation: Number(r.rep),
+    photoUrl: r.photo_url ?? null,
   }))
 }
 

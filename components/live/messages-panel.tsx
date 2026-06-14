@@ -1,8 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { AnimatedCounter } from '@/components/voznya/animated-counter'
-import { PlayerLink } from '@/components/ui/player-link'
+import { Avatar } from '@/components/ds/avatar'
 import { formatMessages } from '@/lib/pluralize'
 import { useApi } from '@/hooks/use-api'
 import { AreaTrend } from '@/components/ds/charts'
@@ -12,12 +11,9 @@ const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
 
 function ActivityChart({ activity }: { activity: MessageStats['activity'] }) {
   if (activity.length === 0) return null
-  // Track 1: раньше здесь был самописный bar-div; теперь используем DS-чарт
-  // AreaTrend (recharts, тёмная тема Возни) — тот же data, настоящий тренд с
-  // осями и тултипом. Это включает ранее «мёртвый» components/ds/charts.
   const data = activity.map((a) => ({ day: a.day.slice(5), count: a.count }))
   return (
-    <div className="glass rounded-2xl border border-border p-4 sm:p-6">
+    <div className="glass rounded-2xl border border-border p-4">
       <div className="mb-3 text-sm font-semibold text-foreground">Активность за 14 дней</div>
       <AreaTrend
         data={data}
@@ -30,27 +26,31 @@ function ActivityChart({ activity }: { activity: MessageStats['activity'] }) {
   )
 }
 
+/**
+ * MessagesPanel — активность чата. Settings-grade: левый eyebrow-заголовок,
+ * компактная строка «всего» + тренд, плотный список топа с реальными аватарами.
+ * Скрыт, пока трекинг сообщений бота не развёрнут.
+ */
 export function MessagesPanel() {
   const { data } = useApi<MessageStats>('/api/messages', 30_000)
 
-  // Hidden until the bot's message tracking (migration 0004) is live.
   if (!data) return null
 
   return (
-    <section id="top-messages" className="px-4 py-5 sm:py-6">
+    <section id="top-messages" className="px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
-          <span className="text-gradient">Сообщения</span>
+        <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+          Сообщения
         </h2>
-        <p className="mt-2 text-center text-sm text-muted-foreground">Активность чата сообщества</p>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
-          <div className="glass flex flex-col items-center justify-center rounded-2xl border border-border p-6 text-center">
-            <div className="text-3xl">💬</div>
-            <div className="mt-2 text-3xl font-bold text-foreground">
-              <AnimatedCounter value={data.total} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="glass flex items-center gap-3 rounded-2xl border border-border p-4">
+            <div className="min-w-0">
+              <div className="type-stat text-2xl text-foreground">
+                <AnimatedCounter value={data.total} />
+              </div>
+              <div className="text-xs text-muted-foreground">сообщений всего</div>
             </div>
-            <div className="mt-1 text-sm text-muted-foreground">Сообщений всего</div>
           </div>
           <div className="sm:col-span-2">
             <ActivityChart activity={data.activity} />
@@ -59,43 +59,32 @@ export function MessagesPanel() {
 
         {data.top.length > 0 && (
           <>
-            <h3 className="mt-10 text-center text-lg font-semibold text-foreground sm:text-xl">
+            <h3 className="mb-2 mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
               Топ по сообщениям
             </h3>
-            <div className="mt-5 space-y-2.5">
-              {data.top.map((u, i) => {
-                const top3 = u.rank <= 3
+            <div className="glass overflow-hidden rounded-2xl border border-border">
+              {data.top.map((u) => {
+                const podium = u.rank <= 3 ? PODIUM[u.rank - 1] : null
                 return (
-                  <motion.div
+                  <a
                     key={u.rank}
-                    initial={{ opacity: 0, x: -16 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: '-30px' }}
-                    transition={{ duration: 0.4, delay: i * 0.04 }}
-                    className={`glass flex items-center gap-4 rounded-2xl border p-3.5 sm:p-4 ${
-                      top3 ? 'border-primary/40 bg-primary/5' : 'border-border'
-                    }`}
+                    href={`/profile/${u.userId}`}
+                    className="flex items-center gap-3 border-b border-border/50 px-3 py-2.5 transition last:border-0 hover:bg-white/[0.03] sm:px-4"
                   >
-                    <div className="flex w-9 shrink-0 justify-center text-xl sm:text-2xl">
-                      {top3 ? (
-                  <span className="text-sm font-extrabold" style={{ color: PODIUM[u.rank - 1] }}>
-                    {u.rank}
-                  </span>
-                ) : (
-                  <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>
-                )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <PlayerLink
-                        userId={u.userId}
-                        name={u.name}
-                        className="truncate text-sm font-semibold text-foreground hover:text-primary sm:text-base"
-                      />
-                    </div>
-                    <div className="shrink-0 text-sm font-bold text-primary sm:text-base">
+                    <span
+                      className="type-stat w-6 shrink-0 text-center text-sm"
+                      style={{ color: podium ?? 'var(--muted-foreground)' }}
+                    >
+                      {u.rank}
+                    </span>
+                    <Avatar src={u.photoUrl} name={u.name} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                      {u.name}
+                    </span>
+                    <span className="type-economy shrink-0 text-sm text-foreground">
                       {formatMessages(u.count)}
-                    </div>
-                  </motion.div>
+                    </span>
+                  </a>
                 )
               })}
             </div>

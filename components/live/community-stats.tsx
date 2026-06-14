@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { AnimatedCounter } from '@/components/voznya/animated-counter'
 import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { useApi } from '@/hooks/use-api'
@@ -26,33 +25,29 @@ export function LiveCommunityStats() {
     : []
 
   return (
-    <section className="px-6 py-8 sm:py-12">
+    <section className="px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-5xl">
         {error && !data ? (
           <p className="text-center text-sm text-muted-foreground">Статистика временно недоступна</p>
         ) : !data ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/5 sm:h-28" />
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/5" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
-            {cards.map((c, i) => (
-              <motion.div
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {cards.map((c) => (
+              <div
                 key={c.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.45, delay: i * 0.05 }}
-                className="glass relative overflow-hidden rounded-2xl border border-border p-4 text-center sm:p-6"
+                className="glass rounded-2xl border border-border p-3 text-center"
               >
-                <Glyph name={c.icon} className="mx-auto text-2xl text-primary sm:text-3xl" />
-                <div className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">
+                <Glyph name={c.icon} className="mx-auto text-lg text-primary" />
+                <div className="mt-1 type-stat text-base text-foreground">
                   <AnimatedCounter value={c.value} />
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{c.label}</div>
-              </motion.div>
+                <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground sm:text-xs">{c.label}</div>
+              </div>
             ))}
           </div>
         )}
