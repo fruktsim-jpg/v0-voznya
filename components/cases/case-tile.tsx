@@ -35,21 +35,9 @@ export function CaseTile({
       type="button"
       onClick={() => onOpenDetail(c)}
       aria-label={`Открыть кейс ${c.name}`}
-      className="group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border bg-white/[0.02] p-3 text-left transition active:scale-[0.98]"
-      style={{
-        borderColor: accent ? `${t.color}66` : 'rgba(255,255,255,0.08)',
-        boxShadow: accent ? t.glow || undefined : undefined,
-      }}
+      className="group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border bg-white/[0.02] p-3 text-left transition hover:bg-white/[0.04] active:scale-[0.98]"
+      style={{ borderColor: accent ? `${t.color}40` : 'rgba(255,255,255,0.08)' }}
     >
-      {/* Tier glow wash behind the art */}
-      {accent && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full opacity-20 blur-3xl transition group-hover:opacity-35"
-          style={{ background: t.color }}
-        />
-      )}
-
       <div className="relative flex items-start gap-3">
         {/* The CASE COVER (box art) — the storefront is a wall of real boxes.
             The dream reward is named in the text beside it ("можно выиграть X").
