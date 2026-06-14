@@ -67,7 +67,7 @@ export function GiftBuyButton({
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.status === 'ok') {
         setState('bought')
-        setMsg('✅ В инвентаре')
+        setMsg('В инвентаре')
         notifyBalanceChanged()
         // The purchase becomes a MOMENT showing the real object (graceful glyph
         // fallback when no asset). Gifts are tradeable objects — worth a beat.
@@ -107,9 +107,9 @@ export function GiftBuyButton({
     return (
       <a
         href="/inventory"
-        className="inline-flex w-full items-center justify-center rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+        className="inline-flex w-full items-center justify-center rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/15"
       >
-        {state === 'bought' ? '✅ Куплено · в инвентаре →' : 'В инвентаре →'}
+        {state === 'bought' ? 'Куплено · в инвентаре →' : 'В инвентаре →'}
       </a>
     )
   }
@@ -121,8 +121,7 @@ export function GiftBuyButton({
       <button
         onClick={buy}
         disabled={state === 'buying' || cantAfford}
-        className="w-full rounded-full border px-3 py-1.5 text-xs font-bold transition hover:brightness-110 disabled:opacity-40"
-        style={{ borderColor: `${color}88`, color }}
+        className="w-full rounded-full border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-40"
       >
         {state === 'buying' ? '…' : cantAfford ? 'Не хватает ешек' : `Купить · ${fmt(priceEshki)}`}
       </button>

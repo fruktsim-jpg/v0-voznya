@@ -44,33 +44,26 @@ export function ShopCard({
   const lowStock = item.remaining != null && item.remaining <= 5
   const cantAfford = affordable === false
   const shortBy = cantAfford && balance != null ? item.priceEshki - balance : null
-  // Shared card language with the case tile: rounded-2xl + a rarity-driven
-  // border/glow so a Mythic gift reads as Mythic exactly like a Mythic case.
-  const accent = item.rarity !== 'common'
 
   return (
     <article
-      className="glass group relative flex flex-col items-center overflow-hidden rounded-2xl border p-4 text-center transition hover:-translate-y-0.5"
-      style={{
-        borderColor: accent ? `${t.color}66` : 'rgba(255,255,255,0.08)',
-        boxShadow: accent ? t.glow || undefined : undefined,
-      }}
+      className="glass group relative flex flex-col items-center overflow-hidden rounded-2xl border border-border p-4 text-center transition hover:-translate-y-0.5 hover:bg-white/[0.04]"
     >
-      {/* Status flags — top corners */}
+      {/* Status flags — neutral surface, one accent. */}
       <div className="absolute left-2 top-2 z-10 flex flex-col items-start gap-1">
         {item.isNew && (
-          <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
             new
           </span>
         )}
         {item.limited && (
-          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+          <span className="rounded-full border border-border bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             Лимитка
           </span>
         )}
       </div>
       {owned && (
-        <span className="absolute right-2 top-2 z-10 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+        <span className="absolute right-2 top-2 z-10 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
           в инвентаре
         </span>
       )}
@@ -87,28 +80,24 @@ export function ShopCard({
       </div>
 
       <h3 className="relative line-clamp-1 text-sm font-semibold text-foreground">{item.name}</h3>
-      <p className="relative mt-0.5 text-[11px]" style={{ color: t.color }}>
+      <p className="relative mt-0.5 text-[11px] text-muted-foreground">
         {t.label}
       </p>
       {item.collectionName && (
         <p className="relative mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[10px] text-muted-foreground">
-          <span aria-hidden>◈</span>
           <span className="truncate">{item.collectionName}</span>
         </p>
       )}
 
-      {/* Price — the minted coin, tier-colored lozenge */}
+      {/* Price — neutral lozenge, gold reserved for the coin itself. */}
       <div className="relative mt-2.5 w-full">
-        <span
-          className="inline-flex items-center justify-center rounded-full border px-3 py-1"
-          style={{ borderColor: `${t.color}55` }}
-        >
+        <span className="inline-flex items-center justify-center rounded-full border border-border px-3 py-1">
           <CoinAmount value={item.priceEshki} size="sm" tone={cantAfford ? 'muted' : 'gold'} />
         </span>
 
         {lowStock && item.remaining != null && (
-          <div className="mt-1.5 text-[11px] font-semibold text-amber-300">
-            🔥 осталось {fmt(item.remaining)}
+          <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+            осталось {fmt(item.remaining)}
           </div>
         )}
         {cantAfford && shortBy != null && shortBy > 0 && (

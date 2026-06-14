@@ -52,14 +52,11 @@ export function ShopFeaturedRail({
               <ItemArt code={hero.code} itemClass={hero.itemClass} glyph={hero.glyph} rarity={hero.rarity} size="lg" className="!h-20 !w-20 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                    style={{ background: `${ht.color}1a`, color: ht.color }}
-                  >
+                  <span className="rounded-full border border-border bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                     {ht.label}
                   </span>
                   {hero.limited && (
-                    <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                    <span className="rounded-full border border-border bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                       Лимитка
                     </span>
                   )}
@@ -78,8 +75,7 @@ export function ShopFeaturedRail({
                 <div className="mt-1.5 flex items-center gap-2">
                   <CoinAmount value={hero.priceEshki} size="md" />
                   {hero.remaining != null && hero.remaining <= 5 && (
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-300">
-                      <Glyph name="flame" className="h-3 w-3" />
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                       осталось {hero.remaining.toLocaleString('ru-RU')}
                     </span>
                   )}

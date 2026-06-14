@@ -1,6 +1,5 @@
 'use client'
 
-import { rarityToken } from '@/lib/rarity'
 import { rewardGlyph, type CaseView } from '@/lib/cases-ux'
 import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
@@ -27,7 +26,6 @@ export function CaseTile({
 }) {
   const c = caseView
   const t = rarityToken(c.topRarity)
-  const accent = c.topRarity !== 'common'
   const top = c.topReward
 
   return (
@@ -35,8 +33,7 @@ export function CaseTile({
       type="button"
       onClick={() => onOpenDetail(c)}
       aria-label={`Открыть кейс ${c.name}`}
-      className="group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border bg-white/[0.02] p-3 text-left transition hover:bg-white/[0.04] active:scale-[0.98]"
-      style={{ borderColor: accent ? `${t.color}40` : 'rgba(255,255,255,0.08)' }}
+      className="group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border border-border bg-white/[0.02] p-3 text-left transition hover:bg-white/[0.04] active:scale-[0.98]"
     >
       <div className="relative flex items-start gap-3">
         {/* The CASE COVER (box art) — the storefront is a wall of real boxes.
@@ -56,9 +53,7 @@ export function CaseTile({
           {top ? (
             <p className="mt-0.5 line-clamp-1 text-[11px]">
               <span className="text-muted-foreground">можно выиграть </span>
-              <span className="font-semibold" style={{ color: accent ? t.color : undefined }}>
-                {top.label}
-              </span>
+              <span className="font-semibold text-foreground">{top.label}</span>
             </p>
           ) : (
             <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
@@ -79,15 +74,8 @@ export function CaseTile({
         </p>
       )}
 
-      {/* Cost CTA */}
-      <span
-        className="relative mt-0.5 flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-bold transition"
-        style={{
-          borderColor: accent ? `${t.color}55` : 'rgba(255,255,255,0.12)',
-          color: accent ? t.color : 'var(--foreground)',
-          background: accent ? `${t.color}12` : 'rgba(255,255,255,0.03)',
-        }}
-      >
+      {/* Cost CTA — one accent (primary), neutral language. */}
+      <span className="relative mt-0.5 flex items-center justify-center gap-1 rounded-xl border border-primary/40 bg-primary/10 py-2 text-xs font-bold text-primary transition group-hover:bg-primary/15">
         Открыть · {caseCostShort(c)}
       </span>
     </button>

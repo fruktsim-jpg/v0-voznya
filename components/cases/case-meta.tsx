@@ -53,12 +53,12 @@ export function caseIndicators(c: CaseView): CaseIndicator[] {
 }
 
 export const INDICATOR_CLASS: Record<CaseIndicator['tone'], string> = {
-  premium: 'border-amber-400/40 bg-amber-400/10 text-amber-200',
-  scarce: 'border-rose-400/50 bg-rose-400/15 text-rose-200',
-  limited: 'border-rose-400/40 bg-rose-400/10 text-rose-200',
-  jackpot: 'border-amber-300/40 bg-amber-300/10 text-amber-200',
-  gift: 'border-fuchsia-400/40 bg-fuchsia-400/10 text-fuchsia-200',
-  seasonal: 'border-violet-400/40 bg-violet-400/10 text-violet-200',
+  premium: 'border-[color:var(--accent-gold)]/35 bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]',
+  scarce: 'border-border bg-white/[0.06] text-muted-foreground',
+  limited: 'border-border bg-white/[0.06] text-muted-foreground',
+  jackpot: 'border-[color:var(--accent-gold)]/35 bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]',
+  gift: 'border-primary/30 bg-primary/10 text-primary',
+  seasonal: 'border-border bg-white/[0.06] text-muted-foreground',
 }
 
 export { CASE_CATEGORY_META }
