@@ -150,15 +150,11 @@
     padding-top: calc(var(--shell-total) + 1rem);
   }
 
-  /* PageHero top padding that also clears the status-bar inset. Heroes get
-     a little more room so the full-bleed first block breathes under the bar. */
+  /* Top padding for full-bleed first blocks. Visual reset: heroes no longer get
+     lander-sized breathing room — an in-app screen shows content immediately, so
+     this now matches the standard header rhythm (shell + 1rem) on every width. */
   .pt-hero-safe {
-    padding-top: calc(var(--shell-total) + 2.5rem);
-  }
-  @media (min-width: 640px) {
-    .pt-hero-safe {
-      padding-top: calc(var(--shell-total) + 4.5rem);
-    }
+    padding-top: calc(var(--shell-total) + 1rem);
   }
 
   .text-gradient {
@@ -563,66 +559,19 @@
    GPU-cheap (transform/opacity only), sits at z -10, and is fully disabled
    under prefers-reduced-motion (static gradients remain; only motion stops).
    ============================================================================ */
+/* ============================================================================
+   VOZNYA BASE ATMOSPHERE
+   The app sits on quiet, static depth — NOT a flat black document, NOT a glowy
+   gaming backdrop. The drifting nebula orbs / grain / vignette were removed in
+   the visual reset: animated colour blooms behind every screen were the biggest
+   "not-native" signal. One fixed gradient at z -10 is all that remains.
+   ============================================================================ */
 .world-layer {
   position: fixed;
-  inset: -10%;
+  inset: 0;
   z-index: -10;
   pointer-events: none;
-  overflow: hidden;
-  /* Deep vertical depth: near-black top settling into a faint violet abyss. */
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(136, 71, 255, 0.10), transparent 60%),
-    radial-gradient(100% 70% at 50% 110%, rgba(75, 105, 255, 0.08), transparent 60%),
-    linear-gradient(180deg, #070709 0%, #08080c 50%, #060608 100%);
-}
-/* Drifting nebula blooms = parallax-free ambient motion. */
-.world-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(80px);
-  opacity: 0.5;
-  will-change: transform;
-}
-.world-orb--violet {
-  width: 46vmax; height: 46vmax;
-  left: -10vmax; top: -8vmax;
-  background: radial-gradient(circle at 30% 30%, rgba(136, 71, 255, 0.45), transparent 65%);
-  animation: world-drift-a 38s ease-in-out infinite alternate;
-}
-.world-orb--indigo {
-  width: 40vmax; height: 40vmax;
-  right: -12vmax; bottom: -10vmax;
-  background: radial-gradient(circle at 60% 60%, rgba(75, 105, 255, 0.40), transparent 65%);
-  animation: world-drift-b 46s ease-in-out infinite alternate;
-}
-.world-orb--teal {
-  width: 28vmax; height: 28vmax;
-  right: 20vmax; top: 18vmax;
-  background: radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.20), transparent 65%);
-  animation: world-drift-a 52s ease-in-out infinite alternate-reverse;
-}
-@keyframes world-drift-a {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(6vmax, 4vmax, 0) scale(1.12); }
-}
-@keyframes world-drift-b {
-  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
-  100% { transform: translate3d(-5vmax, -6vmax, 0) scale(1); }
-}
-/* Fine grain + vignette = filmic depth, kills banding on the dark gradient. */
-.world-grain {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 3px 3px;
-  mix-blend-mode: overlay;
-  opacity: 0.6;
-}
-.world-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
-}
-@media (prefers-reduced-motion: reduce) {
-  .world-orb { animation: none !important; }
+    radial-gradient(120% 80% at 50% -10%, rgba(136, 71, 255, 0.06), transparent 55%),
+    linear-gradient(180deg, #070709 0%, #08080c 55%, #060608 100%);
 }

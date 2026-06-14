@@ -1,23 +1,13 @@
 /**
- * WorldBackdrop (PHASE B — B5: the world layer).
+ * WorldBackdrop — the app's base atmosphere.
  *
- * VOZNYA must read as a PLACE, not a document on a black page. This is the fixed
- * atmosphere that sits behind every screen: deep gradient depth, two slow
- * drifting nebula blooms (ambient life while idle), a teal accent bloom, plus
- * film grain + vignette for filmic depth. Pure CSS, GPU-cheap (transform/opacity
- * only), z-index -10, non-interactive. All motion stops under
- * prefers-reduced-motion (see globals.css) while the static depth remains.
- *
- * Mounted once in AppShell so it underlies all routes without per-page wiring.
+ * Reset (visual sprint): the drifting nebula orbs + grain + vignette were
+ * removed. They were the single biggest "not-native" signal — animated colour
+ * blooms behind every screen made the whole product feel like a glowy gaming
+ * template instead of a calm Telegram/iOS app. What remains is a single, static,
+ * very deep gradient (defined in `.world-layer`) so screens sit on quiet depth,
+ * not flat black. Fixed, z -10, non-interactive.
  */
 export function WorldBackdrop() {
-  return (
-    <div className="world-layer" aria-hidden="true">
-      <div className="world-orb world-orb--violet" />
-      <div className="world-orb world-orb--indigo" />
-      <div className="world-orb world-orb--teal" />
-      <div className="world-grain" />
-      <div className="world-vignette" />
-    </div>
-  )
+  return <div className="world-layer" aria-hidden="true" />
 }

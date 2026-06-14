@@ -71,7 +71,7 @@ export function EventFeed({
           description="Скоро здесь будет жарко — кейсы, подарки и выигрыши сообщества."
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1">
           {visible.map((e) => (
             <li key={e.id}>
               <ActivityCard event={e} />
