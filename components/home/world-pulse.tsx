@@ -2,76 +2,45 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Avatar } from '@/components/ds/avatar'
+import { ActivityCard } from '@/components/v2/activity-card'
 import {
   EVENT_FILTERS,
-  eventText,
-  eventHeat,
-  timeAgo,
   type CommunityEvent,
   type EventFilterKey,
 } from '@/lib/events'
-import { rarityToken } from '@/lib/rarity'
-import { ItemArt } from '@/components/ds/item-art'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
 
 /**
- * World Pulse (VOZNYA REDESIGN — Home, zone 1: the heartbeat).
+ * World Pulse (Home, zone 1: the heartbeat) — the live activity stream that
+ * shows VOZNYA is alive even when you're offline.
  *
- * The FIRST thing on Home and the core differentiator: VOZNYA is alive even when
- * you're offline. A prominent, animated live activity stream of what the whole
- * community is doing RIGHT NOW.
- *
- * E0.x Live Feed upgrade (LF-1 + LF-4) — the feed's problem was emotional weight,
- * not visual quality: a jackpot and a routine action read the same, and nothing
- * pointed forward. Fixes:
- *   - LF-1 HEAT TIERS: events are ranked by real magnitude (code/value/rarity)
- *     into headline / notable / ambient. Headlines render large with rarity glow;
- *     ambient events are compact one-liners. The stream now has loud and quiet
- *     moments — a world, not a uniform log.
- *   - LF-4 ANTICIPATION STRIP: a thin forward-looking band above the stream built
- *     from REAL aggregates (jackpots today, rare drops, season countdown) so the
- *     feed creates FOMO + anticipation, not just history.
+ * Single feed renderer: rows go through the SHARED ActivityCard (same as Live),
+ * so the feed looks identical everywhere — owned SVG icons, heat tiers, one glass
+ * container. No separate emoji rendering, no loud gradient hero: the surface uses
+ * the same calm Settings-grade language as the rest of the app.
  *
  * Data is REAL (`getCommunityFeed` + `deriveHotToday` + `getActiveSeason`,
- * timestamped). We do NOT fabricate events, "online now" counts, or superlatives.
+ * timestamped). We do NOT fabricate events or "online now" counts.
  */
 
-type Pulse = { id: string; icon: GlyphName; text: string; tone: 'hot' | 'rare' | 'time' }
+type Pulse = { id: string; icon: GlyphName; text: string }
 
 function buildPulses(hot: AnticipationInput['hot'], seasonEndsAt: string | null): Pulse[] {
   const pulses: Pulse[] = []
-
   if (hot && hot.jackpots > 0) {
-    pulses.push({
-      id: 'jackpots',
-      icon: 'flame',
-      tone: 'hot',
-      text: `${hot.jackpots} ${plural(hot.jackpots, 'джекпот', 'джекпота', 'джекпотов')} сорвано`,
-    })
+    pulses.push({ id: 'jackpots', icon: 'flame', text: `${hot.jackpots} ${plural(hot.jackpots, 'джекпот', 'джекпота', 'джекпотов')} сорвано` })
   }
   if (hot && hot.giftDrops > 0) {
-    pulses.push({
-      id: 'drops',
-      icon: 'gift',
-      tone: 'rare',
-      text: `${hot.giftDrops} ${plural(hot.giftDrops, 'редкий дроп', 'редких дропа', 'редких дропов')}`,
-    })
+    pulses.push({ id: 'drops', icon: 'gift', text: `${hot.giftDrops} ${plural(hot.giftDrops, 'редкий дроп', 'редких дропа', 'редких дропов')}` })
   }
-
   const days = daysUntil(seasonEndsAt)
   if (days != null && days >= 0) {
     pulses.push({
       id: 'season',
       icon: 'season',
-      tone: 'time',
-      text:
-        days === 0
-          ? 'Сезон заканчивается сегодня'
-          : `До конца сезона ${days} ${plural(days, 'день', 'дня', 'дней')}`,
+      text: days === 0 ? 'Сезон заканчивается сегодня' : `До конца сезона ${days} ${plural(days, 'день', 'дня', 'дней')}`,
     })
   }
-
   return pulses
 }
 
@@ -101,7 +70,6 @@ export function WorldPulse({
   seasonEndsAt,
 }: { events: CommunityEvent[] } & AnticipationInput) {
   const [filter, setFilter] = useState<EventFilterKey>('all')
-  // Re-render every 30s so relative timestamps stay fresh (alive feel).
   const [, setTick] = useState(0)
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000)
@@ -122,218 +90,79 @@ export function WorldPulse({
   const pulses = useMemo(() => buildPulses(hot ?? null, seasonEndsAt ?? null), [hot, seasonEndsAt])
 
   return (
-    <section className="pt-hero-safe px-4 pb-1 sm:px-6">
+    <section className="px-4 pt-4 sm:px-6">
       <div className="mx-auto max-w-5xl">
-        <div
-          className="glass overflow-hidden rounded-3xl border border-border"
-          style={{
-            backgroundImage:
-              'radial-gradient(120% 90% at 0% 0%, rgba(136,71,255,0.14), transparent 55%), radial-gradient(120% 90% at 100% 0%, rgba(75,105,255,0.12), transparent 55%)',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-end justify-between gap-3 px-5 pt-5 sm:px-6">
-            <div>
-              <p className="label-eyebrow flex items-center gap-1.5 text-[#b79bff]">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#22c55e] opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-[#22c55e]" />
-                </span>
-                VOZNYA прямо сейчас
-              </p>
-              <h1 className="section-title text-2xl text-foreground sm:text-3xl">
-                Живая лента мира
-              </h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {events.length > 0
-                  ? `${events.length}+ событий в сообществе`
-                  : 'Сообщество просыпается'}
-              </p>
-            </div>
-            <Link
-              href="/live"
-              className="hidden shrink-0 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20 sm:inline-block"
-            >
-              Вся активность
-            </Link>
+        {/* Header — calm, left-aligned, like every other screen title. */}
+        <div className="mb-2 flex items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#22c55e] opacity-75" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-[#22c55e]" />
+              </span>
+              Прямо сейчас
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-foreground">Живая лента мира</h2>
           </div>
-
-          {/* LF-4 Anticipation strip — forward-looking pulse from real aggregates.
-              Scrolls horizontally on mobile; self-hides when there's nothing live. */}
-          {pulses.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto px-5 pt-3 sm:px-6">
-              {pulses.map((p) => (
-                <span
-                  key={p.id}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
-                    p.tone === 'hot'
-                      ? 'border-amber-400/30 bg-amber-400/10 text-amber-200'
-                      : p.tone === 'rare'
-                        ? 'border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200'
-                        : 'border-sky-400/30 bg-sky-400/10 text-sky-200'
-                  }`}
-                >
-                  <Glyph name={p.icon} className="h-3.5 w-3.5" />
-                  {p.text}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Filter chips */}
-          <div className="flex gap-2 overflow-x-auto px-5 py-3 sm:px-6">
-            {EVENT_FILTERS.map((f) => {
-              const active = f.key === filter
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setFilter(f.key)}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    active
-                      ? 'border-primary/50 bg-primary/15 text-primary'
-                      : 'border-white/10 text-muted-foreground hover:bg-white/5'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Stream — heat-tiered rows (LF-1) */}
-          {visible.length === 0 ? (
-            <div className="px-5 pb-6 pt-2 text-sm text-muted-foreground sm:px-6">
-              Пока тихо в этой категории — переключи фильтр.
-            </div>
-          ) : (
-            <ul className="max-h-[28rem] divide-y divide-white/5 overflow-y-auto">
-              {visible.map((e, i) => (
-                <FeedRow key={`${e.id}-${i}`} event={e} />
-              ))}
-            </ul>
-          )}
+          <Link
+            href="/live"
+            className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20"
+          >
+            Весь мир →
+          </Link>
         </div>
+
+        {/* Anticipation strip — forward-looking pulse from real aggregates. */}
+        {pulses.length > 0 && (
+          <div className="mb-2 flex gap-2 overflow-x-auto px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {pulses.map((p) => (
+              <span
+                key={p.id}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground"
+              >
+                <Glyph name={p.icon} className="h-3.5 w-3.5 text-primary" />
+                {p.text}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Filter chips */}
+        <div className="mb-2 flex gap-2 overflow-x-auto px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {EVENT_FILTERS.map((f) => {
+            const active = f.key === filter
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  active
+                    ? 'border-primary/50 bg-primary/15 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-white/5'
+                }`}
+              >
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Stream — SHARED ActivityCard rows in one glass container. */}
+        {visible.length === 0 ? (
+          <div className="glass rounded-2xl border border-border px-5 py-6 text-sm text-muted-foreground">
+            Пока тихо в этой категории — переключи фильтр.
+          </div>
+        ) : (
+          <ul className="glass max-h-[28rem] divide-y divide-border/50 overflow-y-auto overflow-hidden rounded-2xl border border-border">
+            {visible.slice(0, 20).map((e, i) => (
+              <li key={`${e.id}-${i}`} className="px-1.5 py-1">
+                <ActivityCard event={e} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
-  )
-}
-
-/**
- * One feed row, rendered at one of three weights (LF-1). Headlines get a glow
- * capsule, a larger icon, a louder value, and a "момент" ribbon so the eye is
- * pulled to them; ambient rows stay compact.
- */
-function FeedRow({ event: e }: { event: CommunityEvent }) {
-  const token = rarityToken(e.rarity)
-  const heat = eventHeat(e)
-
-  if (heat === 'headline') {
-    return (
-      <li
-        className="relative"
-        style={{
-          backgroundImage: `linear-gradient(90deg, ${token.color}14, transparent 60%)`,
-        }}
-      >
-        <div className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
-          {/* Funnelled through ItemArt (P0): the feed's headline object renders
-              in the ONE art capsule. P1.5b — feed events now carry the real item
-              code, so a headline drop shows the ACTUAL object (glyph fallback
-              when no asset/code). No per-surface logic. */}
-          <ItemArt
-            code={e.itemCode}
-            itemClass={e.itemClass}
-            glyph={e.icon}
-            rarity={e.rarity}
-            size="sm"
-            className="!h-12 !w-12 !rounded-2xl"
-          />
-          <Link
-            href={`/profile/${e.actor.id}`}
-            className="flex min-w-0 items-center gap-2 transition hover:opacity-90"
-          >
-            <Avatar src={e.actor.avatar ?? null} name={e.actor.name} size="sm" />
-            <span className="min-w-0">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                  style={{ color: token.color, background: `${token.color}1f` }}
-                >
-                  Момент
-                </span>
-              </span>
-              <span className="mt-0.5 block truncate text-[15px] text-foreground">
-                <span className="font-bold">{e.actor.name}</span>{' '}
-                <span className="text-muted-foreground">{eventText(e)}</span>
-              </span>
-              <span className="block text-xs text-muted-foreground">{timeAgo(e.occurredAt)}</span>
-            </span>
-          </Link>
-          <div className="ml-auto flex shrink-0 flex-col items-end gap-0.5">
-            {e.value != null && (
-              <span
-                className="font-mono text-base font-bold"
-                style={{ color: token.color, textShadow: `0 0 12px ${token.color}55` }}
-              >
-                +{e.value.toLocaleString('ru-RU')}
-              </span>
-            )}
-            <span
-              className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-              style={{ color: token.color, background: `${token.color}1a` }}
-            >
-              {token.label}
-            </span>
-          </div>
-        </div>
-      </li>
-    )
-  }
-
-  const notable = heat === 'notable'
-  return (
-    <li>
-      <div className={`flex items-center gap-3 px-5 sm:px-6 ${notable ? 'py-2.5' : 'py-2'}`}>
-        {/* Funnelled through ItemArt (P0) — one capsule. P1.5b: real item code
-            when present, glyph fallback otherwise. */}
-        <ItemArt
-          code={e.itemCode}
-          itemClass={e.itemClass}
-          glyph={e.icon}
-          rarity={e.rarity}
-          size="sm"
-          className={notable ? '!h-10 !w-10 !rounded-xl' : '!h-8 !w-8 !rounded-lg !text-base'}
-        />
-        <Link
-          href={`/profile/${e.actor.id}`}
-          className="flex min-w-0 items-center gap-2 transition hover:opacity-90"
-        >
-          {notable && <Avatar src={e.actor.avatar ?? null} name={e.actor.name} size="sm" />}
-          <span className="min-w-0">
-            <span className={`block truncate ${notable ? 'text-sm' : 'text-[13px]'} text-foreground`}>
-              <span className="font-semibold">{e.actor.name}</span>{' '}
-              <span className="text-muted-foreground">{eventText(e)}</span>
-            </span>
-            <span className="block text-xs text-muted-foreground">{timeAgo(e.occurredAt)}</span>
-          </span>
-        </Link>
-        <div className="ml-auto flex shrink-0 flex-col items-end gap-0.5">
-          {e.value != null && (
-            <span className="font-mono text-sm font-semibold" style={{ color: token.color }}>
-              +{e.value.toLocaleString('ru-RU')}
-            </span>
-          )}
-          {notable && (
-            <span
-              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-              style={{ color: token.color, background: `${token.color}1a` }}
-            >
-              {token.label}
-            </span>
-          )}
-        </div>
-      </div>
-    </li>
   )
 }

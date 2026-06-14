@@ -63,7 +63,7 @@ export function EventFeed({
         })}
       </div>
 
-      {/* Лента */}
+      {/* Лента — в едином glass-контейнере, как лидерборды/настройки. */}
       {visible.length === 0 ? (
         <EmptyState
           icon={<Glyph name="moon" />}
@@ -71,9 +71,9 @@ export function EventFeed({
           description="Скоро здесь будет жарко — кейсы, подарки и выигрыши сообщества."
         />
       ) : (
-        <ul className="space-y-1">
+        <ul className="glass divide-y divide-border/50 overflow-hidden rounded-2xl border border-border">
           {visible.map((e) => (
-            <li key={e.id}>
+            <li key={e.id} className="px-1.5 py-1">
               <ActivityCard event={e} />
             </li>
           ))}
