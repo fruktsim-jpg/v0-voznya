@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useApi } from '@/hooks/use-api'
 import { titleForEarned, TITLES } from '@/lib/voznya-bot'
@@ -9,7 +9,7 @@ import { YouAreHere } from '@/components/live/you-are-here'
 import type { RichUser } from '@/lib/queries'
 
 // Podium tint for the top-3 ordinals only — a thin accent, not a card wash.
-const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 /**
  * TopRich — the richest players. Rebuilt to Settings quality (visual reset): a

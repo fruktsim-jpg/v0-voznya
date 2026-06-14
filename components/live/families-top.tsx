@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 
 import { Avatar } from '@/components/ds/avatar'
 import { formatDays } from '@/lib/pluralize'
 import { useApi } from '@/hooks/use-api'
 import type { Family } from '@/lib/queries'
 
-const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 /**
  * FamiliesTop — крепчайшие браки сообщества. Settings-grade: левый

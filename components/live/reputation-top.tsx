@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useApi } from '@/hooks/use-api'
 import { Avatar } from '@/components/ds/avatar'
 import { YouAreHere } from '@/components/live/you-are-here'
 import type { ReputationLeader } from '@/lib/queries'
 
-const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 /**
  * ReputationTop — самые уважаемые участники. Settings-grade: левый

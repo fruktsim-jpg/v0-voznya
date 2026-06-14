@@ -10,7 +10,8 @@ import { getTopRich } from '@/lib/queries'
  * Все аватары идут через общий DS-компонент Avatar (реальное TG-фото → инициал).
  */
 const fmt = (n: number) => n.toLocaleString('ru-RU')
-const MEDAL = ['🥇', '🥈', '🥉']
+// Podium tint for the top-3 rank chips — clean numbers, not emoji medals.
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 
 export async function TopMembers({ limit = 8 }: { limit?: number }) {
@@ -42,12 +43,17 @@ export async function TopMembers({ limit = 8 }: { limit?: number }) {
               variant={i === 0 ? 'legendary' : i === 1 ? 'epic' : 'rare'}
               className="flex items-center gap-3 transition hover:-translate-y-0.5"
             >
-              <Avatar src={u.photoUrl} name={u.name} size="md" />
+              <span className="relative shrink-0">
+                <Avatar src={u.photoUrl} name={u.name} size="md" />
+                <span
+                  className="type-stat absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-background text-[11px] text-background"
+                  style={{ background: PODIUM[i] }}
+                >
+                  {i + 1}
+                </span>
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base" aria-hidden="true">{MEDAL[i]}</span>
-                  <span className="truncate font-semibold text-foreground">{u.name}</span>
-                </div>
+                <span className="truncate font-semibold text-foreground">{u.name}</span>
                 <div className="text-xs text-muted-foreground">{fmt(u.balance)} ешек</div>
               </div>
             </Card>

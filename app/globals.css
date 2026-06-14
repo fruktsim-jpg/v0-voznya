@@ -29,12 +29,12 @@
      longer monochrome-violet: distinct accents create real hierarchy across
      contexts (progression, status, economy, social, alerts). Use via the
      --color-accent-* theme tokens or directly. */
-  --accent-indigo: #4b69ff; /* MMR / progression / primary action */
+  --accent-indigo: #5b7cfa; /* MMR / progression / primary action */
   --accent-violet: #8847ff; /* prestige / premium / brand */
-  --accent-pink: #ec4899; /* social / gifts / community */
-  --accent-gold: #ffd700; /* legendary / rewards / currency */
-  --accent-teal: #14b8a6; /* economy / positive / live */
-  --accent-red: #eb4b4b; /* mythic / jackpot / danger */
+  --accent-pink: #e0689f; /* social / gifts / community */
+  --accent-gold: #e8b54d; /* legendary / rewards / currency */
+  --accent-teal: #2bb39a; /* economy / positive / live */
+  --accent-red: #e0564f; /* mythic / jackpot / danger */
 }
 
 @theme inline {

@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useApi } from '@/hooks/use-api'
 import { formatCurrency } from '@/lib/pluralize'
 import { Avatar } from '@/components/ds/avatar'
 import type { WeeklyEarner } from '@/lib/queries'
 
-const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 /**
  * WeeklyTop — biggest earners of the last 7 days. Same Settings-quality list as

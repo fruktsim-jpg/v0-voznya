@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { AnimatedCounter } from '@/components/voznya/animated-counter'
 import { Avatar } from '@/components/ds/avatar'
@@ -7,7 +7,7 @@ import { useApi } from '@/hooks/use-api'
 import { AreaTrend } from '@/components/ds/charts'
 import type { MessageStats } from '@/lib/queries'
 
-const PODIUM = ['#FFD700', '#C8D0DC', '#CD7F32']
+const PODIUM = ['#E8B54D', '#C8D0DC', '#CD7F32']
 
 function ActivityChart({ activity }: { activity: MessageStats['activity'] }) {
   if (activity.length === 0) return null
