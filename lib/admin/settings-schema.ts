@@ -62,8 +62,8 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     settings: [
       { key: 'casino.min_bet', label: 'Минимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 1_000_000, step: 1, default: 1, liveNow: true },
       { key: 'casino.max_bet', label: 'Максимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 100_000_000, step: 10, default: 1000, liveNow: true },
-      { key: 'casino.enabled', label: 'Казино включено', help: 'Глобальный переключатель игры.', control: 'toggle', default: true },
-      { key: 'casino.cooldown', label: 'Кулдаун казино', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 60, default: 3600 },
+      { key: 'casino.enabled', label: 'Казино включено', help: 'Глобальный переключатель игры. Бот проверяет перед каждой ставкой.', control: 'toggle', default: true, liveNow: true },
+      { key: 'casino.cooldown', label: 'Кулдаун казино', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 60, default: 3600, liveNow: true },
     ],
   },
   {
@@ -71,9 +71,9 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     label: 'Ферма',
     blurb: 'Доходность и кулдаун /ферма.',
     settings: [
-      { key: 'farm.cooldown', label: 'Кулдаун фермы', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 60, default: 14400 },
+      { key: 'farm.cooldown', label: 'Кулдаун фермы', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 60, default: 14400, liveNow: true },
       { key: 'farm.bonus', label: 'Бонус к доходу', help: 'Множитель сверх базы (0.25 = +25%).', control: 'percent', min: 0, max: 5, step: 0.05, default: 0 },
-      { key: 'farm.enabled', label: 'Ферма включена', control: 'toggle', default: true },
+      { key: 'farm.enabled', label: 'Ферма включена', control: 'toggle', default: true, liveNow: true },
     ],
   },
   {
@@ -92,8 +92,8 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     settings: [
       { key: 'duel.min_bet', label: 'Минимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 1_000_000, step: 1, default: 1 },
       { key: 'duel.max_bet', label: 'Максимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 100_000_000, step: 10, default: 100000 },
-      { key: 'duel.cooldown', label: 'Кулдаун дуэли', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 30, default: 1800 },
-      { key: 'duel.enabled', label: 'Дуэли включены', control: 'toggle', default: true },
+      { key: 'duel.cooldown', label: 'Кулдаун дуэли', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 30, default: 1800, liveNow: true },
+      { key: 'duel.enabled', label: 'Дуэли включены', control: 'toggle', default: true, liveNow: true },
     ],
   },
   {
