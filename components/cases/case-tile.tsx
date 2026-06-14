@@ -25,7 +25,6 @@ export function CaseTile({
   onOpenDetail: (c: CaseView) => void
 }) {
   const c = caseView
-  const t = rarityToken(c.topRarity)
   const top = c.topReward
 
   return (
