@@ -4,7 +4,7 @@ import { WhileAway } from '@/components/home/while-away'
 import { StreakChip } from '@/components/home/streak-chip'
 import { HotToday } from '@/components/home/hot-today'
 import { SeasonRace } from '@/components/home/season-race'
-import { CommunityStatsStrip } from '@/components/home/community-stats-strip'
+import { DayPulseTeaser } from '@/components/home/day-pulse-teaser'
 import { LeadersPreview } from '@/components/home/leaders-preview'
 import type { HomeContext } from '@/lib/home-context'
 
@@ -61,8 +61,9 @@ export function HomeHub({ ctx }: { ctx: HomeContext }) {
       {/* 4. Seasonal / economy world */}
       <SeasonRace race={ctx.seasonRace} movers={ctx.weeklyMovers} />
 
-      {/* 5. Proof of scale */}
-      {ctx.stats && <CommunityStatsStrip stats={ctx.stats} />}
+      {/* 5. Пульс дня — ТИЗЕР (полный пульс/моменты живут на Live). Заменил
+          прежний полноразмерный CommunityStatsStrip, дублировавший Live. */}
+      <DayPulseTeaser pulse={ctx.worldPulse} />
 
       {/* 6. Social status */}
       {ctx.richLeaders.length > 0 && (

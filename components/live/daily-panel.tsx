@@ -1,9 +1,14 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { useApi } from '@/hooks/use-api'
 import type { Daily } from '@/lib/queries'
 
+/**
+ * DailyPanel — «Номинации дня»: Пидор дня + Пара дня. Один из самых
+ * «сегодняшних» элементов продукта, поэтому живёт высоко во вкладке «Сейчас».
+ * Settings-grade: компактные glass-строки, цвет только смысловой. Данные —
+ * daily_nominations через /api/daily. Скрывается, когда номинаций нет.
+ */
 export function DailyPanel() {
   const { data } = useApi<Daily>('/api/daily', 30_000)
 
@@ -13,52 +18,36 @@ export function DailyPanel() {
   if (!hasPara && !hasPidor) return null
 
   return (
-    <section className="px-4 py-5 sm:py-6">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
-          Номинации <span className="text-gradient">дня</span>
+    <section className="px-4 pt-4 sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <h2 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+          Номинации дня
         </h2>
-
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-5">
-          {hasPara && data.para && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.45 }}
-              className="glass flex items-center gap-4 rounded-2xl border border-pink-500/30 bg-pink-500/5 p-5"
-            >
-              <div className="text-3xl sm:text-4xl">❤️</div>
-              <div className="min-w-0">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Пара дня</div>
-                <div className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">
-                  {data.para.first} <span className="text-pink-400">&</span> {data.para.second}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
+        <div className="grid gap-2 sm:grid-cols-2">
           {hasPidor && data.pidor && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.45, delay: 0.05 }}
-              className="glass flex items-center gap-4 rounded-2xl border border-border p-5"
-            >
-              <div className="text-3xl sm:text-4xl">🏳️‍🌈</div>
-              <div className="min-w-0">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Пидор дня</div>
-                <div className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">
+            <div className="glass flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
+              <span className="text-xl" aria-hidden>🏳️‍🌈</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Пидор дня</div>
+                <div className="truncate text-sm font-semibold text-foreground">
                   {data.pidor.name}
                   {data.pidor.count > 0 && (
-                    <span className="ml-2 text-sm font-medium text-muted-foreground">
-                      ×{data.pidor.count}
-                    </span>
+                    <span className="ml-1.5 text-xs font-medium text-muted-foreground">×{data.pidor.count}</span>
                   )}
                 </div>
               </div>
-            </motion.div>
+            </div>
+          )}
+          {hasPara && data.para && (
+            <div className="glass flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
+              <span className="text-xl" aria-hidden>❤️</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Пара дня</div>
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {data.para.first} <span className="text-rose-300">&</span> {data.para.second}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

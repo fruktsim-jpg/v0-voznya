@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { useApi } from '@/hooks/use-api'
 import { formatCurrency } from '@/lib/pluralize'
@@ -20,35 +19,31 @@ export function EconomyPanel() {
     : []
 
   return (
-    <section className="px-4 py-5 sm:py-6">
+    <section className="px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-xl font-bold tracking-tight sm:text-2xl">
-          <span className="text-gradient">Экономика</span>
+        <h2 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+          Экономика
         </h2>
 
         {error && !data ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Данные экономики временно недоступны</p>
+          <p className="text-sm text-muted-foreground">Данные экономики временно недоступны</p>
         ) : !data ? (
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/5" />
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/5" />
             ))}
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
-            {cards.map((c, i) => (
-              <motion.div
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {cards.map((c) => (
+              <div
                 key={c.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.45, delay: i * 0.05 }}
-                className="glass relative overflow-hidden rounded-2xl border border-border p-4 sm:p-6"
+                className="glass rounded-2xl border border-border p-4"
               >
-                <Glyph name={c.icon} className="text-2xl text-primary sm:text-3xl" />
-                <div className="mt-2 truncate text-lg font-bold text-foreground sm:text-xl">{c.value}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{c.label}</div>
-              </motion.div>
+                <Glyph name={c.icon} className="text-lg text-primary" />
+                <div className="mt-1.5 truncate text-base font-bold text-foreground sm:text-lg">{c.value}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{c.label}</div>
+              </div>
             ))}
           </div>
         )}

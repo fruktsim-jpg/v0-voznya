@@ -13,6 +13,7 @@ import {
   type CommunityStats,
 } from '@/lib/queries'
 import { getCommunityFeed, getUserFeed } from '@/lib/feed'
+import { deriveHotToday, getWorldPulseSafe, type HotToday, type WorldPulse } from '@/lib/world-pulse'
 import {
   getActiveSeason,
   getSeasonProfile,
@@ -92,80 +93,7 @@ export async function getPlayerStrip(userId: number): Promise<PlayerStrip | null
 }
 
 // --- Hot Today (world highlights derived from the real feed) ----------------
-
-export type HotHighlight = {
-  id: string
-  label: string
-  actorName: string
-  actorId: number
-  value: number | null
-  rarity: Rarity
-  icon: string
-  occurredAt: string
-}
-
-export type HotToday = {
-  /** Single biggest payout event in the window (casino/treasure/case value). */
-  biggestWin: HotHighlight | null
-  /** Rarest drop in the window (highest rarity tier, tie-broken by value). */
-  rarestDrop: HotHighlight | null
-  /** Count of jackpots in the window — "the world is winning" proof. */
-  jackpots: number
-  /** Count of rare+ Telegram-gift drops in the window. */
-  giftDrops: number
-}
-
-function toHighlight(e: CommunityEvent, label: string): HotHighlight {
-  return {
-    id: e.id,
-    label,
-    actorName: e.actor.name,
-    actorId: e.actor.id,
-    value: e.value ?? null,
-    rarity: e.rarity,
-    icon: e.icon,
-    occurredAt: e.occurredAt,
-  }
-}
-
-/**
- * Derive "hot today" highlights from the real community feed. This is honest:
- * it ranks events the feed already returned (timestamped, real), it does not
- * invent superlatives. "Today" here means "within the fetched recent window" —
- * we do not claim calendar-day semantics we cannot back.
- */
-function deriveHotToday(feed: CommunityEvent[]): HotToday {
-  let biggestWin: CommunityEvent | null = null
-  let rarestDrop: CommunityEvent | null = null
-  let jackpots = 0
-  let giftDrops = 0
-
-  for (const e of feed) {
-    if (e.code === 'CASE_JACKPOT') jackpots++
-    if (e.code === 'CASE_GIFT_DROP' || e.code === 'GIFT_DELIVERED') giftDrops++
-
-    if (e.value != null && (biggestWin == null || e.value > (biggestWin.value ?? 0))) {
-      biggestWin = e
-    }
-
-    if (rarestDrop == null) {
-      rarestDrop = e
-    } else {
-      const a = RARITY_ORDER.indexOf(e.rarity)
-      const b = RARITY_ORDER.indexOf(rarestDrop.rarity)
-      if (a > b || (a === b && (e.value ?? 0) > (rarestDrop.value ?? 0))) {
-        rarestDrop = e
-      }
-    }
-  }
-
-  return {
-    biggestWin: biggestWin ? toHighlight(biggestWin, 'Крупнейший выигрыш') : null,
-    rarestDrop: rarestDrop ? toHighlight(rarestDrop, 'Редчайший дроп') : null,
-    jackpots,
-    giftDrops,
-  }
-}
+// Implementation moved to lib/world-pulse.ts (single owner, shared with Live).
 
 // --- Featured opportunity (storefront pick over real cases) -----------------
 
@@ -269,6 +197,8 @@ export type HomeContext = {
   /** Personal recent activity, for the "while you were away" world+you re-entry. */
   personalFeed: CommunityEvent[]
   hotToday: HotToday
+  /** Day pulse (24h aggregates) — Home shows a teaser, Live shows the full bar. */
+  worldPulse: WorldPulse
   featured: FeaturedOpportunity | null
   seasonRace: SeasonRace | null
   /** Top by balance (status). */
@@ -295,6 +225,7 @@ export async function getHomeContext(
     richLeaders,
     weeklyMovers,
     stats,
+    worldPulse,
   ] = await Promise.all([
     userId !== null ? getPlayerStrip(userId) : Promise.resolve(null),
     getCommunityFeed(24),
@@ -304,6 +235,7 @@ export async function getHomeContext(
     getTopRich(5).catch(() => [] as RichUser[]),
     getWeeklyTop(7, 5).catch(() => [] as WeeklyEarner[]),
     getCommunityStats().catch(() => null),
+    getWorldPulseSafe(),
   ])
 
   return {
@@ -311,6 +243,7 @@ export async function getHomeContext(
     worldFeed,
     personalFeed,
     hotToday: deriveHotToday(worldFeed),
+    worldPulse,
     featured,
     seasonRace,
     richLeaders,
