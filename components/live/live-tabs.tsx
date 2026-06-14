@@ -28,7 +28,9 @@ export function LiveTabs({
 
   // Найти таб, который содержит элемент с данным id, активировать и доскроллить.
   const focusAnchor = useCallback((rawHash: string) => {
-    const id = rawHash.replace(/^#/, '')
+    // Берём только ПОСЛЕДНИЙ сегмент: ссылки вида `/live#top-rich`, нажатые при
+    // уже стоящем хэше, иногда дают `#top-rich#top-rich` — нормализуем.
+    const id = rawHash.replace(/^#/, '').split('#').filter(Boolean).pop() ?? ''
     if (!id) return
     const root = containerRef.current
     if (!root) return

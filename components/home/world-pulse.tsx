@@ -90,7 +90,7 @@ export function WorldPulse({
   const pulses = useMemo(() => buildPulses(hot ?? null, seasonEndsAt ?? null), [hot, seasonEndsAt])
 
   return (
-    <section className="px-4 pt-4 sm:px-6">
+    <section className="pt-header px-4 sm:px-6">
       <div className="mx-auto max-w-5xl">
         {/* Header — calm, left-aligned, like every other screen title. */}
         <div className="mb-2 flex items-end justify-between gap-3 px-0.5">

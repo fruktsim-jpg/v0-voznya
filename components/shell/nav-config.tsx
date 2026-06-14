@@ -80,6 +80,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'cases', href: '/cases', label: 'Кейсы', icon: I.cases, match: (p) => p.startsWith('/cases') },
   { id: 'inventory', href: '/inventory', label: 'Инвентарь', icon: I.inventory, match: (p) => p.startsWith('/inventory') },
   { id: 'shop', href: '/gifts', label: 'Магазин', icon: I.shop, match: (p) => p.startsWith('/gifts') || p.startsWith('/shop') },
-  { id: 'leaders', href: '/live#top-rich', label: 'Лидеры', icon: I.leaders, match: (p) => p.startsWith('/live') || p.startsWith('/leaderboards') || p.startsWith('/season') },
+  { id: 'leaders', href: '/live', label: 'Статистика', icon: I.leaders, match: (p) => p.startsWith('/live') || p.startsWith('/leaderboards') || p.startsWith('/season') },
   { id: 'profile', href: '/profile/me', label: 'Профиль', icon: I.profile, match: (p) => p.startsWith('/profile') || p.startsWith('/u/') },
 ]
