@@ -24,6 +24,7 @@ import { asRarity } from '@/lib/inventory-meta'
 import { ItemArt } from '@/components/ds/item-art'
 import type { ItemClass } from '@/lib/item-art/model'
 import { ActivityCard } from '@/components/v2/activity-card'
+import { archetype, playStyle } from '@/lib/profile-narrative'
 import type { PlayerProfile } from '@/lib/queries'
 import type { CommunityEvent } from '@/lib/events'
 
@@ -126,6 +127,17 @@ export function PlayerCard({
   const title = titleForEarned(profile.totalEarned)
   const duelsTotal = profile.duelsWon + profile.duelsLost
   const winRate = duelsTotal > 0 ? Math.round((profile.duelsWon / duelsTotal) * 100) : 0
+
+  // Narrative layer (derived from existing fields): archetype line + play-style
+  // verdict. Turns the profile into a character, not a metric dump.
+  const arch = archetype(profile)
+  const style = playStyle(profile)
+
+  // Экономический портрет: доля заработанного, ушедшая в траты.
+  const burnPct =
+    profile.totalEarned > 0
+      ? Math.min(100, Math.round((profile.totalSpent / profile.totalEarned) * 100))
+      : null
 
   // Элитный статус по месту в общем топе (#1–#3 медали, топ-10 — мягкий акцент).
   const elite = eliteTierFor(profile.rankInTop)
@@ -304,7 +316,15 @@ export function PlayerCard({
             </p>
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-2.5">
-              {/* Титул (по заработку) — тир-мир по позиции в лестнице титулов */}
+              {/* Архетип — главный ответ «чем отличается этот игрок». Производное
+                  от уже загруженных полей (богатство/дуэли/казино/голос/ранги). */}
+              <span className="inline-flex flex-col rounded-xl border border-primary/30 bg-primary/[0.07] px-3 py-1.5 text-left">
+                <span className="text-sm font-bold text-foreground">{arch.label}</span>
+                <span className="text-[11px] text-muted-foreground">{arch.sub}</span>
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-2.5">
               <Link href="/live#titles" className="transition-transform hover:-translate-y-0.5">
                 <TitleBadge
                   emoji={title.emoji}
@@ -435,6 +455,7 @@ export function PlayerCard({
           tone="text-amber-200"
           label="Богатство"
           value={formatCurrency(profile.balance)}
+          rank={profile.rankInTop}
         />
         {profile.reputation !== null && (
           <ValueAxis
@@ -442,6 +463,7 @@ export function PlayerCard({
             tone="text-rose-200"
             label="Уважение"
             value={profile.reputation.toLocaleString('ru-RU')}
+            rank={profile.ranks.byReputation}
           />
         )}
         {profile.messages > 0 && (
@@ -450,14 +472,15 @@ export function PlayerCard({
             tone="text-sky-200"
             label="Голос"
             value={profile.messages.toLocaleString('ru-RU')}
+            rank={profile.ranks.byMessages}
           />
         )}
       </motion.div>
 
       {/* ============================================================== */}
-      {/* ============================================================== */}
-      {/* D3 — Личная статистика. Сгруппирована по смыслу, без стены      */}
-      {/* цифр. Достижения здесь НЕ дублируем — мастерство в PrestigeBanner.*/}
+      {/* ЭКОНОМИКА И ИГРА — экономический портрет + КАК он играет.       */}
+      {/* Вывод (playStyle) сверху — интерпретация стиля, а не сырые цифры.*/}
+      {/* Использует ранее не отображавшиеся totalSpent и pidorCount.     */}
       {/* ============================================================== */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -467,8 +490,37 @@ export function PlayerCard({
       >
         <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
-            <Glyph name="swords" className="text-primary" /> Статистика
+            <Glyph name="swords" className="text-primary" /> Экономика и игра
           </h2>
+
+          {/* Вывод о стиле игры — короткая интерпретация, не таблица. */}
+          {style.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {style.map((line) => (
+                <p
+                  key={line}
+                  className="flex items-start gap-2 rounded-xl border border-border bg-white/[0.02] px-3 py-2 text-[13px] text-foreground"
+                >
+                  <Glyph name="spark" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Экономический портрет: заработано / потрачено (% оборота). */}
+          <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:gap-3">
+            <StatTile
+              glyph="chart"
+              value={formatCurrency(profile.totalEarned)}
+              label="Заработано всего"
+            />
+            <StatTile
+              glyph="wallet"
+              value={formatCurrency(profile.totalSpent)}
+              label={burnPct != null ? `Потрачено · ${burnPct}% оборота` : 'Потрачено всего'}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
             {/* Дуэли — победы/поражения + winrate */}
@@ -495,6 +547,14 @@ export function PlayerCard({
                 glyph="dice"
                 value={profile.casinoGamesCount.toLocaleString('ru-RU')}
                 label="Казино"
+              />
+            )}
+            {/* Пидор дня — фановый identity-маркер (pidorCount раньше не показывался). */}
+            {profile.pidorCount > 0 && (
+              <StatTile
+                glyph="flame"
+                value={`×${profile.pidorCount.toLocaleString('ru-RU')}`}
+                label="Пидор дня"
               />
             )}
           </div>
@@ -706,7 +766,7 @@ export function PlayerCard({
               <span className="text-[11px] text-muted-foreground sm:text-xs">· путь в Возне</span>
             </div>
             <ul className="space-y-2">
-              {activity.slice(0, 12).map((e, i) => (
+              {activity.slice(0, 5).map((e, i) => (
                 <li key={`${e.id}-${i}`}>
                   <ActivityCard event={e} />
                 </li>
@@ -721,7 +781,9 @@ export function PlayerCard({
       <ShareButton userId={profile.userId} playerName={profile.firstName} />
       <QuickLinks />
 
-      {/* CTA — играть в боте */}
+      {/* CTA — играть в боте. Только на СВОём профиле / гостю: на чужом
+          профиле «играй сам» нерелевантен (смотришь чужую личность). */}
+      {isOwner && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -739,21 +801,26 @@ export function PlayerCard({
           <TelegramButton variant="secondary" />
         </div>
       </motion.div>
+      )}
     </div>
   )
 }
 
-/** Компактная ось ценности (E0.2) — лёгкая контекст-плитка, без hero-веса. */
+/** Компактная ось ценности (E0.2) — лёгкая контекст-плитка, без hero-веса.
+ *  Теперь несёт #место в соответствующем ладдере (ranks.*), если оно известно —
+ *  абсолютное значение + позиция = «насколько он богат/активен/уважаем». */
 function ValueAxis({
   glyph,
   tone,
   label,
   value,
+  rank,
 }: {
   glyph: GlyphName
   tone: string
   label: string
   value: string
+  rank?: number | null
 }) {
   return (
     <div className="glass rounded-xl border border-border bg-white/[0.02] p-3 text-center sm:p-3.5">
@@ -761,6 +828,9 @@ function ValueAxis({
         <Glyph name={glyph} className={`h-3.5 w-3.5 ${tone}`} /> {label}
       </span>
       <div className={`mt-1 type-stat text-lg sm:text-2xl ${tone}`}>{value}</div>
+      {rank != null && (
+        <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">#{rank} в Возне</div>
+      )}
     </div>
   )
 }
