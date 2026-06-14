@@ -49,6 +49,10 @@ export function CasesHub({
 
   return (
     <div className="space-y-4">
+      {/* Social proof FIRST — real recent wins lead the storefront ("другие уже
+          выигрывают"), затем фильтры и каталог. */}
+      {category === 'all' && <RecentWins wins={recentWins} />}
+
       {/* Category filters — the screen opens directly on the catalog (App Store /
           Steam pattern). No featured stage dominates the first viewport; the top
           case still leads its category group as a normal row. */}
@@ -92,11 +96,6 @@ export function CasesHub({
           </div>
         </section>
       ))}
-
-      {/* Social proof — real recent wins. Placed AFTER the catalog so the hero
-          and case grid stay adjacent in the first viewport (the dream + the
-          action read first); "others are winning" reinforces below. */}
-      {category === 'all' && <RecentWins wins={recentWins} />}
 
       <CaseDetailSheet caseView={selected} open={open} onOpenChange={setOpen} />
     </div>
