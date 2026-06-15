@@ -10,10 +10,9 @@
 // CONTRACT: this is purely a presentation/validation layer. Values still write
 // to the SAME `app_settings` table the bot reads via `app.settings.dynamic`
 // (cache TTL ~60s) — no bot change, no migration. A key only takes EFFECT when
-// the bot actually reads it dynamically; today that is confirmed for
-// `casino.min_bet` / `casino.max_bet`. Other registered keys are pre-wired
-// operator controls that take effect as the bot adopts `dynamic.get_*` for them
-// (writing the override now is harmless — the row simply waits to be read).
+// the bot actually reads it dynamically. As of 2026-06-16 the bot reads EVERY
+// key in this registry via `dynamic.get_*` (casino/farm/duel/daily/season/
+// economy), so all are marked `liveNow`. Durations are stored in SECONDS.
 //
 // Unknown keys (anything not in the registry) fall back to the raw editor, so
 // nothing is hidden or lost.
@@ -72,7 +71,7 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     blurb: 'Доходность и кулдаун /ферма.',
     settings: [
       { key: 'farm.cooldown', label: 'Кулдаун фермы', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 60, default: 14400, liveNow: true },
-      { key: 'farm.bonus', label: 'Бонус к доходу', help: 'Множитель сверх базы (0.25 = +25%).', control: 'percent', min: 0, max: 5, step: 0.05, default: 0 },
+      { key: 'farm.bonus', label: 'Бонус к доходу', help: 'Прибавка сверх базы (0.25 = +25%). Суммируется со стрик-бонусом.', control: 'percent', min: 0, max: 5, step: 0.05, default: 0, liveNow: true },
       { key: 'farm.enabled', label: 'Ферма включена', control: 'toggle', default: true, liveNow: true },
     ],
   },
@@ -81,8 +80,8 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     label: 'Дейлики',
     blurb: 'Ежедневная награда.',
     settings: [
-      { key: 'daily.reward', label: 'Награда за дейлик', control: 'number', unit: 'ешек', min: 0, max: 1_000_000, step: 1, default: 50 },
-      { key: 'daily.cooldown', label: 'Кулдаун дейлика', control: 'duration', unit: 'сек', min: 0, max: 604_800, step: 3600, default: 86400 },
+      { key: 'daily.reward', label: 'Награда за дейлик', help: 'Плоский размер награды. Переопределяет таблицу стрик-наград бота.', control: 'number', unit: 'ешек', min: 0, max: 1_000_000, step: 1, default: 50, liveNow: true },
+      { key: 'daily.cooldown', label: 'Кулдаун дейлика', help: 'Дейлик привязан к календарному дню (UTC); бот этот ключ пока не читает.', control: 'duration', unit: 'сек', min: 0, max: 604_800, step: 3600, default: 86400 },
     ],
   },
   {
@@ -90,8 +89,8 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     label: 'Дуэли',
     blurb: 'Ставки и доступность /дуэль.',
     settings: [
-      { key: 'duel.min_bet', label: 'Минимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 1_000_000, step: 1, default: 1 },
-      { key: 'duel.max_bet', label: 'Максимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 100_000_000, step: 10, default: 100000 },
+      { key: 'duel.min_bet', label: 'Минимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 1_000_000, step: 1, default: 1, liveNow: true },
+      { key: 'duel.max_bet', label: 'Максимальная ставка', control: 'number', unit: 'ешек', min: 1, max: 100_000_000, step: 10, default: 100000, liveNow: true },
       { key: 'duel.cooldown', label: 'Кулдаун дуэли', control: 'duration', unit: 'сек', min: 0, max: 86_400, step: 30, default: 1800, liveNow: true },
       { key: 'duel.enabled', label: 'Дуэли включены', control: 'toggle', default: true, liveNow: true },
     ],
@@ -101,7 +100,7 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     label: 'Сезон',
     blurb: 'Параметры текущего сезона.',
     settings: [
-      { key: 'season.xp_bonus', label: 'Бонус опыта сезона', help: 'Множитель опыта (0.5 = +50%).', control: 'percent', min: 0, max: 5, step: 0.05, default: 0 },
+      { key: 'season.xp_bonus', label: 'Бонус опыта сезона', help: 'Прибавка к начисляемому MMR/опыту (0.5 = +50%).', control: 'percent', min: 0, max: 5, step: 0.05, default: 0, liveNow: true },
     ],
   },
   {
@@ -109,8 +108,8 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     label: 'Экономика',
     blurb: 'Базовые курсы. Менять осторожно.',
     settings: [
-      { key: 'economy.eshki_per_star', label: 'Ешек за 1 звезду', control: 'number', unit: 'ешек', min: 1, max: 100_000, step: 1, default: 10 },
-      { key: 'economy.item_sell_rate', label: 'Возврат при продаже', help: 'Доля стоимости при продаже предмета.', control: 'percent', min: 0, max: 1, step: 0.05, default: 0.7 },
+      { key: 'economy.eshki_per_star', label: 'Ешек за 1 звезду', help: 'Курс оценки призов кейсов по star_cost (фолбэк продажи/возврата).', control: 'number', unit: 'ешек', min: 1, max: 100_000, step: 1, default: 10, liveNow: true },
+      { key: 'economy.item_sell_rate', label: 'Возврат при продаже', help: 'Доля стоимости при продаже предмета из инвентаря.', control: 'percent', min: 0, max: 1, step: 0.05, default: 0.7, liveNow: true },
     ],
   },
 ]

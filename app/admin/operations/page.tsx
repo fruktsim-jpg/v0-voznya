@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic'
  * Operations Center — "how do I run VOZNYA?" (vs Player Studio's "how do I run a
  * player?"). One screen for the platform-wide levers that actually exist:
  *   • Season — real on/off (seasons.is_active), reuses the season control.
- *   • Services — global on/off flags (app_settings), honest enforced/armed.
- *   • Modifiers — global multipliers foundation (app_settings), armed.
+ *   • Services — global on/off flags (app_settings) the bot now reads.
+ *   • Modifiers — global multipliers (app_settings); eshki/xp/drop enforced.
  *
  * No new architecture: season uses the existing season actions; toggles/
  * modifiers are app_settings rows the bot reads via app.settings.dynamic.
@@ -47,6 +47,16 @@ export default async function OperationsPage() {
   const initialValues: Record<string, unknown> = {}
   for (const r of opsRows) initialValues[r.key] = r.value
 
+  // Live status for the strip: toggles default to ON when absent. The bot now
+  // reads these flags, so the tiles reflect real on/off state.
+  const flagOn = (key: string): boolean => {
+    const v = initialValues[key]
+    return typeof v === 'boolean' ? v : true
+  }
+  const casinoOn = flagOn('casino.enabled')
+  const casesOn = flagOn('cases.enabled')
+  const shopOn = flagOn('shop.enabled')
+
   const seasonForManager = active
     ? {
         id: active.id,
@@ -75,9 +85,9 @@ export default async function OperationsPage() {
           ok={!!active}
           text={active ? active.name : 'не идёт'}
         />
-        <StatusTile emoji="🎰" label="Казино" ok text="активно" />
-        <StatusTile emoji="🎁" label="Кейсы" ok text="активны" />
-        <StatusTile emoji="🛒" label="Магазин" ok text="активен" />
+        <StatusTile emoji="🎰" label="Казино" ok={casinoOn} text={casinoOn ? 'активно' : 'выключено'} />
+        <StatusTile emoji="🎁" label="Кейсы" ok={casesOn} text={casesOn ? 'активны' : 'выключены'} />
+        <StatusTile emoji="🛒" label="Магазин" ok={shopOn} text={shopOn ? 'активен' : 'выключен'} />
       </section>
 
       {/* Season — the one fully-real platform on/off lever today */}

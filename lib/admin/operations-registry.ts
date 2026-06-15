@@ -7,25 +7,28 @@
 // honest map of levers.
 //
 // HONESTY CONTRACT (the most important thing here):
-// A read-only investigation of voznya-bot (2026-06-13) established that the bot
-// has NO generic feature-flag mechanism. The only runtime levers that EXIST are:
-//   • Season on/off  → `seasons.is_active` row (start/finalize) — REAL, today.
-//   • Per-item flags  → case_definitions / gift_catalog / shop_offers.is_active.
-//   • casino.min_bet / casino.max_bet → the ONLY app_settings keys the bot reads.
-// Everything else (system on/off toggles, x2 multipliers, maintenance switch)
-// does NOT exist in the bot yet and would require bot work.
+// As of 2026-06-16 the bot DOES read these flags via app.settings.dynamic at
+// each service entry point. Confirmed enforced today:
+//   • Season on/off  → `seasons.is_active` row (start/finalize) — separate panel.
+//   • casino/cases/shop/gifts/duel/farm `.enabled` → kill-switches read by the
+//     bot before each action (casino/farm/duel handlers; cases.open_case &
+//     gifts.buy_gift/deliver_gift atomic cores — so the site honors them too).
+//   • modifier.eshki → economy core multiplies earned rewards (farm/treasure/
+//     daily/mission/season/event/duel) by the factor.
+//   • modifier.xp   → mmr.award_mmr scales positive MMR/XP awards.
+//   • modifier.drop → cases reward picker boosts rare (jackpot/limited) weights.
+// Still `armed` (stored, not yet read by the bot):
+//   • modifier.reputation → reputation values are constrained to ±1 by a DB
+//     check; scaling requires a schema change, so it waits.
 //
 // So each lever below carries an `enforcement`:
 //   • 'enforced' — the bot honors this RIGHT NOW (flip it and it takes effect).
 //   • 'armed'    — the admin can set the flag (it writes to app_settings and
 //                  waits), but the bot does NOT read it yet. We show this state
-//                  honestly instead of faking a working toggle. When the bot
-//                  adds `dynamic.get_bool("<key>", True)` at the entry point,
-//                  the same stored flag goes live with ZERO admin changes.
+//                  honestly instead of faking a working toggle.
 //
 // All toggle/modifier flags live in the SAME `app_settings` table the bot reads
-// via app.settings.dynamic (≤60s cache). No new table, no migration, no new
-// architecture — exactly the constraint for this phase.
+// via app.settings.dynamic (≤60s cache). No new table, no migration.
 // =============================================================================
 
 export type Enforcement = 'enforced' | 'armed'
@@ -66,8 +69,8 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '🎰',
     key: 'casino.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Бот пока не проверяет флаг — нужна правка в casino/handlers. Ставки (min/max) уже живые.',
+    enforcement: 'enforced',
+    note: 'Бот проверяет флаг перед каждой ставкой. Ставки (min/max) тоже живые.',
   },
   {
     id: 'cases',
@@ -75,8 +78,8 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '🎁',
     key: 'cases.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Глобального флага в боте нет (есть только per-case is_active). Готово к включению в боте.',
+    enforcement: 'enforced',
+    note: 'Глобальный стоп открытия кейсов (бот и сайт) — поверх per-case is_active.',
   },
   {
     id: 'shop',
@@ -84,8 +87,8 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '🛒',
     key: 'shop.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Глобального флага нет (только per-item is_active). В боте магазин уже ведёт на сайт.',
+    enforcement: 'enforced',
+    note: 'Глобальный стоп покупок (бот и сайт) — единая точка buy_gift.',
   },
   {
     id: 'gifts',
@@ -93,8 +96,8 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '🎀',
     key: 'gifts.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Реальная доставка управляется через .env GIFTS_DELIVERY_ENABLED (нужен рестарт).',
+    enforcement: 'enforced',
+    note: 'Стоп выдачи подарков (поверх .env GIFTS_DELIVERY_ENABLED). Оплаченное ждёт в pending.',
   },
   {
     id: 'duels',
@@ -102,8 +105,8 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '⚔️',
     key: 'duel.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Бот пока не проверяет флаг — нужна правка в duel/handlers.',
+    enforcement: 'enforced',
+    note: 'Бот проверяет флаг перед началом дуэли.',
   },
   {
     id: 'farm',
@@ -111,15 +114,15 @@ export const SERVICE_TOGGLES: ServiceToggle[] = [
     emoji: '🌾',
     key: 'farm.enabled',
     default: true,
-    enforcement: 'armed',
-    note: 'Бот пока не проверяет флаг — нужна правка в farm/handlers.',
+    enforcement: 'enforced',
+    note: 'Бот проверяет флаг перед /ферма.',
   },
 ]
 
 // --- Global modifiers -------------------------------------------------------
-// None are enforced yet: the economy core (services/economy.py) applies amounts
-// verbatim with no multiplier hook. These are the foundation/contract so that
-// when the bot adds a multiplier read, the operator surface already exists.
+// eshki/xp/drop are enforced: the bot reads them dynamically (economy core,
+// mmr.award_mmr, cases reward picker). reputation stays armed (DB constrains
+// reputation to ±1, so a multiplier needs a schema change first).
 export const GLOBAL_MODIFIERS: GlobalModifier[] = [
   {
     id: 'eshki',
@@ -128,8 +131,8 @@ export const GLOBAL_MODIFIERS: GlobalModifier[] = [
     key: 'modifier.eshki',
     default: 1,
     presets: [1, 1.5, 2, 3],
-    enforcement: 'armed',
-    note: 'Множитель к награждаемым ешкам. Бот пока умножение не применяет.',
+    enforcement: 'enforced',
+    note: 'Множитель к зарабатываемым ешкам (ферма, клад, дейлик, миссии, дуэли). Казино/покупки/переводы не трогает.',
   },
   {
     id: 'reputation',
@@ -139,7 +142,7 @@ export const GLOBAL_MODIFIERS: GlobalModifier[] = [
     default: 1,
     presets: [1, 2, 3],
     enforcement: 'armed',
-    note: 'Множитель к репутации. Бот пока не применяет.',
+    note: 'Репутация в БД ограничена ±1 — множитель требует правки схемы. Пока не применяется.',
   },
   {
     id: 'xp',
@@ -148,8 +151,8 @@ export const GLOBAL_MODIFIERS: GlobalModifier[] = [
     key: 'modifier.xp',
     default: 1,
     presets: [1, 1.5, 2],
-    enforcement: 'armed',
-    note: 'Множитель к опыту/MMR. Бот пока не применяет.',
+    enforcement: 'enforced',
+    note: 'Множитель к начисляемому MMR/опыту (только начисления, не штрафы).',
   },
   {
     id: 'drop',
@@ -158,8 +161,8 @@ export const GLOBAL_MODIFIERS: GlobalModifier[] = [
     key: 'modifier.drop',
     default: 1,
     presets: [1, 1.5, 2],
-    enforcement: 'armed',
-    note: 'Множитель шанса редкого дропа. Бот пока не применяет.',
+    enforcement: 'enforced',
+    note: 'Поднимает эффективный вес редких наград кейса (джекпоты/лимитки).',
   },
 ]
 

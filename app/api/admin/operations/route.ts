@@ -20,10 +20,11 @@ export const revalidate = 0
  * is identical in mechanism to /api/admin/settings, but scoped to the
  * operations registry keys and audited as operations.* for a clean ops trail.
  *
- * HONESTY: many of these flags are `armed` (stored, but the bot does not read
- * them yet). The registry says which; the UI shows it. Writing an armed flag is
- * harmless — the row simply waits until the bot adds the corresponding
- * dynamic.get_* read. casino.min_bet/max_bet are the only keys read today.
+ * HONESTY: as of 2026-06-16 the bot reads every toggle and the eshki/xp/drop
+ * modifiers via app.settings.dynamic — flipping them takes effect within the
+ * cache TTL. Only modifier.reputation stays `armed` (DB constrains reputation
+ * to ±1, so scaling needs a schema change). The registry marks enforcement and
+ * the UI shows it.
  *
  * GET  /api/admin/operations — current values for all operations keys.
  * POST /api/admin/operations — { key, value } (toggle bool / modifier number).
