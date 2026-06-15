@@ -14,6 +14,10 @@ import {
 } from '@/lib/queries'
 import { getCommunityFeed, getUserFeed } from '@/lib/feed'
 import { deriveHotToday, getWorldPulseSafe, type HotToday, type WorldPulse } from '@/lib/world-pulse'
+
+// Re-export so home components can import HotToday from the same module they get
+// FeaturedOpportunity/HomeContext from (the canonical source stays world-pulse).
+export type { HotToday }
 import {
   getActiveSeason,
   getSeasonProfile,

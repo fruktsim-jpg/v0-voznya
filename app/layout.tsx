@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Unbounded, JetBrains_Mono } from 'next/font/google'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
@@ -95,6 +96,13 @@ export default async function RootLayout({
   const overlayVersion = getOverlayVersion()
   return (
     <html lang="ru" className={`${inter.variable} ${unbounded.variable} ${jetbrainsMono.variable} bg-background`}>
+      <head>
+        {/* Telegram Mini App SDK — loaded on EVERY route (not just /miniapp) so
+            haptics, viewport sizing and safe-area insets work on real content
+            pages. beforeInteractive guarantees window.Telegram.WebApp exists
+            before our TelegramProvider runs. No-op in a normal browser. */}
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+      </head>
       <body className="font-sans antialiased">
         <ItemArtHydrator overlay={overlay} version={overlayVersion} />
         <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>

@@ -39,7 +39,7 @@ export function GlobalNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 sm:bottom-4" aria-label="Основная навигация">
-      <div className="mx-auto flex max-w-lg items-stretch justify-around border-t border-white/10 bg-background/85 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:max-w-fit sm:gap-1 sm:rounded-full sm:border sm:px-2 sm:py-1.5 sm:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.7)]">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around border-t border-white/10 bg-background/85 px-1 pb-[max(env(safe-area-inset-bottom),var(--tg-safe-bottom,0px))] backdrop-blur-xl sm:max-w-fit sm:gap-1 sm:rounded-full sm:border sm:px-2 sm:py-1.5 sm:pb-1.5 sm:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.7)]">
         {NAV_ITEMS.map((item) => {
           const active = item.match(pathname)
           return (
@@ -47,7 +47,7 @@ export function GlobalNav() {
               key={item.id}
               href={item.href}
               aria-current={active ? 'page' : undefined}
-              className={`group flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 transition sm:flex-none sm:flex-row sm:gap-2 sm:px-3.5 ${
+              className={`group flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 transition active:scale-[0.96] sm:min-h-0 sm:flex-none sm:flex-row sm:gap-2 sm:px-3.5 ${
                 active
                   ? 'text-primary sm:bg-primary/15'
                   : 'text-muted-foreground hover:text-foreground'

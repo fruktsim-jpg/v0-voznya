@@ -147,6 +147,20 @@ export function InventoryRedesign({
         <p className="text-sm text-muted-foreground">
           Инвентарь пуст. Открывай кейсы и покупай в магазине — всё попадёт сюда.
         </p>
+        <div className="mt-5 flex items-center justify-center gap-2">
+          <a
+            href="/cases"
+            className="rounded-xl border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary transition active:scale-[0.98] hover:bg-primary/25"
+          >
+            Открыть кейсы
+          </a>
+          <a
+            href="/gifts"
+            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition active:scale-[0.98] hover:text-foreground"
+          >
+            В магазин
+          </a>
+        </div>
       </div>
     )
   }

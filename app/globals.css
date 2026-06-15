@@ -136,8 +136,12 @@
   :root {
     --shell-h: 3.5rem;       /* 56px idle */
     --shell-h-min: 3rem;     /* 48px condensed */
-    --shell-safe-top: env(safe-area-inset-top);
-    --shell-total: calc(env(safe-area-inset-top) + 3.5rem);
+    /* Status-bar / chrome inset. Inside Telegram, env(safe-area-inset-top) is 0
+       (no notch reported), so the bar would slide under Telegram's own header.
+       TelegramProvider writes the real content-safe-area top into
+       --tg-safe-top; we prefer it and fall back to the iOS env() inset. */
+    --shell-safe-top: max(env(safe-area-inset-top), var(--tg-safe-top, 0px));
+    --shell-total: calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 3.5rem);
     --shell-z: 50;
     --nav-z: 50;
   }

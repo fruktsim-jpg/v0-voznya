@@ -32,7 +32,7 @@ export function Card({
   as?: 'div' | 'article' | 'li' | 'section'
 }) {
   const base =
-    'glass rounded-3xl border p-4 transition duration-200'
+    'glass rounded-2xl border p-4 transition duration-200'
   // Канон: стеклянные поверхности профиля/Live используют `border-border`.
   // Держим тот же токен, чтобы карточки витрин читались как часть продукта.
   let border = 'border-border'

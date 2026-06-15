@@ -5,10 +5,11 @@
 import 'server-only'
 
 import { query } from './db'
+import type { QueryResultRow } from 'pg'
 
 const NUM = (v: string | null | undefined): number => (v == null ? 0 : Number(v))
 
-async function safeRows<T>(sql: string, params?: unknown[]): Promise<T[]> {
+async function safeRows<T extends QueryResultRow>(sql: string, params?: unknown[]): Promise<T[]> {
   try {
     return await query<T>(sql, params)
   } catch {

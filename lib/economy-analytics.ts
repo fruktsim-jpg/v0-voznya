@@ -1,5 +1,6 @@
 import { query } from '@/lib/db'
 import { safeScalar } from '@/lib/admin-stats'
+import type { QueryResultRow } from 'pg'
 
 /**
  * Economic Control Center — read-only analytics over the data the bot already
@@ -21,7 +22,7 @@ import { safeScalar } from '@/lib/admin-stats'
 const NUM = (v: string | null | undefined): number => (v == null ? 0 : Number(v))
 
 /** Run a query that returns rows; [] if the table/columns are missing. */
-async function safeRows<T>(sql: string, params?: unknown[]): Promise<T[]> {
+async function safeRows<T extends QueryResultRow>(sql: string, params?: unknown[]): Promise<T[]> {
   try {
     return await query<T>(sql, params)
   } catch {

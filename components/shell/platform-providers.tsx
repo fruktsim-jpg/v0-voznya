@@ -19,10 +19,12 @@ import { Toaster } from '@/components/ds/toast'
 import { FxProvider } from '@/hooks/use-fx'
 import { FxBootstrap } from '@/components/fx/fx-bootstrap'
 import { CelebrationProvider } from '@/components/celebration/celebration-host'
+import { TelegramProvider } from '@/components/shell/telegram-provider'
 
 export function PlatformProviders({ children }: { children: ReactNode }) {
   return (
     <FxProvider>
+      <TelegramProvider />
       <FxBootstrap />
       <CelebrationProvider>{children}</CelebrationProvider>
       <Toaster />
