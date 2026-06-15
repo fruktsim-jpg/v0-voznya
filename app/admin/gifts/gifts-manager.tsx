@@ -113,7 +113,11 @@ export function GiftsManager({
       sortOrder: String(g.sort_order),
       collectionCode: g.collection_code ?? '',
       newCollectionName: '',
-      status: (g.status as ContentStatus) ?? 'draft',
+      // Legacy gifts (gift_catalog seed, no authored inventory_items row) have a
+      // NULL status. Defaulting to 'draft' would HIDE a currently-live gift on
+      // the next save (shop lifecycle gate). Seed from its real shop visibility:
+      // active legacy gift → 'published', so editing/replacing art never hides it.
+      status: (g.status as ContentStatus) ?? (g.is_active ? 'published' : 'draft'),
       featuredSlot: g.featured_slot ?? '',
     })
     setEditingCode(g.code)

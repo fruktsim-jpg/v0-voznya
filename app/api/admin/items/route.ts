@@ -268,6 +268,15 @@ export async function PATCH(req: NextRequest) {
         [code, status, activeFor(status), session.uid],
       )
       if (upd.length === 0) throw Object.assign(new Error('item not found'), { http: 404 })
+      // Keep gift_catalog.is_active in lockstep for gift-type definitions. The
+      // shop's primary filter is gift_catalog.is_active; without this a gift
+      // published via the lifecycle would update inventory_items but stay hidden
+      // in the storefront (gift_catalog still inactive). No-op for non-gifts.
+      await exec(
+        `UPDATE gift_catalog SET is_active = $2, updated_at = now()
+          WHERE code = $1`,
+        [code, activeFor(status)],
+      )
       // Keep any linked featured slot in lockstep.
       await exec(
         `UPDATE featured_slots SET status = $2, updated_at = now()
