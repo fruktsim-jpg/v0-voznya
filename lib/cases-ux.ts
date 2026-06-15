@@ -288,9 +288,13 @@ export function layoutCases(cases: CaseView[]): {
   })
   const featured = ranked[0] ?? null
 
-  const rest = cases.filter((c) => c.itemCode !== featured?.itemCode)
+  // ВАЖНО: featured НЕ исключаем из групп. Хаб рендерит только `groups` (см.
+  // CasesHub) — если убрать featured отсюда, самый ценный кейс (например «Кейс
+  // Джекпот», legendary) просто исчезал из витрины. Группируем ВСЕ кейсы; внутри
+  // своей категории featured идёт первым («возглавляет ряд»), остальные — по
+  // возрастанию цены.
   const byCat = new Map<CaseCategory, CaseView[]>()
-  for (const c of rest) {
+  for (const c of cases) {
     const list = byCat.get(c.category) ?? []
     list.push(c)
     byCat.set(c.category, list)
@@ -298,7 +302,14 @@ export function layoutCases(cases: CaseView[]): {
 
   const groups: CaseGroup[] = CATEGORY_ORDER.filter((cat) => byCat.has(cat)).map((category) => ({
     category,
-    cases: (byCat.get(category) ?? []).sort((a, b) => a.openCostAmount - b.openCostAmount),
+    cases: (byCat.get(category) ?? []).sort((a, b) => {
+      // featured возглавляет свою категорию.
+      if (featured) {
+        if (a.itemCode === featured.itemCode) return -1
+        if (b.itemCode === featured.itemCode) return 1
+      }
+      return a.openCostAmount - b.openCostAmount
+    }),
   }))
 
   return { featured, groups }

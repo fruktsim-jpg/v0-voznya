@@ -192,7 +192,7 @@ export function CaseBuilder({
         onClick={() => setOpen(true)}
         className="mb-4 w-full rounded-2xl border border-primary/40 bg-primary/10 py-3 text-sm font-semibold text-primary transition hover:bg-primary/20"
       >
-        + Создать кейс одним экраном
+        + Создать кейс
       </button>
     )
   }

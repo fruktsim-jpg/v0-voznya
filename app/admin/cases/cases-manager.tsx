@@ -219,6 +219,10 @@ export function CasesManager({
 
   return (
     <div className="space-y-4">
+      {/* Единственная форма СОЗДАНИЯ кейса — «один экран» (код, арт, награды,
+          проценты→веса, жизненный цикл). Старая форма создания удалена: она
+          дублировала этот флоу. Редактирование существующего кейса — отдельная
+          панель ниже, появляется только по кнопке «Редактировать». */}
       {canManage && (
         <CaseBuilder
           catalog={builderCatalog}
@@ -227,7 +231,7 @@ export function CasesManager({
         />
       )}
 
-      {canManage && (
+      {canManage && editing && (
         <CaseForm
           onSaved={reloadCases}
           setSelected={setSelected}
@@ -324,8 +328,9 @@ function CaseForm({
 }: {
   onSaved: () => void
   setSelected: (code: string) => void
-  /** P0-1: если задан — форма работает в режиме редактирования этого кейса. */
-  editCase: AdminCase | null
+  /** Кейс в режиме редактирования. Форма рендерится ТОЛЬКО когда он задан
+      (создание делает CaseBuilder — «один экран»). */
+  editCase: AdminCase
   onClearEdit: () => void
 }) {
   const [itemCode, setItemCode] = useState('')
@@ -338,11 +343,8 @@ function CaseForm({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
-  const isEdit = editCase !== null
-
-  // P0-1: при выборе «Редактировать» подгружаем данные кейса в форму.
+  // Подгружаем данные выбранного кейса в форму при каждом входе в редактирование.
   useEffect(() => {
-    if (!editCase) return
     setItemCode(editCase.item_code)
     setName(editCase.name)
     setDescription(editCase.description ?? '')
@@ -352,19 +354,6 @@ function CaseForm({
     setIsActive(editCase.is_active)
     setMsg(null)
   }, [editCase])
-
-  function resetForm() {
-    setItemCode('')
-    setName('')
-    setDescription('')
-    setCostKind('free')
-    setCostAmount('0')
-    setConsumesKey(true)
-    setIsActive(true)
-    setMsg(null)
-    onClearEdit()
-  }
-
 
   async function submit() {
     if (!itemCode.trim() || !name.trim()) {
@@ -389,7 +378,7 @@ function CaseForm({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка')
-      setMsg({ ok: true, text: data.isUpdate ? 'Кейс обновлён.' : 'Кейс создан.' })
+      setMsg({ ok: true, text: 'Кейс обновлён.' })
       onSaved()
       setSelected(itemCode.trim())
     } catch (err) {
@@ -403,30 +392,28 @@ function CaseForm({
     <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.06] to-transparent p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{isEdit ? '✏️' : '🎁'}</span>
+          <span className="text-lg">✏️</span>
           <h3 className="text-sm font-semibold text-foreground">
-            {isEdit ? `Редактирование: ${editCase?.name}` : 'Создать кейс'}
+            Редактирование: {editCase.name}
           </h3>
         </div>
-        {isEdit && (
-          <button
-            type="button"
-            onClick={resetForm}
-            className="rounded-lg border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
-          >
-            ✕ Отменить
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onClearEdit}
+          className="rounded-lg border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+        >
+          ✕ Отменить
+        </button>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-[11px] text-muted-foreground">
-            Предмет-кейс (type=case){isEdit ? ' · нельзя менять' : ''}
+            Предмет-кейс (type=case) · нельзя менять
           </label>
           <ItemPicker
             value={itemCode}
             onChange={setItemCode}
-            disabled={busy || isEdit}
+            disabled
             onlyType="case"
             placeholder="Поиск кейса в каталоге…"
           />
@@ -494,13 +481,12 @@ function CaseForm({
         onClick={submit}
         className="mt-3 w-full rounded-xl border border-primary/40 bg-primary/15 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25 disabled:opacity-50"
       >
-        Сохранить кейс
+        Сохранить изменения
       </button>
       <Feedback msg={msg} />
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Предмет-кейс (type=case) должен уже существовать в каталоге — каталог
-        предметов ведёт бот. Кейс с типом стоимости «бесплатно» обязан списывать
-        кейс из инвентаря.
+        Дроп-лист (награды и шансы) этого кейса редактируется ниже, в блоке
+        «Награды».
       </p>
     </div>
   )
