@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { query, withTransaction } from '@/lib/db'
 import { getAdminSession, writeAudit } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
+import { invalidateAssetOverlay } from '@/lib/item-art/manifest-source'
+import { isContentStatus, STATUS_META } from '@/lib/admin/lifecycle'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -42,16 +44,21 @@ export async function GET() {
       consumes_key: boolean
       is_active: boolean
       season_code: string | null
+      rarity: string | null
+      status: string | null
+      has_art: boolean
       reward_count: string
       total_weight: string | null
     }>(
       `SELECT d.item_code, d.name, d.description, d.open_cost_kind,
               d.open_cost_amount, d.consumes_key, d.is_active, d.season_code,
+              i.rarity, i.status, (i.asset_code IS NOT NULL) AS has_art,
               COUNT(r.id) AS reward_count,
               COALESCE(SUM(r.weight), 0) AS total_weight
          FROM case_definitions d
+         LEFT JOIN inventory_items i ON i.code = d.item_code
          LEFT JOIN case_rewards r ON r.case_item_code = d.item_code
-        GROUP BY d.id
+        GROUP BY d.id, i.rarity, i.status, i.asset_code
         ORDER BY d.is_active DESC, d.name`,
     )
     return NextResponse.json({ cases })
@@ -79,6 +86,8 @@ export async function POST(req: NextRequest) {
     consumesKey?: boolean
     isActive?: boolean
     seasonCode?: string | null
+    rarity?: string | null
+    status?: string | null
   }
   try {
     body = await req.json()
@@ -93,8 +102,13 @@ export async function POST(req: NextRequest) {
   const openCostAmount =
     body.openCostAmount == null ? 0 : Number(body.openCostAmount)
   const consumesKey = Boolean(body.consumesKey)
-  const isActive = body.isActive == null ? true : Boolean(body.isActive)
   const seasonCode = (body.seasonCode ?? '').toString().trim().slice(0, 32) || null
+  const rarity = (body.rarity ?? '').toString().trim() || null
+  // Lifecycle status (optional). When provided it is the source of truth for the
+  // case item's visibility; is_active is derived from it (bot compatibility).
+  const rawStatus = body.status != null ? String(body.status) : ''
+  const status = isContentStatus(rawStatus) ? rawStatus : null
+  const isActive = status != null ? STATUS_META[status].isLive : body.isActive == null ? true : Boolean(body.isActive)
 
   if (!itemCode || itemCode.length > 64) {
     return NextResponse.json({ error: 'invalid itemCode' }, { status: 400 })
@@ -192,6 +206,25 @@ export async function POST(req: NextRequest) {
         ],
       )
 
+      // Sync the case CATALOG item (inventory_items, type='case') so the editor
+      // can change the case's name / rarity / lifecycle / visibility in one save
+      // — the same converged model the Gift Studio uses. asset_code is pinned to
+      // the case code (shared-art model) so a freshly uploaded PNG is recognised.
+      // Reward rows and granted_count are untouched (economy stays the bot's).
+      await exec(
+        `UPDATE inventory_items SET
+            name = $2,
+            description = $3,
+            rarity = COALESCE($4, rarity),
+            status = COALESCE($5, status),
+            is_active = $6,
+            asset_code = COALESCE(asset_code, $1),
+            updated_by = $7,
+            updated_at = now()
+          WHERE code = $1 AND type = 'case'`,
+        [itemCode, name, description, rarity, status, isActive, session.uid],
+      )
+
       const auditId = await writeAudit(
         {
           actorUserId: session.uid,
@@ -199,7 +232,7 @@ export async function POST(req: NextRequest) {
           action: isUpdate ? 'cases.update' : 'cases.create',
           targetType: 'case',
           targetId: itemCode,
-          meta: { openCostKind, openCostAmount, consumesKey, isActive },
+          meta: { openCostKind, openCostAmount, consumesKey, isActive, rarity, status },
           ip,
         },
         exec,
@@ -208,6 +241,94 @@ export async function POST(req: NextRequest) {
       return { itemCode, isUpdate, auditId }
     })
 
+    invalidateAssetOverlay()
+    return NextResponse.json({ ok: true, ...result })
+  } catch (error) {
+    const http = (error as { http?: number }).http ?? 503
+    const message = error instanceof Error ? error.message : 'unknown error'
+    return NextResponse.json({ error: message }, { status: http })
+  }
+}
+
+/**
+ * DELETE /api/admin/cases?code=...  — remove a case definition + its drop list.
+ *
+ * Safety (mirrors the gifts delete): the append-only `case_openings` ledger is
+ * NEVER touched, so opening history stays reproducible. The case catalog item
+ * (inventory_items, type='case') is only removed when no player still owns a
+ * copy of the case — otherwise we deactivate it instead of orphaning ownership.
+ */
+export async function DELETE(req: NextRequest) {
+  const session = await getAdminSession()
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  if (!hasPermission(session.role, PERM.CASES_MANAGE)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
+
+  const code = req.nextUrl.searchParams.get('code')?.trim()
+  if (!code) {
+    return NextResponse.json({ error: 'code required' }, { status: 400 })
+  }
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
+
+  try {
+    const result = await withTransaction(async (client) => {
+      const exec = async <T extends Record<string, unknown>>(
+        text: string,
+        p?: unknown[],
+      ) => (await client.query(text, p as never[])).rows as T[]
+
+      const def = await exec<{ item_code: string }>(
+        'DELETE FROM case_definitions WHERE item_code = $1 RETURNING item_code',
+        [code],
+      )
+      if (def.length === 0) {
+        throw Object.assign(new Error('case not found'), { http: 404 })
+      }
+
+      // Drop list goes with the definition. History (case_openings) stays:
+      // it keeps a weight_snapshot per row, so past openings remain reproducible
+      // even with the drop rows gone.
+      await exec('DELETE FROM case_rewards WHERE case_item_code = $1', [code])
+
+      // Only remove the case catalog item if nobody owns an unopened copy.
+      const owned = await exec<{ n: number }>(
+        `SELECT (
+            (SELECT count(*) FROM inventory WHERE item_code = $1)
+          + (SELECT count(*) FROM inventory_instances WHERE item_code = $1)
+         )::int AS n`,
+        [code],
+      )
+      let itemKept = true
+      if ((owned[0]?.n ?? 0) === 0) {
+        await exec(`DELETE FROM featured_slots WHERE ref_type = 'case' AND ref_code = $1`, [code])
+        await exec(`DELETE FROM inventory_items WHERE code = $1 AND type = 'case'`, [code])
+        itemKept = false
+      } else {
+        // Players still hold this case — keep the item but make it inert.
+        await exec(`UPDATE inventory_items SET is_active = false WHERE code = $1 AND type = 'case'`, [code])
+      }
+
+      await writeAudit(
+        {
+          actorUserId: session.uid,
+          actorRole: session.role,
+          action: 'cases.delete',
+          targetType: 'case',
+          targetId: code,
+          meta: { itemKept, owned: owned[0]?.n ?? 0 },
+          ip,
+        },
+        exec,
+      )
+
+      return { code, itemKept }
+    })
+
+    invalidateAssetOverlay()
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
     const http = (error as { http?: number }).http ?? 503

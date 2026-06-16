@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
 import { ItemArt } from '@/components/ds/item-art'
-import { rarityToken } from '@/lib/rarity'
+import { rarityToken, RARITY_ORDER, type Rarity } from '@/lib/rarity'
+import type { ContentStatus } from '@/lib/admin/lifecycle'
+import { CONTENT_STATUSES } from '@/lib/admin/lifecycle'
+import { AssetUpload, AdminModal, StatusPill } from '@/components/admin/kit'
 import {
   computeCaseEconomics,
   simulateOpens,
@@ -31,6 +34,9 @@ export type AdminCase = {
   consumes_key: boolean
   is_active: boolean
   season_code: string | null
+  rarity: string | null
+  status: string | null
+  has_art: boolean
   reward_count: number
   total_weight: number
 }
@@ -204,8 +210,14 @@ export function CasesManager({
   const [selected, setSelected] = useState<string | null>(
     initialCases[0]?.item_code ?? null,
   )
-  // P0-1: какой кейс сейчас редактируется в форме (null = режим создания).
+  // Какой кейс сейчас редактируется в форме (null = ни один; создание — отдельно
+  // в CaseBuilder).
   const [editing, setEditing] = useState<AdminCase | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<AdminCase | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteErr, setDeleteErr] = useState<string | null>(null)
+  // Filter/search for the list — scales past a handful of cases.
+  const [q, setQ] = useState('')
 
   async function reloadCases() {
     const res = await fetch('/api/admin/cases')
@@ -215,14 +227,39 @@ export function CasesManager({
     }
   }
 
+  async function doDelete(c: AdminCase) {
+    setDeleting(true)
+    setDeleteErr(null)
+    try {
+      const res = await fetch(`/api/admin/cases?code=${encodeURIComponent(c.item_code)}`, {
+        method: 'DELETE',
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || 'Не удалось удалить')
+      setConfirmDelete(null)
+      if (editing?.item_code === c.item_code) setEditing(null)
+      if (selected === c.item_code) setSelected(null)
+      await reloadCases()
+    } catch (err) {
+      setDeleteErr(err instanceof Error ? err.message : 'Ошибка')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const current = cases.find((c) => c.item_code === selected) ?? null
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    if (!s) return cases
+    return cases.filter(
+      (c) => c.name.toLowerCase().includes(s) || c.item_code.toLowerCase().includes(s),
+    )
+  }, [cases, q])
 
   return (
     <div className="space-y-4">
-      {/* Единственная форма СОЗДАНИЯ кейса — «один экран» (код, арт, награды,
-          проценты→веса, жизненный цикл). Старая форма создания удалена: она
-          дублировала этот флоу. Редактирование существующего кейса — отдельная
-          панель ниже, появляется только по кнопке «Редактировать». */}
+      {/* СОЗДАНИЕ нового кейса — «один экран» (имя, арт-PNG, награды, проценты→
+          веса, экономика вживую, жизненный цикл). */}
       {canManage && (
         <CaseBuilder
           catalog={builderCatalog}
@@ -231,76 +268,114 @@ export function CasesManager({
         />
       )}
 
+      {/* РЕДАКТИРОВАНИЕ существующего кейса — единая панель: имя/редкость/статус/
+          стоимость + загрузка своего PNG + удаление. Появляется по кнопке. */}
       {canManage && editing && (
-        <CaseForm
-          onSaved={reloadCases}
-          setSelected={setSelected}
+        <CaseEditor
+          key={editing.item_code}
           editCase={editing}
+          canPublish={canManage}
+          onSaved={reloadCases}
           onClearEdit={() => setEditing(null)}
+          onRequestDelete={() => setConfirmDelete(editing)}
         />
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         {/* Case list */}
         <div className="space-y-2">
-          {cases.length === 0 ? (
+          {cases.length > 4 && (
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Поиск кейса…"
+              className={inputClass}
+            />
+          )}
+          {filtered.length === 0 ? (
             <div className="glass rounded-2xl border border-border p-4 text-sm text-muted-foreground">
-              Кейсов пока нет. {canManage ? 'Создай первый выше.' : ''}
+              {cases.length === 0
+                ? `Кейсов пока нет. ${canManage ? 'Создай первый выше.' : ''}`
+                : 'Ничего не найдено.'}
             </div>
           ) : (
-            cases.map((c) => (
-              <div
-                key={c.item_code}
-                className={`glass w-full rounded-2xl border p-3 transition ${
-                  c.item_code === selected
-                    ? 'border-primary/50 bg-primary/[0.06]'
-                    : 'border-border hover:border-primary/30'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelected(c.item_code)}
-                  className="block w-full text-left"
+            filtered.map((c) => {
+              const tier = (c.rarity as Rarity) ?? 'epic'
+              return (
+                <div
+                  key={c.item_code}
+                  className={`glass w-full rounded-2xl border p-3 transition ${
+                    c.item_code === selected
+                      ? 'border-primary/50 bg-primary/[0.06]'
+                      : 'border-border hover:border-primary/30'
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-semibold text-foreground">🎁 {c.name}</span>
-                    {!c.is_active && (
-                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                        выкл
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    <code>{c.item_code}</code> · дропов: {c.reward_count}
-                  </div>
-                </button>
-                {canManage && (
-                  <div className="mt-2 flex items-center gap-2">
-                    {/* P0-1: явное редактирование — грузит данные кейса в форму. */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(c)
-                        setSelected(c.item_code)
-                        if (typeof window !== 'undefined') {
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }
-                      }}
-                      className="rounded-lg border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/15"
-                    >
-                      ✏️ Редактировать
-                    </button>
-                    {/* P0-3: переход к аналитике этого кейса. */}
-                    <a
-                      href="/admin/economy/cases"
-                      className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
-                    >
-                      📊 Аналитика
-                    </a>
-                  </div>
-                )}
-              </div>
-            ))
+                  <button
+                    type="button"
+                    onClick={() => setSelected(c.item_code)}
+                    className="flex w-full items-center gap-3 text-left"
+                  >
+                    <ItemArt
+                      src={c.has_art ? `/api/items/asset/${encodeURIComponent(c.item_code)}?preview=1` : undefined}
+                      rarity={tier}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-semibold text-foreground">{c.name}</span>
+                        {c.status ? (
+                          <StatusPill status={c.status} />
+                        ) : (
+                          !c.is_active && (
+                            <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                              выкл
+                            </span>
+                          )
+                        )}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        <code>{c.item_code}</code> · дропов: {c.reward_count}
+                        {' · '}
+                        {c.open_cost_kind === 'currency' ? `${fmt(c.open_cost_amount)} еш` : 'ключ'}
+                      </div>
+                    </div>
+                  </button>
+                  {canManage && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(c)
+                          setSelected(c.item_code)
+                          if (typeof window !== 'undefined') {
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }
+                        }}
+                        className="rounded-lg border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+                      >
+                        Редактировать
+                      </button>
+                      <a
+                        href="/admin/economy/cases"
+                        className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+                      >
+                        Аналитика
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteErr(null)
+                          setConfirmDelete(c)
+                        }}
+                        className="ml-auto rounded-lg px-2 py-0.5 text-[11px] font-medium text-destructive-foreground/80 transition hover:bg-destructive/10"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
 
@@ -315,72 +390,109 @@ export function CasesManager({
           )}
         </div>
       </div>
+
+      <AdminModal
+        open={confirmDelete !== null}
+        title="Удалить кейс?"
+        tone="danger"
+        confirmLabel={deleting ? 'Удаление…' : 'Удалить'}
+        busy={deleting}
+        onClose={() => !deleting && setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && doDelete(confirmDelete)}
+      >
+        <p>
+          Кейс «{confirmDelete?.name}» и его дроп-лист будут удалены. История
+          открытий сохранится (леджер не трогаем). Если у игроков остались копии
+          этого кейса в инвентаре — предмет не удалится, а станет неактивным.
+        </p>
+        {deleteErr && <p className="mt-2 text-xs text-destructive-foreground">{deleteErr}</p>}
+      </AdminModal>
     </div>
   )
 }
 
 
-function CaseForm({
-  onSaved,
-  setSelected,
+function CaseEditor({
   editCase,
+  canPublish,
+  onSaved,
   onClearEdit,
+  onRequestDelete,
 }: {
-  onSaved: () => void
-  setSelected: (code: string) => void
-  /** Кейс в режиме редактирования. Форма рендерится ТОЛЬКО когда он задан
-      (создание делает CaseBuilder — «один экран»). */
   editCase: AdminCase
+  canPublish: boolean
+  onSaved: () => void
   onClearEdit: () => void
+  onRequestDelete: () => void
 }) {
-  const [itemCode, setItemCode] = useState('')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [costKind, setCostKind] = useState<'free' | 'currency'>('free')
-  const [costAmount, setCostAmount] = useState('0')
-  const [consumesKey, setConsumesKey] = useState(true)
-  const [isActive, setIsActive] = useState(true)
+  const [name, setName] = useState(editCase.name)
+  const [description, setDescription] = useState(editCase.description ?? '')
+  const [rarity, setRarity] = useState<Rarity>((editCase.rarity as Rarity) ?? 'epic')
+  const [costKind, setCostKind] = useState<'free' | 'currency'>(
+    editCase.open_cost_kind === 'currency' ? 'currency' : 'free',
+  )
+  const [costAmount, setCostAmount] = useState(String(editCase.open_cost_amount ?? 0))
+  const [consumesKey, setConsumesKey] = useState(editCase.consumes_key)
+  const [status, setStatus] = useState<ContentStatus>(
+    (editCase.status as ContentStatus) ?? (editCase.is_active ? 'published' : 'draft'),
+  )
+  const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
-  // Подгружаем данные выбранного кейса в форму при каждом входе в редактирование.
-  useEffect(() => {
-    setItemCode(editCase.item_code)
-    setName(editCase.name)
-    setDescription(editCase.description ?? '')
-    setCostKind(editCase.open_cost_kind === 'currency' ? 'currency' : 'free')
-    setCostAmount(String(editCase.open_cost_amount ?? 0))
-    setConsumesKey(editCase.consumes_key)
-    setIsActive(editCase.is_active)
-    setMsg(null)
-  }, [editCase])
+  const existingSrc =
+    !file && editCase.has_art
+      ? `/api/items/asset/${encodeURIComponent(editCase.item_code)}?preview=1`
+      : null
 
   async function submit() {
-    if (!itemCode.trim() || !name.trim()) {
-      setMsg({ ok: false, text: 'Укажи предмет-кейс и название.' })
+    if (!name.trim()) {
+      setMsg({ ok: false, text: 'Укажи название.' })
       return
     }
     setBusy(true)
     setMsg(null)
     try {
+      // 1) Definition + catalog item (name, rarity, status, cost) in one save.
       const res = await fetch('/api/admin/cases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          itemCode: itemCode.trim(),
+          itemCode: editCase.item_code,
           name: name.trim(),
           description: description.trim() || null,
           openCostKind: costKind,
           openCostAmount: costKind === 'currency' ? Number(costAmount) : 0,
           consumesKey,
-          isActive,
+          rarity,
+          status,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Ошибка')
-      setMsg({ ok: true, text: 'Кейс обновлён.' })
+
+      // 2) Replace art (PNG/WebP) under the case code, then publish the asset.
+      if (file) {
+        const fd = new FormData()
+        fd.append('code', editCase.item_code)
+        fd.append('file', file)
+        const up = await fetch('/api/admin/assets', { method: 'POST', body: fd })
+        if (!up.ok) {
+          const ud = await up.json().catch(() => ({}))
+          throw new Error(ud.error || 'Не удалось загрузить арт')
+        }
+        if (canPublish) {
+          await fetch('/api/admin/assets', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: editCase.item_code, status: 'published' }),
+          })
+        }
+      }
+
+      setMsg({ ok: true, text: 'Кейс сохранён.' })
+      setFile(null)
       onSaved()
-      setSelected(itemCode.trim())
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
     } finally {
@@ -391,103 +503,125 @@ function CaseForm({
   return (
     <div className="glass rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.06] to-transparent p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">✏️</span>
-          <h3 className="text-sm font-semibold text-foreground">
-            Редактирование: {editCase.name}
-          </h3>
-        </div>
+        <h3 className="text-sm font-semibold text-foreground">
+          Редактирование: {editCase.name}
+        </h3>
         <button
           type="button"
           onClick={onClearEdit}
           className="rounded-lg border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
         >
-          ✕ Отменить
+          ✕ Свернуть
         </button>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        {/* Left: identity + cost + lifecycle */}
         <div>
-          <label className="mb-1 block text-[11px] text-muted-foreground">
-            Предмет-кейс (type=case) · нельзя менять
-          </label>
-          <ItemPicker
-            value={itemCode}
-            onChange={setItemCode}
-            disabled
-            onlyType="case"
-            placeholder="Поиск кейса в каталоге…"
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">Название</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">
+                Код · неизменяемый
+              </label>
+              <input value={editCase.item_code} disabled className={`${inputClass} font-mono opacity-60`} />
+            </div>
+          </div>
+
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Описание (необязательно)"
+            rows={2}
+            className={`mt-2 ${inputClass}`}
           />
+
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">Редкость кейса</label>
+              <select value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)} className={inputClass}>
+                {RARITY_ORDER.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">Статус</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value as ContentStatus)} className={inputClass}>
+                {CONTENT_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] text-muted-foreground">Стоимость открытия</label>
+              <select
+                value={costKind}
+                onChange={(e) => setCostKind(e.target.value as 'free' | 'currency')}
+                className={inputClass}
+              >
+                <option value="currency">Ешки</option>
+                <option value="free">Бесплатно (ключ из инвентаря)</option>
+              </select>
+            </div>
+            {costKind === 'currency' && (
+              <div>
+                <label className="mb-1 block text-[11px] text-muted-foreground">Цена, ешки</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={costAmount}
+                  onChange={(e) => setCostAmount(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            )}
+          </div>
+
+          <label className="mt-3 flex items-center gap-2 text-sm text-foreground">
+            <input type="checkbox" checked={consumesKey} onChange={(e) => setConsumesKey(e.target.checked)} />
+            Списывать кейс-ключ из инвентаря при открытии
+          </label>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={submit}
+              className="rounded-xl border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25 disabled:opacity-50"
+            >
+              {busy ? 'Сохранение…' : 'Сохранить'}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onRequestDelete}
+              className="rounded-xl border border-destructive/40 px-4 py-2 text-sm font-medium text-destructive-foreground/90 transition hover:bg-destructive/10 disabled:opacity-50"
+            >
+              Удалить кейс
+            </button>
+            <Feedback msg={msg} />
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Награды и шансы редактируются ниже, в блоке «Награды». Экономика (EV/RTP)
+            считается там же вживую.
+          </p>
         </div>
 
+        {/* Right: art upload */}
         <div>
-          <label className="mb-1 block text-[11px] text-muted-foreground">Название</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Кейс новичка"
-            className={inputClass}
-          />
+          <label className="mb-1 block text-[11px] text-muted-foreground">
+            Арт кейса · PNG/WebP — загрузится и опубликуется под кодом кейса
+          </label>
+          <AssetUpload file={file} onFile={setFile} previewRarity={rarity} existingSrc={existingSrc} size="lg" />
         </div>
       </div>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Описание (необязательно)"
-        rows={2}
-        className={`mt-2 ${inputClass}`}
-      />
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-[11px] text-muted-foreground">Стоимость открытия</label>
-          <select
-            value={costKind}
-            onChange={(e) => setCostKind(e.target.value as 'free' | 'currency')}
-            className={inputClass}
-          >
-            <option value="free">Бесплатно</option>
-            <option value="currency">Ешки</option>
-          </select>
-        </div>
-        {costKind === 'currency' && (
-          <div>
-            <label className="mb-1 block text-[11px] text-muted-foreground">Сколько ешек</label>
-            <input
-              type="number"
-              min={1}
-              value={costAmount}
-              onChange={(e) => setCostAmount(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        )}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={consumesKey}
-            onChange={(e) => setConsumesKey(e.target.checked)}
-          />
-          Списывать кейс из инвентаря
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          Активен
-        </label>
-      </div>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={submit}
-        className="mt-3 w-full rounded-xl border border-primary/40 bg-primary/15 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25 disabled:opacity-50"
-      >
-        Сохранить изменения
-      </button>
-      <Feedback msg={msg} />
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        Дроп-лист (награды и шансы) этого кейса редактируется ниже, в блоке
-        «Награды».
-      </p>
     </div>
   )
 }
@@ -839,6 +973,19 @@ function AddRewardForm({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   async function submit() {
+    // Guard before hitting the API so the operator gets instant feedback.
+    if (kind === 'item' && !itemCode.trim()) {
+      setMsg({ ok: false, text: 'Выбери предмет-награду.' })
+      return
+    }
+    if (kind === 'currency' && (!amount.trim() || Number(amount) <= 0)) {
+      setMsg({ ok: false, text: 'Укажи сумму ешек больше нуля.' })
+      return
+    }
+    if (Number(maxQty) < Number(minQty)) {
+      setMsg({ ok: false, text: 'Макс. количество меньше минимального.' })
+      return
+    }
     setBusy(true)
     setMsg(null)
     try {
@@ -864,6 +1011,8 @@ function AddRewardForm({
       setMsg({ ok: true, text: 'Дроп добавлен.' })
       setItemCode('')
       setAmount('')
+      setJackpot(false)
+      setSupply('')
       onAdded()
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
@@ -901,7 +1050,7 @@ function AddRewardForm({
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div>
-          <label className="mb-1 block text-[10px] text-muted-foreground">Вес</label>
+          <label className="mb-1 block text-[10px] text-muted-foreground">Вес (пропорция)</label>
           <input
             type="number"
             min={1}

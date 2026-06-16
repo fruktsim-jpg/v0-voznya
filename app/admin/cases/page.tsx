@@ -52,11 +52,13 @@ export default async function AdminCasesPage() {
       `SELECT d.item_code, d.name, d.description, d.open_cost_kind,
               d.open_cost_amount::int AS open_cost_amount,
               d.consumes_key, d.is_active, d.season_code,
+              i.rarity, i.status, (i.asset_code IS NOT NULL) AS has_art,
               COUNT(r.id)::int AS reward_count,
               COALESCE(SUM(r.weight), 0)::int AS total_weight
          FROM case_definitions d
+         LEFT JOIN inventory_items i ON i.code = d.item_code
          LEFT JOIN case_rewards r ON r.case_item_code = d.item_code
-        GROUP BY d.id
+        GROUP BY d.id, i.rarity, i.status, i.asset_code
         ORDER BY d.is_active DESC, d.name`,
     )
   } catch {
