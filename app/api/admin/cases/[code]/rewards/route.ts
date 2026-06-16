@@ -73,8 +73,9 @@ export async function GET(
       // for a plain item it's inventory_items.ref_value. COALESCE picks the
       // right source so gift rewards are no longer valued at 0.
       `SELECT r.id, r.reward_kind, r.reward_item_code,
-              i.name AS reward_item_name, i.rarity AS reward_item_rarity,
-              i.type AS reward_item_type,
+              COALESCE(i.name, g.name) AS reward_item_name,
+              i.rarity AS reward_item_rarity,
+              COALESCE(i.type, CASE WHEN g.code IS NOT NULL THEN 'gift' END) AS reward_item_type,
               COALESCE(
                 NULLIF(g.price_eshki, 0),
                 NULLIF(g.star_cost, 0) * 10,

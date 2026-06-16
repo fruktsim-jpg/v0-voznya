@@ -746,17 +746,19 @@ function RewardEditor({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      {r.isJackpot && <span className="text-xs">💎</span>}
-                      <span className="truncate text-sm text-foreground">{label}</span>
+                      {r.isJackpot && <span className="shrink-0 text-xs">💎</span>}
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={label}>
+                        {label}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{qty}</span>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                      <span style={{ color: token.color }}>{token.label}</span>
                       {isGift && (
                         <span className="shrink-0 rounded bg-pink-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-pink-300">
                           🎁 подарок
                         </span>
                       )}
-                      <span className="text-[11px] text-muted-foreground">{qty}</span>
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px]">
-                      <span style={{ color: token.color }}>{token.label}</span>
                       {!isCurrency && (
                         <span className="text-muted-foreground">
                           {reward.reward_item_value != null
@@ -807,6 +809,8 @@ function RewardEditor({
         <EditRewardModal
           caseRow={caseRow}
           reward={editing}
+          price={price}
+          rewards={rewards}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null)
@@ -827,11 +831,15 @@ function RewardEditor({
 function EditRewardModal({
   caseRow,
   reward,
+  price,
+  rewards,
   onClose,
   onSaved,
 }: {
   caseRow: AdminCase
   reward: Reward
+  price: number
+  rewards: Reward[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -851,6 +859,53 @@ function EditRewardModal({
   const title = isCurrency
     ? `${fmt(Number(reward.amount ?? 0))} ешек`
     : reward.reward_item_name ?? reward.reward_item_code ?? 'предмет'
+
+  // Live odds preview: recompute drop % and case RTP as the operator drags the
+  // weight slider, BEFORE saving. Other rows keep their stored weights; only
+  // this row's weight is the live value. This is the same math the bot uses
+  // (weight / Σweight), so the preview equals the real post-save odds.
+  const wNum = Math.max(0, Number(weight) || 0)
+  const preview = useMemo(() => {
+    const mapped: EconomyReward[] = rewards.map((x) => ({
+      id: x.id,
+      rewardKind: x.reward_kind === 'currency' ? 'currency' : 'item',
+      amount:
+        x.id === reward.id && isCurrency
+          ? Number(amount) || 0
+          : x.amount == null
+            ? null
+            : Number(x.amount),
+      refValue: x.reward_item_value == null ? null : Number(x.reward_item_value),
+      rarity: x.reward_item_rarity,
+      weight: x.id === reward.id ? wNum : x.weight,
+      minQty: x.id === reward.id ? Number(minQty) || 1 : x.min_qty,
+      maxQty: x.id === reward.id ? Number(maxQty) || 1 : x.max_qty,
+      maxGlobalSupply: x.max_global_supply,
+      grantedCount: x.granted_count,
+      isJackpot: x.id === reward.id ? jackpot : x.is_jackpot,
+    }))
+    const econ = computeCaseEconomics(mapped, price)
+    const thisRow = econ.rows.find((r) => r.id === reward.id)
+    return {
+      p: thisRow?.p ?? 0,
+      rtp: econ.rtp,
+      ev: econ.ev,
+      totalWeight: econ.totalWeight,
+    }
+  }, [rewards, reward.id, wNum, minQty, maxQty, amount, jackpot, isCurrency, price])
+
+  const band = rtpBand(preview.rtp)
+  const bandColor =
+    band === 'healthy'
+      ? 'text-emerald-300'
+      : band === 'high'
+        ? 'text-amber-300'
+        : band === 'low'
+          ? 'text-destructive-foreground'
+          : 'text-muted-foreground'
+
+  // Slider ceiling: enough headroom to make this row dominant without typing.
+  const sliderMax = Math.max(1000, ...rewards.map((x) => x.weight), wNum) * 1.5
 
   async function save() {
     if (Number(maxQty) < Number(minQty)) {
@@ -907,6 +962,45 @@ function EditRewardModal({
             или вывести), а стоимость берётся из каталога подарков.
           </p>
         )}
+        {/* Live odds preview — updates as you drag the weight slider */}
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+          <div className="flex items-center gap-3">
+            <OddsDonut p={preview.p} color={isGift ? '#f9a8d4' : rarityToken((reward.reward_item_rarity as Rarity) ?? 'rare').color} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Шанс выпадения
+              </div>
+              <div className="font-mono text-2xl font-bold text-foreground">{pct(preview.p)}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                вес {wNum} из {fmt(preview.totalWeight)}
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RTP кейса</div>
+              <div className={`font-mono text-lg font-semibold ${bandColor}`}>
+                {preview.rtp == null ? '—' : `${Math.round(preview.rtp * 100)}%`}
+              </div>
+              <div className="text-[11px] text-muted-foreground">EV {fmt(Math.round(preview.ev))} еш.</div>
+            </div>
+          </div>
+          {/* Weight slider — drag to set how often this drops */}
+          <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>реже</span>
+              <span>вес (пропорция) · перетаскивай</span>
+              <span>чаще</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={sliderMax}
+              step={1}
+              value={Math.min(wNum, sliderMax)}
+              onChange={(e) => setWeight(e.target.value)}
+              className="w-full accent-primary"
+            />
+          </div>
+        </div>
         {!isCurrency && (
           <p className="text-[11px] text-muted-foreground">
             Предмет:{' '}
@@ -933,7 +1027,7 @@ function EditRewardModal({
             </div>
           )}
           <div>
-            <label className="mb-1 block text-[10px] text-muted-foreground">Вес (пропорция)</label>
+            <label className="mb-1 block text-[10px] text-muted-foreground">Вес (число)</label>
             <input
               type="number"
               min={1}
@@ -1036,31 +1130,57 @@ function CaseEconomicsPanel({ econ }: { econ: ReturnType<typeof computeCaseEcono
         </p>
       )}
 
-      {/* Rarity distribution bar */}
+      {/* Recommended open price: lands RTP in the healthy band (~90%). The house
+          keeps a small edge while the case still feels rewarding. */}
+      {econ.ev > 0 && (
+        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              Рекомендуемая цена открытия (RTP ~90%)
+            </span>
+            <span className="font-mono text-sm font-semibold text-emerald-300">
+              {fmt(Math.round(econ.ev / 0.9))} еш.
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] text-muted-foreground/70">
+            здоровый коридор: {fmt(Math.round(econ.ev / 1.0))}–{fmt(Math.round(econ.ev / 0.85))} еш.
+            (RTP 100%–85%). Сейчас цена {econ.price > 0 ? `${fmt(econ.price)} еш.` : 'ключ'}.
+          </p>
+        </div>
+      )}
+
+      {/* Rarity distribution: donut (circular analytics) + legend/bar */}
       <div className="mt-4">
         <p className="mb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
           Распределение по редкости
         </p>
-        <div className="flex h-3 w-full overflow-hidden rounded-full border border-white/10">
-          {econ.rarityDistribution.map((d) => (
-            <div
-              key={d.tier}
-              title={`${rarityToken(d.tier).label}: ${pct(d.p)}`}
-              style={{ width: `${d.p * 100}%`, background: rarityToken(d.tier).color }}
-            />
-          ))}
-        </div>
-        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-          {econ.rarityDistribution.map((d) => (
-            <span key={d.tier} className="flex items-center gap-1 text-[11px]">
-              <span
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ background: rarityToken(d.tier).color }}
-              />
-              <span style={{ color: rarityToken(d.tier).color }}>{rarityToken(d.tier).label}</span>
-              <span className="text-muted-foreground">{pct(d.p)}</span>
-            </span>
-          ))}
+        <div className="flex items-center gap-4">
+          <RarityDonut dist={econ.rarityDistribution} />
+          <div className="min-w-0 flex-1">
+            <div className="flex h-3 w-full overflow-hidden rounded-full border border-white/10">
+              {econ.rarityDistribution.map((d) => (
+                <div
+                  key={d.tier}
+                  title={`${rarityToken(d.tier).label}: ${pct(d.p)}`}
+                  style={{ width: `${d.p * 100}%`, background: rarityToken(d.tier).color }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 space-y-1">
+              {econ.rarityDistribution.map((d) => (
+                <div key={d.tier} className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ background: rarityToken(d.tier).color }}
+                    />
+                    <span style={{ color: rarityToken(d.tier).color }}>{rarityToken(d.tier).label}</span>
+                  </span>
+                  <span className="font-mono text-muted-foreground">{pct(d.p)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1110,6 +1230,83 @@ function Metric({
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={`mt-0.5 text-base font-semibold ${className ?? 'text-foreground'}`}>
         {value}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Compact circular gauge for a single probability (0..1). Pure SVG, no deps —
+ * the arc fills proportionally to the drop chance so the operator gets an
+ * at-a-glance read while dragging the weight slider.
+ */
+function OddsDonut({ p, color, size = 56 }: { p: number; color: string; size?: number }) {
+  const stroke = 6
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const clamped = Math.max(0, Math.min(1, p))
+  return (
+    <svg width={size} height={size} className="shrink-0 -rotate-90" aria-hidden>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-white/10" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - clamped)}
+        style={{ transition: 'stroke-dashoffset 120ms ease-out' }}
+      />
+    </svg>
+  )
+}
+
+/**
+ * Donut chart of the rarity distribution. Stacks each tier's probability mass
+ * as an arc segment around a ring — the circular "analytics" view of the same
+ * data the linear bar shows, for a quicker read of case composition.
+ */
+function RarityDonut({
+  dist,
+  size = 132,
+}: {
+  dist: { tier: Rarity; p: number }[]
+  size?: number
+}) {
+  const stroke = 16
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  let offset = 0
+  const total = dist.reduce((s, d) => s + d.p, 0) || 1
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-white/5" />
+        {dist.map((d) => {
+          const frac = d.p / total
+          const seg = (
+            <circle
+              key={d.tier}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={rarityToken(d.tier).color}
+              strokeWidth={stroke}
+              strokeDasharray={`${c * frac} ${c * (1 - frac)}`}
+              strokeDashoffset={-c * offset}
+            />
+          )
+          offset += frac
+          return seg
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[9px] uppercase tracking-wide text-muted-foreground">тиров</span>
+        <span className="text-lg font-bold text-foreground">{dist.length}</span>
       </div>
     </div>
   )
@@ -1271,7 +1468,7 @@ function AddRewardForm({
         )}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <label className="mb-1 block text-[10px] text-muted-foreground">Вес (пропорция)</label>
           <input
             type="number"
@@ -1279,6 +1476,15 @@ function AddRewardForm({
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className={inputClass}
+          />
+          <input
+            type="range"
+            min={1}
+            max={Math.max(1000, currentTotalWeight * 2, Number(weight) || 1)}
+            step={1}
+            value={Math.min(Number(weight) || 1, Math.max(1000, currentTotalWeight * 2))}
+            onChange={(e) => setWeight(e.target.value)}
+            className="mt-1.5 w-full accent-emerald-400"
           />
         </div>
         <div>
