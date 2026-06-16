@@ -33,6 +33,14 @@ const ACTION_STYLES: Record<string, ActionStyle> = {
   'role.bootstrap': { emoji: '👑', verb: 'стал владельцем', tone: 'text-primary' },
   'role.grant': { emoji: '🛡', verb: 'получил роль', tone: 'text-primary' },
   'role.revoke': { emoji: '🚫', verb: 'лишился роли', tone: 'text-primary' },
+  'player.ban': { emoji: '🔨', verb: 'забанен', tone: 'text-destructive-foreground' },
+  'player.unban': { emoji: '✅', verb: 'разбанен', tone: 'text-emerald-300' },
+  'player.mute': { emoji: '🔇', verb: 'в мьюте', tone: 'text-amber-300' },
+  'player.unmute': { emoji: '🔊', verb: 'размьючен', tone: 'text-emerald-300' },
+  'player.warn': { emoji: '⚠️', verb: 'получил варн', tone: 'text-amber-300' },
+  'player.unwarn': { emoji: '✅', verb: 'снятие варнов', tone: 'text-emerald-300' },
+  'player.kick': { emoji: '👋', verb: 'кикнут', tone: 'text-destructive-foreground' },
+  'player.cooldown_reset': { emoji: '⏱️', verb: 'сброс кулдаунов', tone: 'text-sky-300' },
 }
 
 export function actionStyle(action: string): ActionStyle {
@@ -50,6 +58,7 @@ export type AuditEntryLike = {
   amount?: number | null
   target_id?: string | null
   target_type?: string | null
+  meta?: Record<string, unknown> | null
 }
 
 /**
@@ -84,9 +93,34 @@ export function humanizeAudit(entry: AuditEntryLike): { emoji: string; text: str
     case 'achievements.revoke':
       text = `${style.verb} «${achievementLabel(entry.target_id ?? null)}»`
       break
+    case 'player.ban':
+    case 'player.mute': {
+      // Duration lives in meta.durationSeconds (site) — null/absent = permanent.
+      const secs = entry.meta?.durationSeconds
+      const dur =
+        secs == null ? 'навсегда' : formatDurationShort(Number(secs))
+      text = `${style.verb} (${dur})`
+      break
+    }
+    case 'player.warn': {
+      const count = entry.meta?.count
+      text = count != null ? `${style.verb} (${Number(count)})` : style.verb
+      break
+    }
   }
 
   return { emoji: style.emoji, text, tone: style.tone }
+}
+
+/** Compact RU duration for audit lines (e.g. "1 д", "2 ч", "10 мин"). */
+function formatDurationShort(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return 'навсегда'
+  const days = Math.floor(seconds / 86400)
+  if (days) return `${days} д`
+  const hours = Math.floor((seconds % 86400) / 3600)
+  if (hours) return `${hours} ч`
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return `${minutes || 1} мин`
 }
 
 /** Short RU label for an admin role. */

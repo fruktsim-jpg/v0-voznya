@@ -263,3 +263,72 @@ export async function loadPlayerActivity(
   )
   return events.slice(0, limit)
 }
+
+// ---------------------------------------------------------------------------
+// Message activity (moderation context: how active / how quiet is this player)
+// ---------------------------------------------------------------------------
+
+export type PlayerMessageActivity = {
+  // Lifetime total = users.messages_count + combot history (parity with ratings).
+  total: number
+  last7: number
+  last30: number
+  activeDays30: number // distinct days with at least one message in the last 30
+  // Per-day counts for the last 14 days (oldest → newest), for a sparkline.
+  recent: { day: string; count: number }[]
+}
+
+/**
+ * Read-only message activity for a player, used by the moderation context on
+ * the admin player card. Combines `users.messages_count` + `combot_user_stats`
+ * (lifetime, matching the ratings page) with per-day `message_daily` rows for
+ * recent-window figures. Degrades to zeros on an un-migrated DB.
+ */
+export async function loadPlayerMessageActivity(
+  userId: number,
+): Promise<PlayerMessageActivity> {
+  const [totals, windows, daily] = await Promise.all([
+    safeRows<{ total: string }>(
+      `SELECT (u.messages_count + COALESCE(c.messages, 0))::text AS total
+         FROM users u
+         LEFT JOIN combot_user_stats c ON c.user_id = u.user_id
+        WHERE u.user_id = $1`,
+      [userId],
+    ),
+    safeRows<{ last7: string; last30: string; active_days: string }>(
+      `SELECT
+          COALESCE(SUM(count) FILTER (WHERE day >= CURRENT_DATE - 6), 0)::text  AS last7,
+          COALESCE(SUM(count) FILTER (WHERE day >= CURRENT_DATE - 29), 0)::text AS last30,
+          COUNT(DISTINCT day) FILTER (WHERE day >= CURRENT_DATE - 29 AND count > 0)::text AS active_days
+         FROM message_daily
+        WHERE user_id = $1`,
+      [userId],
+    ),
+    safeRows<{ day: string; count: string }>(
+      `SELECT day::text AS day, COALESCE(SUM(count), 0)::text AS count
+         FROM message_daily
+        WHERE user_id = $1 AND day >= CURRENT_DATE - 13
+        GROUP BY 1 ORDER BY 1`,
+      [userId],
+    ),
+  ])
+
+  // Backfill the 14-day series so missing days render as 0 (not gaps).
+  const byDay = new Map(daily.map((r) => [r.day, NUM(r.count)]))
+  const recent: { day: string; count: number }[] = []
+  const today = new Date()
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    recent.push({ day: key.slice(5), count: byDay.get(key) ?? 0 })
+  }
+
+  return {
+    total: NUM(totals[0]?.total),
+    last7: NUM(windows[0]?.last7),
+    last30: NUM(windows[0]?.last30),
+    activeDays30: NUM(windows[0]?.active_days),
+    recent,
+  }
+}

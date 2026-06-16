@@ -75,6 +75,7 @@ export type RecentAuditRow = {
   created_at: string
   actor_name: string | null
   target_name: string | null
+  meta: Record<string, unknown> | null
 }
 
 /**
@@ -86,6 +87,7 @@ export async function loadRecentAudit(limit = 15): Promise<RecentAuditRow[]> {
     return await query<RecentAuditRow>(
       `SELECT l.id, l.actor_user_id, l.actor_role, l.action, l.target_user_id,
               l.target_type, l.target_id, l.amount, l.reason, l.created_at,
+              l.meta,
               ua.first_name AS actor_name, ut.first_name AS target_name
          FROM audit_log l
          LEFT JOIN users ua ON ua.user_id = l.actor_user_id

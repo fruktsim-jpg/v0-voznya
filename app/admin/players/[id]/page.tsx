@@ -9,10 +9,12 @@ import { RankBadge } from '@/components/prestige'
 import {
   loadPlayerDiagnostics,
   loadPlayerActivity,
+  loadPlayerMessageActivity,
 } from '@/lib/player-analytics'
 import { PlayerActions } from './actions'
 import { PlayerGifts, type PlayerGift } from './player-gifts'
 import { ActivityFeed } from './activity-feed'
+import { ModerationCard } from './moderation-card'
 
 
 export const dynamic = 'force-dynamic'
@@ -162,6 +164,13 @@ export default async function PlayerPage({
     loadPlayerActivity(userId, 80),
   ])
 
+  // Message activity (moderation context) — only loaded when the operator can
+  // see moderation, to keep the player query lean for support-only roles.
+  const canModerationView = hasPermission(session.role, PERM.MODERATION_VIEW)
+  const messageActivity = canModerationView
+    ? await loadPlayerMessageActivity(userId)
+    : null
+
   const p = profileRows[0]
   const mmr = mmrRows[0]?.mmr != null ? Number(mmrRows[0].mmr) : null
   const reputation = repRows[0]?.rep != null ? Number(repRows[0].rep) : null
@@ -183,6 +192,11 @@ export default async function PlayerPage({
     hasPermission(session.role, PERM.ACHIEVEMENTS_REVOKE)
   const canCooldowns = hasPermission(session.role, PERM.PLAYERS_EDIT)
   const canGiftGrant = hasPermission(session.role, PERM.GIFT_MANAGE)
+  // Moderation (ban/mute/warn) is gated on MODERATION_BAN (moderator+). Staff
+  // are protected server-side; here we just decide whether to show the card.
+  const canModeration =
+    hasPermission(session.role, PERM.MODERATION_BAN) &&
+    !(p.role === 'owner' || p.role === 'admin')
 
   // Current cooldowns (remaining seconds per action) — read-only, degrade to [].
   const cooldownRows = await safe(
@@ -328,6 +342,41 @@ export default async function PlayerPage({
 
       )}
 
+      {/* Moderation — ban / mute / warn (moderator+). */}
+      {canModeration && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Модерация
+          </h2>
+          {messageActivity && (
+            <div className="mb-3 glass rounded-2xl border border-border p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-lg">💬</span>
+                <h3 className="text-sm font-semibold text-foreground">Активность в чате</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: 'Всего', value: messageActivity.total },
+                  { label: 'За 7 дней', value: messageActivity.last7 },
+                  { label: 'За 30 дней', value: messageActivity.last30 },
+                  { label: 'Активных дней', value: messageActivity.activeDays30 },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-xl border border-border bg-white/[0.02] p-2.5">
+                    <div className="text-base font-bold text-sky-200">{fmt(m.value)}</div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {m.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* 14-day sparkline (CSS bars; no chart dep). */}
+              <MessageSparkline data={messageActivity.recent} />
+            </div>
+          )}
+          <ModerationCard userId={p.user_id} />
+        </section>
+      )}
+
       {/* Inventory — rarity-colored cards */}
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -429,6 +478,27 @@ export default async function PlayerPage({
         </h2>
         <ActivityFeed events={activity} />
       </section>
+    </div>
+  )
+}
+
+/**
+ * Tiny 14-day message-activity sparkline rendered with CSS bars (no chart dep).
+ * Server component — pure markup over the per-day counts.
+ */
+function MessageSparkline({ data }: { data: { day: string; count: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.count))
+  return (
+    <div className="mt-3 flex items-end gap-1" aria-hidden>
+      {data.map((d) => (
+        <div key={d.day} className="flex flex-1 flex-col items-center gap-1" title={`${d.day}: ${d.count}`}>
+          <div
+            className="w-full rounded-sm bg-sky-400/40"
+            style={{ height: `${Math.max(2, Math.round((d.count / max) * 36))}px` }}
+          />
+          <span className="text-[8px] text-muted-foreground">{d.day.slice(0, 2)}</span>
+        </div>
+      ))}
     </div>
   )
 }
