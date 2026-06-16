@@ -54,7 +54,27 @@ export default async function AdminGiftsPage({
         ORDER BY g.is_active DESC, g.sort_order, g.name`,
     )
   } catch {
-    gifts = []
+    // Fallback for a DB that hasn't run the content-system migrations yet
+    // (0038 collection_code / 0040 status+asset_code). Without it the JOIN
+    // throws and the whole gift list silently renders empty — even though the
+    // gifts exist (the shop reads them fine). Degrade to the base catalog so
+    // the admin list always shows gifts; enrichment fields default to null.
+    try {
+      gifts = await query<AdminGift>(
+        `SELECT g.code, g.name, g.description, g.star_cost,
+                g.price_eshki::int AS price_eshki, g.telegram_gift_id,
+                g.stock, g.reserved, g.sold_count, g.is_active, g.sort_order,
+                NULL::text AS rarity, NULL::text AS collection_code,
+                NULL::text AS status, NULL::text AS featured_slot,
+                NULL::timestamptz AS available_from,
+                NULL::timestamptz AS available_until,
+                false AS has_art
+           FROM gift_catalog g
+          ORDER BY g.is_active DESC, g.sort_order, g.name`,
+      )
+    } catch {
+      gifts = []
+    }
   }
   try {
     collections = await query<GiftCollectionOption>(

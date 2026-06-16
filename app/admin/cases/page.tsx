@@ -62,7 +62,26 @@ export default async function AdminCasesPage() {
         ORDER BY d.is_active DESC, d.name`,
     )
   } catch {
-    cases = []
+    // Fallback for a DB without the lifecycle columns (0040: status/asset_code).
+    // Otherwise the JOIN throws and the case list silently renders empty even
+    // though the cases exist (the player showcase reads them fine). Degrade to
+    // definitions + reward counts only; rarity/status/art default to null.
+    try {
+      cases = await query<AdminCase>(
+        `SELECT d.item_code, d.name, d.description, d.open_cost_kind,
+                d.open_cost_amount::int AS open_cost_amount,
+                d.consumes_key, d.is_active, d.season_code,
+                NULL::text AS rarity, NULL::text AS status, false AS has_art,
+                COUNT(r.id)::int AS reward_count,
+                COALESCE(SUM(r.weight), 0)::int AS total_weight
+           FROM case_definitions d
+           LEFT JOIN case_rewards r ON r.case_item_code = d.item_code
+          GROUP BY d.id
+          ORDER BY d.is_active DESC, d.name`,
+      )
+    } catch {
+      cases = []
+    }
   }
 
   // Catalog for the one-screen builder's reward picker (degrade to empty).
