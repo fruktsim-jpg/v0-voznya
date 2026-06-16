@@ -28,7 +28,14 @@ import {
  * new rewards, converts chances→weights). Opening stays the bot's job.
  */
 
-export type CatalogItem = { code: string; name: string | null; rarity: string | null; type: string | null }
+export type CatalogItem = {
+  code: string
+  name: string | null
+  rarity: string | null
+  type: string | null
+  /** eshki value (gift price or inventory_items.ref_value); null if unpriced. */
+  value?: number | null
+}
 
 type DraftReward = {
   uid: number
@@ -102,7 +109,7 @@ export function CaseBuilder({
           r.mode === 'new'
             ? Number(r.newItemValue) || 0
             : r.mode === 'existing'
-              ? null // unknown ref_value at compose time for existing items
+              ? (catByCode.get(r.itemCode)?.value ?? null) // gift price / ref_value
               : null,
         rarity: r.mode === 'new' ? r.newItemRarity : (cat?.rarity ?? 'rare'),
         weight: Number(r.chancePercent) || 0, // chances act as weights for ratios

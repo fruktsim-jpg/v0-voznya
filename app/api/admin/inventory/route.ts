@@ -13,8 +13,15 @@ export const revalidate = 0
  * admin item picker needs (code, name, rarity, type) and keeps the payload
  * small. Gracefully returns an empty list if the catalog table is missing
  * (foundation-only on un-migrated DBs).
+ *
+ * Optional `?exclude=case,key` filters out item types the caller must not
+ * offer. The case reward picker passes `exclude=case` so a case can never be
+ * added as a reward inside another case (which the bot's opener would treat as
+ * a plain item and could nest cases). Each item also carries its `type` so the
+ * caller can pick the right reward_kind (a `gift` reward must become a
+ * sellable/withdrawable tg_gift, not a plain inventory stack item).
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getAdminSession()
   if (!session) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -22,6 +29,12 @@ export async function GET() {
   if (!hasPermission(session.role, PERM.INVENTORY_VIEW)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
+
+  // Whitelist-validate the exclude list to safe type tokens before using it.
+  const exclude = (req.nextUrl.searchParams.get('exclude') ?? '')
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => /^[a-z_]{1,24}$/.test(t))
 
   try {
     const items = await query<{
@@ -33,7 +46,9 @@ export async function GET() {
       `SELECT code, name, rarity, type
          FROM inventory_items
         WHERE is_active = true
+          AND ($1::text[] IS NULL OR type IS NULL OR NOT (type = ANY($1::text[])))
         ORDER BY name NULLS LAST, code`,
+      [exclude.length > 0 ? exclude : null],
     )
     return NextResponse.json({ items })
   } catch {

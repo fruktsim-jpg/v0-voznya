@@ -147,6 +147,10 @@ export async function POST(req: NextRequest) {
         const r = c.rewards[i]
         const weight = weights[i]
         let rewardItemCode: string | null = null
+        // Effective kind: a 'gift' catalog item must be granted as a tg_gift
+        // (sellable/withdrawable, valued by gift_catalog) instead of a dead
+        // stack item; a 'case' item is rejected outright.
+        let effectiveKind: string = r.kind
 
         if (r.kind === 'item') {
           if (r.itemCode) {
@@ -191,14 +195,23 @@ export async function POST(req: NextRequest) {
               exec,
             )
           }
-          // Guard: existing item must be in catalog.
+          // Guard: existing item must be in catalog; classify by its type.
           if (r.itemCode) {
-            const cat = await exec<{ code: string }>(
-              'SELECT code FROM inventory_items WHERE code = $1',
+            const cat = await exec<{ code: string; type: string | null }>(
+              'SELECT code, type FROM inventory_items WHERE code = $1',
               [rewardItemCode],
             )
             if (cat.length === 0) {
               throw Object.assign(new Error(`награда «${rewardItemCode}» не в каталоге`), { http: 400 })
+            }
+            if (cat[0].type === 'case') {
+              throw Object.assign(
+                new Error(`кейс «${rewardItemCode}» нельзя добавить наградой в кейс`),
+                { http: 400 },
+              )
+            }
+            if (cat[0].type === 'gift') {
+              effectiveKind = 'tg_gift'
             }
           }
         }
@@ -210,8 +223,8 @@ export async function POST(req: NextRequest) {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,$9, now())`,
           [
             caseCode,
-            r.kind,
-            r.kind === 'item' ? rewardItemCode : null,
+            effectiveKind,
+            r.kind === 'currency' ? null : rewardItemCode,
             r.kind === 'currency' ? r.amount : null,
             weight,
             r.minQty,

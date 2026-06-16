@@ -28,11 +28,14 @@ export default async function AdminItemsPage() {
   let collections: CollectionOption[] = []
   try {
     items = await query<AdminItem>(
+      // Hide gifts/cases — they're authored in their own studios; listing them
+      // here as generic items leads to editing that desyncs gift_catalog.
       `SELECT code, name, description, type AS item_class, rarity,
               collection_code, series_total, is_limited, max_supply,
               transferable, stackable, status, asset_code, featured_slot,
               available_from, available_until, updated_at
          FROM inventory_items
+        WHERE type NOT IN ('gift', 'case')
         ORDER BY updated_at DESC NULLS LAST, name`,
     )
     collections = await query<CollectionOption>(

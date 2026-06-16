@@ -47,6 +47,7 @@ type Reward = {
   reward_item_code: string | null
   reward_item_name: string | null
   reward_item_rarity: string | null
+  reward_item_type: string | null
   reward_item_value: number | null
   amount: string | null
   weight: number
@@ -75,12 +76,13 @@ function Feedback({ msg }: { msg: { ok: boolean; text: string } | null }) {
 
 type CatalogItem = { code: string; name: string | null; rarity: string | null; type: string | null }
 
-function useItemCatalog() {
+function useItemCatalog(exclude?: string) {
   const [items, setItems] = useState<CatalogItem[]>([])
   const [loaded, setLoaded] = useState(false)
   useEffect(() => {
     let alive = true
-    fetch('/api/admin/inventory')
+    const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : ''
+    fetch(`/api/admin/inventory${qs}`)
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((d) => alive && setItems(Array.isArray(d.items) ? d.items : []))
       .catch(() => alive && setItems([]))
@@ -88,7 +90,7 @@ function useItemCatalog() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [exclude])
   return { items, loaded }
 }
 
@@ -106,7 +108,8 @@ function ItemPicker({
   onlyType?: string
   placeholder?: string
 }) {
-  const { items: all, loaded } = useItemCatalog()
+  // Cases must never be selectable as a reward inside another case.
+  const { items: all, loaded } = useItemCatalog('case')
   const items = useMemo(
     () => (onlyType ? all.filter((i) => i.type === onlyType) : all),
     [all, onlyType],
@@ -635,6 +638,7 @@ function RewardEditor({
 }) {
   const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Reward | null>(null)
 
   async function load() {
     setLoading(true)
@@ -702,6 +706,7 @@ function RewardEditor({
               const tier = r.tier
               const token = rarityToken(tier)
               const isCurrency = r.rewardKind === 'currency'
+              const isGift = reward.reward_kind === 'tg_gift' || reward.reward_item_type === 'gift'
               const label = isCurrency
                 ? `${fmt(Number(reward.amount ?? 0))} ешек`
                 : reward.reward_item_name ?? reward.reward_item_code ?? 'предмет'
@@ -712,7 +717,22 @@ function RewardEditor({
               return (
                 <div
                   key={r.id}
-                  className="flex items-center gap-3 rounded-xl border bg-white/[0.02] p-2.5"
+                  role={canManage ? 'button' : undefined}
+                  tabIndex={canManage ? 0 : undefined}
+                  onClick={canManage ? () => setEditing(reward) : undefined}
+                  onKeyDown={
+                    canManage
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setEditing(reward)
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`flex items-center gap-3 rounded-xl border bg-white/[0.02] p-2.5 ${
+                    canManage ? 'cursor-pointer transition hover:bg-white/[0.05]' : ''
+                  }`}
                   style={{ borderColor: `${token.color}55` }}
                 >
                   <ItemArt
@@ -728,6 +748,11 @@ function RewardEditor({
                     <div className="flex items-center gap-1.5">
                       {r.isJackpot && <span className="text-xs">💎</span>}
                       <span className="truncate text-sm text-foreground">{label}</span>
+                      {isGift && (
+                        <span className="shrink-0 rounded bg-pink-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-pink-300">
+                          🎁 подарок
+                        </span>
+                      )}
                       <span className="text-[11px] text-muted-foreground">{qty}</span>
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-[11px]">
@@ -751,7 +776,8 @@ function RewardEditor({
                     {canManage && (
                       <button
                         type="button"
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          e.stopPropagation()
                           await fetch(
                             `/api/admin/cases/${encodeURIComponent(caseRow.item_code)}/rewards?id=${r.id}`,
                             { method: 'DELETE' },
@@ -776,6 +802,202 @@ function RewardEditor({
       </div>
 
       {!loading && econ.hasDrops && <SimulationPanel econ={econ} />}
+
+      {editing && (
+        <EditRewardModal
+          caseRow={caseRow}
+          reward={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            load()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Edit an existing drop row in place — the operator can now click a reward to
+ * change its weight/chance, quantity range, supply cap, jackpot flag, and (for
+ * currency rows) the amount. Item/gift identity is fixed once added; to swap
+ * the item, remove and re-add. PATCHes /api/admin/cases/[code]/rewards.
+ */
+function EditRewardModal({
+  caseRow,
+  reward,
+  onClose,
+  onSaved,
+}: {
+  caseRow: AdminCase
+  reward: Reward
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isCurrency = reward.reward_kind === 'currency'
+  const isGift = reward.reward_kind === 'tg_gift' || reward.reward_item_type === 'gift'
+  const [weight, setWeight] = useState(String(reward.weight))
+  const [minQty, setMinQty] = useState(String(reward.min_qty))
+  const [maxQty, setMaxQty] = useState(String(reward.max_qty))
+  const [amount, setAmount] = useState(reward.amount == null ? '' : String(reward.amount))
+  const [supply, setSupply] = useState(
+    reward.max_global_supply == null ? '' : String(reward.max_global_supply),
+  )
+  const [jackpot, setJackpot] = useState(reward.is_jackpot)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const title = isCurrency
+    ? `${fmt(Number(reward.amount ?? 0))} ешек`
+    : reward.reward_item_name ?? reward.reward_item_code ?? 'предмет'
+
+  async function save() {
+    if (Number(maxQty) < Number(minQty)) {
+      setMsg({ ok: false, text: 'Макс. количество меньше минимального.' })
+      return
+    }
+    if (isCurrency && (!amount.trim() || Number(amount) <= 0)) {
+      setMsg({ ok: false, text: 'Укажи сумму ешек больше нуля.' })
+      return
+    }
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch(
+        `/api/admin/cases/${encodeURIComponent(caseRow.item_code)}/rewards`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: reward.id,
+            weight: Number(weight),
+            minQty: Number(minQty),
+            maxQty: Number(maxQty),
+            amount: isCurrency ? Number(amount) : null,
+            maxGlobalSupply: supply.trim() ? Number(supply) : null,
+            isJackpot: jackpot,
+          }),
+        },
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Ошибка')
+      onSaved()
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Ошибка' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Награда: ${title}`}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="glass relative w-full max-w-md rounded-2xl border border-border p-5 shadow-2xl">
+        <h2 className="mb-3 text-base font-bold text-foreground">Награда: {title}</h2>
+        <div className="space-y-3">
+        {isGift && (
+          <p className="rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2 text-[11px] text-pink-200">
+            🎁 Это подарок — он выдаётся как Telegram-подарок (его можно продать
+            или вывести), а стоимость берётся из каталога подарков.
+          </p>
+        )}
+        {!isCurrency && (
+          <p className="text-[11px] text-muted-foreground">
+            Предмет:{' '}
+            <span className="text-foreground">
+              {reward.reward_item_name ?? reward.reward_item_code}
+            </span>
+            {reward.reward_item_value != null && (
+              <> · {fmt(Number(reward.reward_item_value))} еш.</>
+            )}
+            . Чтобы заменить предмет — удали награду и добавь заново.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {isCurrency && (
+            <div className="col-span-2">
+              <label className="mb-1 block text-[10px] text-muted-foreground">Сколько ешек</label>
+              <input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-[10px] text-muted-foreground">Вес (пропорция)</label>
+            <input
+              type="number"
+              min={1}
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-muted-foreground">Кол-во min</label>
+            <input
+              type="number"
+              min={1}
+              value={minQty}
+              onChange={(e) => setMinQty(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-muted-foreground">Кол-во max</label>
+            <input
+              type="number"
+              min={1}
+              value={maxQty}
+              onChange={(e) => setMaxQty(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-muted-foreground">Лимит (∞ пусто)</label>
+            <input
+              type="number"
+              min={1}
+              value={supply}
+              onChange={(e) => setSupply(e.target.value)}
+              placeholder="∞"
+              className={inputClass}
+            />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input type="checkbox" checked={jackpot} onChange={(e) => setJackpot(e.target.checked)} />
+          Джекпот (подсветка)
+        </label>
+        <Feedback msg={msg} />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-border py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/[0.04]"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={save}
+            className="flex-1 rounded-xl border border-primary/40 bg-primary/15 py-2 text-xs font-semibold text-primary transition hover:bg-primary/25 disabled:opacity-50"
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+      </div>
     </div>
   )
 }

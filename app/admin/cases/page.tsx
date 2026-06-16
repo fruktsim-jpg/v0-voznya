@@ -66,12 +66,21 @@ export default async function AdminCasesPage() {
   }
 
   // Catalog for the one-screen builder's reward picker (degrade to empty).
+  // Carries each item's eshki value so draft RTP counts gifts/items, not 0:
+  // gift price (gift_catalog) takes precedence, else inventory_items.ref_value.
   let catalog: CatalogItem[] = []
   try {
     catalog = await query<CatalogItem>(
-      `SELECT code, name, rarity, type FROM inventory_items
-        WHERE is_active = true AND type <> 'case'
-        ORDER BY name NULLS LAST, code`,
+      `SELECT i.code, i.name, i.rarity, i.type,
+              COALESCE(
+                NULLIF(g.price_eshki, 0),
+                NULLIF(g.star_cost, 0) * 10,
+                i.ref_value
+              )::int AS value
+         FROM inventory_items i
+         LEFT JOIN gift_catalog g ON g.code = i.code
+        WHERE i.is_active = true AND i.type <> 'case'
+        ORDER BY i.name NULLS LAST, i.code`,
     )
   } catch {
     catalog = []
