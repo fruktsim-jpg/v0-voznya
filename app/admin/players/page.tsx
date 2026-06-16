@@ -3,6 +3,7 @@ import { getAdminSession } from '@/lib/auth/admin-session'
 import { query } from '@/lib/db'
 import { PlayerSearch } from '@/components/admin/player-search'
 import { AdminPageHeader } from '@/components/admin/ui'
+import { StatCard, MetricGrid } from '@/components/admin/kit'
 import { roleLabel } from '@/lib/admin-format'
 import { formatCurrency } from '@/lib/pluralize'
 
@@ -72,11 +73,39 @@ export default async function PlayersLandingPage() {
   return (
     <div>
       <AdminPageHeader
+        eyebrow="Player Studio"
         title="Игроки"
         subtitle="Найди игрока и открой Player Studio — баланс, премиум, подарки, кулдауны, инвентарь, репутация, достижения и история на одном экране."
       />
 
       <PlayerSearch />
+
+      {(recent.length > 0 || notable.length > 0) && (
+        <MetricGrid cols={3} className="mt-6">
+          <StatCard
+            label="Недавно открытые"
+            value={recent.length.toLocaleString('ru-RU')}
+            glyph="🕒"
+            accent="indigo"
+            caption="из журнала действий"
+          />
+          <StatCard
+            label="Крупнейший баланс"
+            value={notable.length > 0 ? formatCurrency(notable[0].balance) : '—'}
+            glyph="👑"
+            accent="gold"
+            economy
+            caption={notable.length > 0 ? (notable[0].first_name ?? `id ${notable[0].user_id}`) : undefined}
+          />
+          <StatCard
+            label="В обзоре"
+            value={notable.length.toLocaleString('ru-RU')}
+            glyph="🎯"
+            accent="pink"
+            caption="высокоценные аккаунты"
+          />
+        </MetricGrid>
+      )}
 
       {recent.length > 0 && (
         <section className="mt-8">

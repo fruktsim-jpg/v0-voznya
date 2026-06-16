@@ -3,13 +3,13 @@ import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { loadGiftsOverview } from '@/lib/economy-analytics'
 import {
   EconomyTabs,
-  StatGrid,
   SectionTitle,
   Note,
   Empty,
   fmt,
-  type Stat,
 } from '../economy-ui'
+import { AdminPageHeader } from '@/components/admin/ui'
+import { StatCard, MetricGrid, Donut } from '@/components/admin/kit'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,42 +31,95 @@ export default async function GiftsAnalyticsPage() {
 
   const g = await loadGiftsOverview()
 
-  const cards: Stat[] = [
-    { emoji: '🎀', label: 'Активных позиций', value: fmt(g.activeCount), tone: 'border-primary/30 from-primary/[0.08]' },
-    { emoji: '💰', label: 'Выручка, ешки', value: fmt(g.revenueEshki), tone: 'border-emerald-400/25 from-emerald-400/[0.08]', hint: `покупок: ${fmt(g.purchasesCount)}` },
-    { emoji: '⭐', label: 'Истрачено Stars (факт)', value: fmt(g.starsSpentRealized), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: 'по выданным подаркам' },
-    { emoji: '📈', label: 'Маржа, ешки', value: fmt(g.marginEshki), tone: g.marginEshki >= 0 ? 'border-emerald-400/25 from-emerald-400/[0.08]' : 'border-rose-400/25 from-rose-400/[0.08]', hint: 'выручка − себест.×10' },
-    { emoji: '📦', label: 'Доставки', value: `${fmt(g.completed)}/${fmt(g.pending)}/${fmt(g.cancelled)}`, tone: 'border-sky-400/25 from-sky-400/[0.08]', hint: 'выдано / ждут / отменено' },
-    { emoji: '🏦', label: 'Баланс фонда Stars', value: g.fundBalance == null ? '—' : fmt(g.fundBalance), tone: 'border-amber-400/25 from-amber-400/[0.08]', hint: `пополнено ${fmt(g.starsIn)} / истрачено ${fmt(g.starsOut)} ⭐` },
+  const deliverySegments = [
+    { value: g.completed, color: 'var(--accent-teal)', label: 'выдано' },
+    { value: g.pending, color: '#f59e0b', label: 'ждут' },
+    { value: g.cancelled, color: 'var(--accent-red)', label: 'отменено' },
   ]
-
-
+  const deliveriesTotal = g.completed + g.pending + g.cancelled
 
   return (
     <div className="space-y-8">
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-            🎀 Аналитика подарков
-          </h1>
-          {/* P0-3: переход к редактору каталога подарков. */}
-          <a
-            href="/admin/gifts"
-            className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
-          >
-            ✏️ Редактор подарков
-          </a>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Экономика каталога Telegram Gifts. Только чтение.
-        </p>
+        <AdminPageHeader
+          eyebrow="Экономика"
+          title="🎀 Аналитика подарков"
+          subtitle="Экономика каталога Telegram Gifts. Только чтение."
+          actions={
+            /* P0-3: переход к редактору каталога подарков. */
+            <a
+              href="/admin/gifts"
+              className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+            >
+              ✏️ Редактор подарков
+            </a>
+          }
+        />
         <EconomyTabs active="/admin/economy/gifts" />
       </div>
 
 
       <section>
         <SectionTitle>Сводка</SectionTitle>
-        <StatGrid cards={cards} />
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+          <MetricGrid cols={2} className="content-start">
+            <StatCard label="Активных позиций" value={fmt(g.activeCount)} glyph="🎀" accent="pink" />
+            <StatCard
+              label="Выручка, ешки"
+              value={fmt(g.revenueEshki)}
+              glyph="💰"
+              accent="gold"
+              economy
+              caption={`покупок: ${fmt(g.purchasesCount)}`}
+            />
+            <StatCard
+              label="Истрачено Stars (факт)"
+              value={fmt(g.starsSpentRealized)}
+              glyph="⭐"
+              accent="gold"
+              caption="по выданным подаркам"
+            />
+            <StatCard
+              label="Маржа, ешки"
+              value={fmt(g.marginEshki)}
+              glyph="📈"
+              accent={g.marginEshki >= 0 ? 'teal' : 'red'}
+              economy
+              caption="выручка − себест.×10"
+            />
+            <StatCard
+              label="Баланс фонда Stars"
+              value={g.fundBalance == null ? '—' : fmt(g.fundBalance)}
+              glyph="🏦"
+              accent="gold"
+              caption={`пополнено ${fmt(g.starsIn)} / истрачено ${fmt(g.starsOut)} ⭐`}
+            />
+          </MetricGrid>
+          <div className="glass flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-gradient-to-b from-white/[0.05] to-transparent p-4">
+            <Donut
+              segments={deliverySegments}
+              center={
+                <div className="flex flex-col items-center">
+                  <span className="type-stat text-2xl leading-none text-foreground">
+                    {fmt(deliveriesTotal)}
+                  </span>
+                  <span className="label-eyebrow mt-1">доставки</span>
+                </div>
+              }
+            />
+            <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--accent-teal)]" /> выдано {fmt(g.completed)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> ждут {fmt(g.pending)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--accent-red)]" /> отменено {fmt(g.cancelled)}
+              </span>
+            </div>
+          </div>
+        </div>
         <div className="mt-3 space-y-2">
           <Note>
             Продажи, траты игроков и баланс фонда станут реальными после запуска

@@ -79,8 +79,8 @@ export function ShopCard({
         />
       </div>
 
-      <h3 className="relative line-clamp-1 text-sm font-semibold text-foreground">{item.name}</h3>
-      <p className="relative mt-0.5 text-[11px] text-muted-foreground">
+      <h3 className="relative line-clamp-1 text-sm font-bold tracking-tight text-foreground">{item.name}</h3>
+      <p className="relative mt-0.5 label-eyebrow" style={{ color: t.color }}>
         {t.label}
       </p>
       {item.collectionName && (
@@ -91,7 +91,7 @@ export function ShopCard({
 
       {/* Price — neutral lozenge, gold reserved for the coin itself. */}
       <div className="relative mt-2.5 w-full">
-        <span className="inline-flex items-center justify-center rounded-full border border-border px-3 py-1">
+        <span className="type-economy inline-flex items-center justify-center rounded-full border border-border px-3 py-1">
           <CoinAmount value={item.priceEshki} size="sm" tone={cantAfford ? 'muted' : 'gold'} />
         </span>
 

@@ -12,6 +12,9 @@ import {
 import { prestigeForDivision } from '@/lib/ds/prestige'
 import { DivisionBadge } from '@/components/prestige'
 import { ScreenHeader } from '@/components/v2/screen-header'
+import { Card } from '@/components/v2/card'
+import { SectionTitle } from '@/components/ds/section-title'
+import { VoznyaCoin } from '@/components/ds/icon'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,7 +83,7 @@ export default async function SeasonPage() {
                   />
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      <div className="label-eyebrow">
                         Твой сезон
                       </div>
                       <div className="mt-1.5">
@@ -149,42 +152,57 @@ export default async function SeasonPage() {
           </section>
         )}
 
-        {/* Дивизионы — flat tiles, colour only as a meaning accent. */}
+        {/* Дивизионы — premium tiles, colour only as a meaning accent. */}
         <section className="mt-6">
-          <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-            Дивизионы
-          </h2>
+          <SectionTitle size="md" className="mb-2 px-1">Дивизионы</SectionTitle>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {DIVISIONS.map((d) => {
               const isMine = myProfile?.division.name === d.name
               const t = prestigeForDivision(d.name)
               return (
-                <div
+                <Card
                   key={d.name}
-                  className="rounded-2xl border bg-white/[0.02] p-3 text-center"
-                  style={{ borderColor: isMine ? `${t.color}80` : 'var(--border)' }}
+                  interactive
+                  className="relative p-3 text-center"
                 >
+                  {isMine && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 rounded-2xl border-2"
+                      style={{ borderColor: `${t.color}80` }}
+                    />
+                  )}
                   <div className="text-2xl">{d.emoji}</div>
-                  <div className="mt-1 text-sm font-bold" style={{ color: t.color }}>
+                  <div className="mt-1 type-prestige text-sm font-bold" style={{ color: t.color }}>
                     {d.name}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     {d.minMmr.toLocaleString('ru-RU')}+ MMR
                   </div>
-                  <div className="mt-1 text-[11px] text-amber-200">
-                    {d.rewardEshki > 0
-                      ? `+${d.rewardEshki.toLocaleString('ru-RU')} ешек`
-                      : '—'}
+                  <div className="mt-1 inline-flex items-center justify-center gap-1 text-[11px]">
+                    {d.rewardEshki > 0 ? (
+                      <>
+                        <span
+                          className="type-economy tabular-nums"
+                          style={{ color: 'var(--accent-gold)' }}
+                        >
+                          +{d.rewardEshki.toLocaleString('ru-RU')}
+                        </span>
+                        <VoznyaCoin className="text-[0.9em]" />
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </div>
                   {isMine && (
                     <div
-                      className="mt-1.5 text-[10px] font-bold uppercase tracking-wide"
+                      className="mt-1.5 label-eyebrow text-[10px]"
                       style={{ color: t.color }}
                     >
                       Твой дивизион
                     </div>
                   )}
-                </div>
+                </Card>
               )
             })}
           </div>
@@ -192,9 +210,7 @@ export default async function SeasonPage() {
 
         {/* Топ */}
         <section className="mt-6">
-          <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-            Топ сезона
-          </h2>
+          <SectionTitle size="md" className="mb-2 px-1">Топ сезона</SectionTitle>
           {leaders.length === 0 ? (
             <div className="glass rounded-2xl border border-border p-6 text-center text-sm text-muted-foreground">
               Пока никто не набрал сезонный MMR. Ферми, открывай кейсы, бейся в

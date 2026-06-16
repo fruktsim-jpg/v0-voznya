@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { rarityToken, type Rarity } from '@/lib/rarity'
 import { Glyph, type GlyphName } from '@/components/ds/icon'
+import { SectionTitle } from '@/components/ds/section-title'
+import { MiniBar } from '@/components/ds/donut'
 import type { PrestigeSummary, Standing } from '@/lib/prestige-summary'
 
 /**
@@ -45,7 +47,7 @@ function StandingPill({ s }: { s: Standing }) {
           <span className="type-stat text-lg leading-none text-foreground">
             {s.isFirst ? '№1' : `Топ ${s.topPercent}%`}
           </span>
-          <span className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
+          <span className="truncate label-eyebrow">
             {s.label}
           </span>
         </span>
@@ -85,7 +87,7 @@ function CrownJewel({ jewel }: { jewel: NonNullable<PrestigeSummary['crownJewel'
         <Glyph name={jewelGlyph} className="h-7 w-7" />
       </span>
       <div className="relative min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="label-eyebrow tracking-[0.18em]">
           Главный трофей
         </p>
         <p className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-foreground sm:text-base">
@@ -148,10 +150,9 @@ export function PrestigeBanner({
         />
       )}
       <div className="relative flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
-          <Glyph name="trophy" className="text-accent-gold" />
+        <SectionTitle size="md" icon={<Glyph name="trophy" className="text-accent-gold" />}>
           Витрина престижа
-        </h2>
+        </SectionTitle>
         {equippedTitle && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
             <Glyph name="crown" className="h-3.5 w-3.5" />
@@ -185,25 +186,20 @@ export function PrestigeBanner({
       {/* Mastery footer — how complete you are */}
       <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="rounded-2xl border border-border bg-white/[0.03] p-3.5">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center justify-between label-eyebrow">
             <span className="flex items-center gap-1.5">
               <Glyph name="medal" className="h-3.5 w-3.5" /> Достижения
             </span>
             <span className="type-stat text-foreground">{achPct}%</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-              style={{ width: `${achPct}%` }}
-            />
-          </div>
+          <MiniBar value={achPct / 100} color="var(--accent-gold)" height={6} className="mt-2" />
           <p className="mt-1.5 text-[11px] text-muted-foreground">
             {mastery.achievementsUnlocked} из {mastery.achievementsTotal}
           </p>
         </div>
 
         <div className="rounded-2xl border border-border bg-white/[0.03] p-3.5">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center justify-between label-eyebrow">
             <span className="flex items-center gap-1.5">
               <Glyph name="vault" className="h-3.5 w-3.5" /> Редкие предметы
             </span>

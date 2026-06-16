@@ -125,9 +125,11 @@ export function ShopExperience({
       <div className="mx-auto max-w-5xl space-y-4 px-4 pt-2 sm:px-6">
         {/* Balance line — anchors "what can I afford" */}
         {balance != null && (
-          <div className="flex items-center justify-between rounded-2xl border border-border bg-white/[0.02] px-4 py-2.5">
+          <div className="glass flex items-center justify-between rounded-2xl border border-border px-4 py-2.5">
             <span className="text-xs text-muted-foreground">Твой баланс</span>
-            <CoinAmount value={balance} size="md" />
+            <span className="type-economy text-accent-gold">
+              <CoinAmount value={balance} size="md" />
+            </span>
           </div>
         )}
 
@@ -167,7 +169,7 @@ export function ShopExperience({
                 onClick={() => setSort(s.key)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                   sort === s.key
-                    ? 'bg-white/10 text-foreground'
+                    ? 'bg-accent-pink/15 text-accent-pink'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -251,7 +253,7 @@ function CategoryPill({
       onClick={onClick}
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
         active
-          ? 'border-white/25 bg-white/10 text-foreground'
+          ? 'border-accent-pink/40 bg-accent-pink/15 text-accent-pink'
           : 'border-border bg-white/[0.02] text-muted-foreground hover:text-foreground'
       }`}
     >

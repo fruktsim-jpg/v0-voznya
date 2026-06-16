@@ -91,19 +91,23 @@ export type HeaderStatus = {
 export function AdminPageHeader({
   title,
   subtitle,
+  eyebrow,
   status,
   actions,
 }: {
   title: string
   subtitle?: string
+  /** Надзаголовок-бровь (капс, разрядка) — фирменный жест. */
+  eyebrow?: string
   status?: HeaderStatus
   actions?: ReactNode
 }) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
+        {eyebrow && <span className="label-eyebrow">{eyebrow}</span>}
+        <div className="mt-1 flex items-center gap-2.5">
+          <h1 className="type-display text-2xl text-foreground sm:text-3xl">{title}</h1>
           {status && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               <StatusDot tone={status.tone} />
@@ -111,7 +115,7 @@ export function AdminPageHeader({
             </span>
           )}
         </div>
-        {subtitle && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>}
+        {subtitle && <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

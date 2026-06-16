@@ -1,5 +1,6 @@
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
+import { AdminPageHeader } from '@/components/admin/ui'
 import {
   loadEconomyOverview,
   loadDailyFlow,
@@ -17,6 +18,7 @@ import {
   SectionTitle,
   Note,
   Empty,
+  FlowBars,
   fmt,
   fmtSigned,
   type Stat,
@@ -51,14 +53,14 @@ export default async function EconomyDashboardPage() {
 
 
   const cards: Stat[] = [
-    { emoji: '💰', label: 'Всего ешек', value: fmt(overview.totalEshki), tone: 'border-amber-400/25 from-amber-400/[0.08]' },
-    { emoji: '👥', label: 'Игроков', value: fmt(overview.players), tone: 'border-primary/30 from-primary/[0.08]' },
-    { emoji: '🔥', label: 'Активных (7д)', value: fmt(overview.activePlayers7d), tone: 'border-emerald-400/25 from-emerald-400/[0.08]', hint: 'уникальные авторы транзакций' },
-    { emoji: '⚖️', label: 'Средний баланс', value: fmt(overview.avgBalance), tone: 'border-sky-400/25 from-sky-400/[0.08]' },
-    { emoji: '🟢', label: 'Создано за день', value: fmt(overview.mintedToday), tone: 'border-emerald-400/25 from-emerald-400/[0.08]' },
-    { emoji: '🔴', label: 'Сожжено за день', value: fmt(overview.burnedToday), tone: 'border-rose-400/25 from-rose-400/[0.08]' },
-    { emoji: '🪙', label: 'Медианный баланс', value: fmt(wealth.medianBalance), tone: 'border-sky-400/25 from-sky-400/[0.08]', hint: 'половина игроков ниже этого' },
-    { emoji: '🐳', label: 'Топ 1% владеют', value: fmt(wealth.top1Percent), tone: 'border-fuchsia-400/25 from-fuchsia-400/[0.08]', hint: wealth.top1Share != null ? `${Math.round(wealth.top1Share * 100)}% всей массы` : undefined },
+    { emoji: '💰', label: 'Всего ешек', value: fmt(overview.totalEshki), accent: 'gold' },
+    { emoji: '👥', label: 'Игроков', value: fmt(overview.players), accent: 'pink' },
+    { emoji: '🔥', label: 'Активных (7д)', value: fmt(overview.activePlayers7d), accent: 'emerald', hint: 'уникальные авторы транзакций' },
+    { emoji: '⚖️', label: 'Средний баланс', value: fmt(overview.avgBalance), accent: 'indigo' },
+    { emoji: '🟢', label: 'Создано за день', value: fmt(overview.mintedToday), accent: 'teal' },
+    { emoji: '🔴', label: 'Сожжено за день', value: fmt(overview.burnedToday), accent: 'red' },
+    { emoji: '🪙', label: 'Медианный баланс', value: fmt(wealth.medianBalance), accent: 'indigo', hint: 'половина игроков ниже этого' },
+    { emoji: '🐳', label: 'Топ 1% владеют', value: fmt(wealth.top1Percent), accent: 'violet', hint: wealth.top1Share != null ? `${Math.round(wealth.top1Share * 100)}% всей массы` : undefined },
   ]
 
   const maxCat = Math.max(
@@ -70,21 +72,14 @@ export default async function EconomyDashboardPage() {
   const maxRich = Math.max(1, ...richest.map((r) => r.balance))
 
 
-  const maxFlow = Math.max(
-    1,
-    ...daily.map((d) => Math.max(d.minted, d.burned)),
-  )
-
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="mb-1 text-xl font-bold text-foreground sm:text-2xl">
-          💹 Экономика
-        </h1>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Состояние денежной массы в реальном времени. Источник — леджер
-          транзакций бота. Только чтение.
-        </p>
+        <AdminPageHeader
+          eyebrow="Экономический центр"
+          title="Экономика"
+          subtitle="Состояние денежной массы в реальном времени. Источник — леджер транзакций бота. Только чтение."
+        />
         <EconomyTabs active="/admin/economy" />
       </div>
 
@@ -123,43 +118,7 @@ export default async function EconomyDashboardPage() {
         {daily.length === 0 ? (
           <Empty>Пока нет транзакций.</Empty>
         ) : (
-          <div className="glass overflow-hidden rounded-2xl border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <th className="px-3 py-2 font-semibold">День</th>
-                  <th className="px-3 py-2 text-right font-semibold">Создано</th>
-                  <th className="px-3 py-2 text-right font-semibold">Сожжено</th>
-                  <th className="px-3 py-2 text-right font-semibold">Нетто</th>
-                  <th className="px-3 py-2 font-semibold">Баланс</th>
-                </tr>
-              </thead>
-              <tbody>
-                {daily.map((d) => (
-                  <tr key={d.day} className="border-b border-border/50 last:border-0">
-                    <td className="px-3 py-2 text-muted-foreground">{d.day}</td>
-                    <td className="px-3 py-2 text-right text-emerald-400">{fmt(d.minted)}</td>
-                    <td className="px-3 py-2 text-right text-rose-400">{fmt(d.burned)}</td>
-                    <td className={`px-3 py-2 text-right font-semibold ${d.net >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
-                      {fmtSigned(d.net)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex h-3 items-center gap-0.5">
-                        <div
-                          className="h-2 rounded-l bg-emerald-400/70"
-                          style={{ width: `${(d.minted / maxFlow) * 50}%` }}
-                        />
-                        <div
-                          className="h-2 rounded-r bg-rose-400/70"
-                          style={{ width: `${(d.burned / maxFlow) * 50}%` }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <FlowBars daily={daily} />
         )}
       </section>
 

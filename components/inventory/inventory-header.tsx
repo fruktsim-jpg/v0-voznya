@@ -82,10 +82,10 @@ export function InventoryHeader({
           · top-tier pill. Value is NOT a hero anymore — the items are. */}
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+          <span className="type-stat text-lg text-foreground">
             {fmt(summary.totalQuantity)}
           </span>
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <span className="label-eyebrow">
             {summary.totalQuantity === 1 ? 'предмет' : 'предметов'}
           </span>
           {summary.totalValue > 0 && (

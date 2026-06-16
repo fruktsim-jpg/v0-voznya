@@ -22,6 +22,7 @@ import { rarityStyle } from '@/lib/inventory'
 import { rarityToken } from '@/lib/rarity'
 import { asRarity } from '@/lib/inventory-meta'
 import { ItemArt } from '@/components/ds/item-art'
+import { Donut, MiniBar } from '@/components/ds/donut'
 import type { ItemClass } from '@/lib/item-art/model'
 import { ActivityCard } from '@/components/v2/activity-card'
 import { archetype, playStyle } from '@/lib/profile-narrative'
@@ -385,7 +386,7 @@ export function PlayerCard({
               />
             )}
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="label-eyebrow flex items-center gap-2">
                 <Glyph name="trophy" className="text-accent-gold" /> Влияние · MMR
               </div>
               <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1">
@@ -489,7 +490,7 @@ export function PlayerCard({
         className="mt-3 sm:mt-6"
       >
         <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+          <h2 className="section-title mb-3 flex items-center gap-2 text-base text-foreground sm:text-lg">
             <Glyph name="swords" className="text-primary" /> Экономика и игра
           </h2>
 
@@ -508,27 +509,70 @@ export function PlayerCard({
             </div>
           )}
 
-          {/* Экономический портрет: заработано / потрачено (% оборота). */}
-          <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:gap-3">
-            <StatTile
-              glyph="chart"
-              value={formatCurrency(profile.totalEarned)}
-              label="Заработано всего"
-            />
-            <StatTile
-              glyph="wallet"
-              value={formatCurrency(profile.totalSpent)}
-              label={burnPct != null ? `Потрачено · ${burnPct}% оборота` : 'Потрачено всего'}
-            />
+          {/* Экономический портрет: заработано vs потрачено как кольцо состава
+              (gold=заработок / teal=экономия-остаток), с burn% в центре. */}
+          <div className="mb-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-4">
+            <div className="flex items-center justify-center rounded-xl border border-border bg-white/[0.02] p-3">
+              <Donut
+                size={120}
+                stroke={14}
+                segments={[
+                  { value: profile.totalSpent, color: 'var(--accent-gold)', label: 'Потрачено' },
+                  {
+                    value: Math.max(0, profile.totalEarned - profile.totalSpent),
+                    color: 'var(--accent-teal)',
+                    label: 'Остаток',
+                  },
+                ]}
+                center={
+                  <>
+                    <span className="type-stat text-xl leading-none text-foreground">
+                      {burnPct != null ? `${burnPct}%` : '—'}
+                    </span>
+                    <span className="label-eyebrow mt-1 text-[9px]">оборота</span>
+                  </>
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-1 sm:gap-3">
+              <StatTile
+                glyph="chart"
+                value={formatCurrency(profile.totalEarned)}
+                label="Заработано всего"
+              />
+              <StatTile
+                glyph="wallet"
+                value={formatCurrency(profile.totalSpent)}
+                label={burnPct != null ? `Потрачено · ${burnPct}% оборота` : 'Потрачено всего'}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-            {/* Дуэли — победы/поражения + winrate */}
-            <StatTile
-              glyph="swords"
-              value={`${profile.duelsWon} / ${profile.duelsLost}`}
-              label={`Дуэли · ${winRate}%`}
-            />
+            {/* Дуэли — победы/поражения + winrate (с мини-баром доли побед) */}
+            <div className="glass rounded-xl border border-border p-2.5 sm:p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-9 sm:w-9">
+                  <Glyph name="swords" className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-foreground sm:text-lg">
+                    {profile.duelsWon} / {profile.duelsLost}
+                  </div>
+                  <div className="truncate text-[9px] text-muted-foreground sm:text-xs">
+                    Дуэли · {winRate}%
+                  </div>
+                </div>
+              </div>
+              {duelsTotal > 0 && (
+                <MiniBar
+                  value={winRate / 100}
+                  color="var(--accent-teal)"
+                  height={6}
+                  className="mt-2"
+                />
+              )}
+            </div>
             {/* Ферма — текущий/макс стрик */}
             <StatTile
               glyph="sprout"
@@ -575,7 +619,7 @@ export function PlayerCard({
         >
           <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+              <h2 className="section-title flex items-center gap-2 text-base text-foreground sm:text-lg">
                 <Glyph name="inventory" className="text-primary" /> Коллекция
               </h2>
               <span className="text-[11px] text-muted-foreground sm:text-xs">
@@ -608,7 +652,7 @@ export function PlayerCard({
                     <span className="line-clamp-1 w-full text-xs font-semibold text-foreground">
                       {item.name}
                     </span>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="label-eyebrow text-[10px]">
                       {tok.label}
                     </span>
                     {item.equipped && (
@@ -691,7 +735,7 @@ export function PlayerCard({
         >
           <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+              <h2 className="section-title flex items-center gap-2 text-base text-foreground sm:text-lg">
                 <Glyph name="medal" className="text-accent-gold" /> Достижения
               </h2>
               <span className="text-[11px] text-muted-foreground sm:text-xs">
@@ -699,16 +743,11 @@ export function PlayerCard({
               </span>
             </div>
 
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                style={{ width: `${achPercent}%` }}
-              />
-            </div>
+            <MiniBar value={achPercent / 100} color="var(--accent-gold)" height={6} />
 
             {recentAchievements.length > 0 && (
               <div className="mt-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="label-eyebrow mb-2">
                   Недавно открыто
                 </p>
                 <div className="space-y-2">
@@ -721,7 +760,7 @@ export function PlayerCard({
 
             {rareAchievements.length > 0 && (
               <div className="mt-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="label-eyebrow mb-2">
                   Самые ценные
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -762,7 +801,7 @@ export function PlayerCard({
           <div className="glass rounded-2xl border border-border p-4 sm:rounded-3xl sm:p-6">
             <div className="mb-3 flex items-center gap-2">
               <Glyph name="pulse" className="text-primary" />
-              <h2 className="text-sm font-bold text-foreground sm:text-base">История</h2>
+              <h2 className="section-title text-base text-foreground sm:text-lg">История</h2>
               <span className="text-[11px] text-muted-foreground sm:text-xs">· путь в Возне</span>
             </div>
             <ul className="space-y-2">
@@ -824,7 +863,7 @@ function ValueAxis({
 }) {
   return (
     <div className="glass rounded-xl border border-border bg-white/[0.02] p-3 text-center sm:p-3.5">
-      <span className={`flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}>
+      <span className={`label-eyebrow flex items-center justify-center gap-1.5`}>
         <Glyph name={glyph} className={`h-3.5 w-3.5 ${tone}`} /> {label}
       </span>
       <div className={`mt-1 type-stat text-lg sm:text-2xl ${tone}`}>{value}</div>

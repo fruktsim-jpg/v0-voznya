@@ -13,6 +13,8 @@ import {
   fmtSigned,
   fmtPct,
 } from '../economy-ui'
+import { AdminPageHeader } from '@/components/admin/ui'
+import { StatCard, MetricGrid, MiniBar } from '@/components/admin/kit'
 import { OpeningsHistory } from './openings-history'
 
 
@@ -48,28 +50,49 @@ export default async function CasesAnalyticsPage() {
 
   const totalOpenings = stats.reduce((s, c) => s + c.openings, 0)
   const totalUnpriced = stats.reduce((s, c) => s + c.itemRewardsUnpriced, 0)
+  const totalBurned = stats.reduce((s, c) => s + c.eshkiBurned, 0)
+  const totalGranted = stats.reduce((s, c) => s + c.eshkiGranted + c.itemValueGranted, 0)
+  const totalNet = stats.reduce((s, c) => s + c.net, 0)
 
 
   return (
     <div className="space-y-8">
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-            🎁 Аналитика кейсов
-          </h1>
-          {/* P0-3: переход к редактору кейсов и дроп-листов. */}
-          <a
-            href="/admin/cases"
-            className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
-          >
-            ✏️ Редактор кейсов
-          </a>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Фактическая экономика кейсов из журнала открытий. Только чтение.
-        </p>
+        <AdminPageHeader
+          eyebrow="Экономика"
+          title="🎁 Аналитика кейсов"
+          subtitle="Фактическая экономика кейсов из журнала открытий. Только чтение."
+          actions={
+            /* P0-3: переход к редактору кейсов и дроп-листов. */
+            <a
+              href="/admin/cases"
+              className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+            >
+              ✏️ Редактор кейсов
+            </a>
+          }
+        />
         <EconomyTabs active="/admin/economy/cases" />
       </div>
+
+      {stats.length > 0 && (
+        <section>
+          <SectionTitle>Сводка</SectionTitle>
+          <MetricGrid cols={4}>
+            <StatCard label="Открытий всего" value={fmt(totalOpenings)} glyph="🎁" accent="indigo" />
+            <StatCard label="Сожжено" value={fmt(totalBurned)} glyph="🔥" accent="red" economy caption="стоимость открытий" />
+            <StatCard label="Выдано" value={fmt(totalGranted)} glyph="🎉" accent="gold" economy caption="валюта + предметы" />
+            <StatCard
+              label="Нетто"
+              value={fmtSigned(totalNet)}
+              glyph="🏦"
+              accent={totalNet >= 0 ? 'teal' : 'red'}
+              economy
+              caption={totalNet >= 0 ? 'house edge' : 'убыточно'}
+            />
+          </MetricGrid>
+        </section>
+      )}
 
 
       <section>
@@ -151,26 +174,24 @@ export default async function CasesAnalyticsPage() {
           <div className="space-y-4">
             {[...distByCase.entries()].map(([caseCode, rows]) => {
               const name = stats.find((s) => s.caseCode === caseCode)?.name ?? caseCode
+              const maxShare = Math.max(0.0001, ...rows.map((r) => r.share))
               return (
                 <div key={caseCode} className="glass rounded-2xl border border-border p-4">
                   <div className="mb-3 text-sm font-semibold text-foreground">{name}</div>
                   <div className="space-y-2">
                     {rows.map((r, i) => {
-                      const label =
-                        r.rewardKind === 'currency'
-                          ? 'Ешки'
-                          : r.rewardItemCode ?? r.rewardKind
+                      const isCurrency = r.rewardKind === 'currency'
+                      const label = isCurrency ? 'Ешки' : r.rewardItemCode ?? r.rewardKind
+                      // Валюта — золото; предметные выпадения — фиолетовый (престиж).
+                      const color = isCurrency
+                        ? 'var(--accent-gold)'
+                        : 'var(--accent-violet)'
                       return (
                         <div key={`${caseCode}-${i}`} className="flex items-center gap-3 text-sm">
                           <div className="w-40 shrink-0 truncate text-muted-foreground" title={label}>
                             {label}
                           </div>
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
-                            <div
-                              className="h-full rounded-full bg-primary/70"
-                              style={{ width: `${Math.max(2, r.share * 100)}%` }}
-                            />
-                          </div>
+                          <MiniBar value={r.share / maxShare} color={color} className="flex-1" />
                           <div className="w-28 shrink-0 text-right text-muted-foreground">
                             {fmt(r.hits)} · {fmtPct(r.share)}
                           </div>

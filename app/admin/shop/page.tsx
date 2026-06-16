@@ -2,6 +2,8 @@ import { getAdminSession } from '@/lib/auth/admin-session'
 import { hasPermission, PERM } from '@/lib/auth/admin-permissions'
 import { loadShopItemStats, type ShopItemStat } from '@/lib/economy-analytics'
 import { SectionTitle, Empty, fmt } from '../economy/economy-ui'
+import { AdminPageHeader } from '@/components/admin/ui'
+import { StatCard, MetricGrid, MiniBar } from '@/components/admin/kit'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,24 +15,27 @@ export const dynamic = 'force-dynamic'
  * Read-only over gift_transactions + purchase_history; no migration.
  */
 
-/** A small Top-N list card sorted by a numeric field. */
+/** A small Top-N list card sorted by a numeric field, ranked with MiniBars. */
 function TopBlock({
   title,
   emoji,
   rows,
   field,
+  color = 'var(--primary)',
   hint,
 }: {
   title: string
   emoji: string
   rows: ShopItemStat[]
   field: keyof ShopItemStat
+  color?: string
   hint?: string
 }) {
   const sorted = [...rows]
     .filter((r) => Number(r[field]) > 0)
     .sort((a, b) => Number(b[field]) - Number(a[field]))
     .slice(0, 5)
+  const max = Math.max(1, ...sorted.map((r) => Number(r[field])))
   return (
     <div className="glass rounded-2xl border border-border p-4">
       <div className="mb-2 text-sm font-semibold text-foreground">
@@ -39,13 +44,16 @@ function TopBlock({
       {sorted.length === 0 ? (
         <Empty>Нет данных.</Empty>
       ) : (
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-2 text-sm">
           {sorted.map((r) => (
-            <li key={r.code} className="flex items-center justify-between gap-2">
-              <span className="truncate text-foreground">{r.name || r.code}</span>
-              <span className="shrink-0 font-semibold text-primary">
-                {fmt(Number(r[field]))}
-              </span>
+            <li key={r.code} className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-foreground">{r.name || r.code}</span>
+                <span className="type-stat shrink-0 text-[13px]" style={{ color }}>
+                  {fmt(Number(r[field]))}
+                </span>
+              </div>
+              <MiniBar value={Number(r[field]) / max} color={color} height={6} />
             </li>
           ))}
         </ul>
@@ -74,32 +82,49 @@ export default async function ShopAnalyticsPage() {
     .filter((i) => i.inInventories > 0 && i.withdrawn === 0 && i.giftedToFriend === 0)
     .sort((a, b) => b.inInventories - a.inInventories)
     .slice(0, 5)
+  const unusedMax = Math.max(1, ...unused.map((r) => r.inInventories))
+
+  // Catalog-wide totals for the summary row.
+  const totalBought = items.reduce((s, i) => s + i.boughtTotal, 0)
+  const totalRevenue = items.reduce((s, i) => s + i.revenueEshki, 0)
+  const totalWithdrawn = items.reduce((s, i) => s + i.withdrawn, 0)
+  const totalInInventories = items.reduce((s, i) => s + i.inInventories, 0)
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">🛒 Магазин</h1>
+      <AdminPageHeader
+        eyebrow="Экономика"
+        title="🛒 Магазин"
+        subtitle="Жизненный цикл каждого предмета магазина: куплено, выпало из кейсов, выведено, подарено, лежит в инвентарях, продано обратно. Только чтение."
+        actions={
           <a
             href="/admin/gifts"
             className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/15"
           >
             ✏️ Редактор подарков
           </a>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Жизненный цикл каждого предмета магазина: куплено, выпало из кейсов,
-          выведено, подарено, лежит в инвентарях, продано обратно. Только чтение.
-        </p>
-      </div>
+        }
+      />
+
+      {items.length > 0 && (
+        <section>
+          <SectionTitle>Сводка</SectionTitle>
+          <MetricGrid cols={4}>
+            <StatCard label="Куплено всего" value={fmt(totalBought)} glyph="🛒" accent="pink" />
+            <StatCard label="Выручка, ешки" value={fmt(totalRevenue)} glyph="💰" accent="gold" economy />
+            <StatCard label="Выведено" value={fmt(totalWithdrawn)} glyph="📤" accent="indigo" />
+            <StatCard label="В инвентарях" value={fmt(totalInInventories)} glyph="📦" accent="gold" caption="лежит у игроков" />
+          </MetricGrid>
+        </section>
+      )}
 
       {/* Top blocks */}
       <section>
         <SectionTitle>Топы</SectionTitle>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <TopBlock title="Покупки" emoji="🛒" rows={items} field="boughtTotal" />
-          <TopBlock title="Выводы" emoji="📤" rows={items} field="withdrawn" />
-          <TopBlock title="Продажи обратно" emoji="↩️" rows={items} field="soldBack" />
+          <TopBlock title="Покупки" emoji="🛒" rows={items} field="boughtTotal" color="var(--accent-pink)" />
+          <TopBlock title="Выводы" emoji="📤" rows={items} field="withdrawn" color="var(--accent-indigo)" />
+          <TopBlock title="Продажи обратно" emoji="↩️" rows={items} field="soldBack" color="var(--accent-violet)" />
           <div className="glass rounded-2xl border border-border p-4">
             <div className="mb-2 text-sm font-semibold text-foreground">
               💤 Неиспользуемые
@@ -107,13 +132,16 @@ export default async function ShopAnalyticsPage() {
             {unused.length === 0 ? (
               <Empty>Нет данных.</Empty>
             ) : (
-              <ul className="space-y-1.5 text-sm">
+              <ul className="space-y-2 text-sm">
                 {unused.map((r) => (
-                  <li key={r.code} className="flex items-center justify-between gap-2">
-                    <span className="truncate text-foreground">{r.name || r.code}</span>
-                    <span className="shrink-0 font-semibold text-amber-300">
-                      {fmt(r.inInventories)}
-                    </span>
+                  <li key={r.code} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-foreground">{r.name || r.code}</span>
+                      <span className="type-stat shrink-0 text-[13px] text-amber-300">
+                        {fmt(r.inInventories)}
+                      </span>
+                    </div>
+                    <MiniBar value={r.inInventories / unusedMax} color="#f59e0b" height={6} />
                   </li>
                 ))}
               </ul>

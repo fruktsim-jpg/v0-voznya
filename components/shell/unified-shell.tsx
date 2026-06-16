@@ -122,7 +122,7 @@ export function UnifiedShell({
         {/* Brand */}
         <Link
           href="/"
-          className={`font-bold tracking-tight text-gradient transition-[font-size] duration-300 motion-reduce:transition-none ${
+          className={`type-display text-gradient transition-[font-size] duration-300 motion-reduce:transition-none ${
             scrolled ? 'text-base' : 'text-lg'
           }`}
         >
@@ -162,10 +162,10 @@ export function UnifiedShell({
           {player && player.balance !== null && (
             <Link
               href="/inventory"
-              className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/25"
+              className="inline-flex items-center gap-1 rounded-full border border-accent-gold/30 bg-accent-gold/15 px-2.5 py-1 text-xs font-semibold text-accent-gold transition hover:bg-accent-gold/25"
               aria-label={`Баланс: ${formatEsh(player.balance)} ешек`}
             >
-              <span className="font-mono tabular-nums">{formatEsh(player.balance)}</span>
+              <span className="type-economy tabular-nums">{formatEsh(player.balance)}</span>
               <VoznyaCoin tone="gold" />
             </Link>
           )}

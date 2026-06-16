@@ -27,27 +27,35 @@ function Panel({
   emoji,
   label,
   accent,
+  accentColor,
   children,
 }: {
   href: string
   emoji: string
   label: string
   accent: string
+  accentColor?: string
   children: React.ReactNode
 }) {
   return (
     <Link
       href={href}
-      className={`glass group relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-4 transition hover:border-primary/40 ${accent}`}
+      className={`glass group relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-4 transition duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[0_12px_36px_-14px_rgba(0,0,0,0.7)] ${accent}`}
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}
     >
+      {accentColor && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-70"
+          style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }}
+        />
+      )}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="label-eyebrow">{label}</span>
         <span className="text-lg opacity-80">{emoji}</span>
       </div>
       {children}
-      <span className="pointer-events-none absolute bottom-3 right-4 text-xs text-muted-foreground opacity-0 transition group-hover:opacity-100">
+      <span className="pointer-events-none absolute bottom-3 right-4 text-xs text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100">
         →
       </span>
     </Link>
@@ -61,8 +69,8 @@ export function WorldState({ data }: { data: WorldStateData }) {
   return (
     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       {/* Economy */}
-      <Panel href="/admin/economy" emoji="💹" label="Экономика" accent="border-amber-400/25 from-amber-400/[0.08]">
-        <div className="text-2xl font-bold text-foreground">{fmt(data.economy.totalEshki)}</div>
+      <Panel href="/admin/economy" emoji="💹" label="Экономика" accent="border-amber-400/25 from-amber-400/[0.08]" accentColor="var(--accent-gold)">
+        <div className="type-stat text-2xl text-foreground">{fmt(data.economy.totalEshki)}</div>
         <div className="mt-0.5 text-[11px] text-muted-foreground">ешек в обороте</div>
         <div className={`mt-2 text-xs font-semibold ${netTone}`}>
           {net == null ? '—' : `${net > 0 ? '+' : ''}${fmtCompact(net)} сегодня`}
@@ -70,8 +78,8 @@ export function WorldState({ data }: { data: WorldStateData }) {
       </Panel>
 
       {/* Players */}
-      <Panel href="/admin/players" emoji="👥" label="Игроки" accent="border-primary/30 from-primary/[0.08]">
-        <div className="text-2xl font-bold text-foreground">{fmt(data.players.total)}</div>
+      <Panel href="/admin/players" emoji="👥" label="Игроки" accent="border-primary/30 from-primary/[0.08]" accentColor="var(--accent-pink)">
+        <div className="type-stat text-2xl text-foreground">{fmt(data.players.total)}</div>
         <div className="mt-0.5 text-[11px] text-muted-foreground">всего игроков</div>
         <div className="mt-2 text-xs font-semibold text-primary">
           {data.players.active7d == null ? '—' : `${fmt(data.players.active7d)} активны за 7д`}
@@ -79,10 +87,10 @@ export function WorldState({ data }: { data: WorldStateData }) {
       </Panel>
 
       {/* Season */}
-      <Panel href="/admin/season" emoji="🏆" label="Сезон" accent={data.season.active ? 'border-primary/30 from-primary/[0.08]' : 'border-border from-white/[0.03]'}>
+      <Panel href="/admin/season" emoji="🏆" label="Сезон" accent={data.season.active ? 'border-primary/30 from-primary/[0.08]' : 'border-border from-white/[0.03]'} accentColor={data.season.active ? 'var(--accent-violet)' : undefined}>
         {data.season.active ? (
           <>
-            <div className="truncate text-lg font-bold text-foreground">{data.season.name}</div>
+            <div className="type-prestige truncate text-lg text-foreground">{data.season.name}</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground">текущий сезон</div>
             <div className="mt-2 text-xs font-semibold text-primary">
               {data.season.daysLeft == null ? 'идёт' : data.season.daysLeft <= 0 ? 'пора финализировать' : `осталось ${data.season.daysLeft} дн.`}
@@ -98,8 +106,8 @@ export function WorldState({ data }: { data: WorldStateData }) {
       </Panel>
 
       {/* Gifts */}
-      <Panel href="/admin/gifts/deliveries" emoji="🎁" label="Подарки" accent="border-rose-400/25 from-rose-400/[0.08]">
-        <div className="text-2xl font-bold text-foreground">{fmt(data.gifts.pending)}</div>
+      <Panel href="/admin/gifts/deliveries" emoji="🎁" label="Подарки" accent="border-rose-400/25 from-rose-400/[0.08]" accentColor="var(--accent-red)">
+        <div className="type-stat text-2xl text-foreground">{fmt(data.gifts.pending)}</div>
         <div className="mt-0.5 text-[11px] text-muted-foreground">в очереди доставки</div>
         <div className="mt-2 text-xs font-semibold text-emerald-300">
           {data.gifts.completed == null ? '—' : `${fmt(data.gifts.completed)} доставлено`}

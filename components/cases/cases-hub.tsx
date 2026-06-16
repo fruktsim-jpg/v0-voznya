@@ -5,6 +5,7 @@ import { layoutCases, CASE_CATEGORY_META, type CaseView, type CaseCategory } fro
 import { Chip, ChipGroup } from '@/components/ds/chip'
 import { Glyph, type GlyphName } from '@/components/ds/icon/glyph'
 import { CaseTile } from '@/components/cases/case-tile'
+import { SectionTitle } from '@/components/ds/section-title'
 import { CaseDetailSheet } from '@/components/cases/case-detail-sheet'
 import { RecentWins } from '@/components/cases/recent-wins'
 import type { RecentCaseWin } from '@/lib/cases'
@@ -78,11 +79,14 @@ export function CasesHub({
       {visibleGroups.map((g) => (
         <section key={g.category}>
           {(category === 'all' || visibleGroups.length > 1) && (
-            <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-sm font-bold text-foreground">
-              <Glyph name={CASE_CATEGORY_META[g.category].glyph as GlyphName} className="h-4 w-4 text-accent-indigo" />
+            <SectionTitle
+              size="md"
+              icon={<Glyph name={CASE_CATEGORY_META[g.category].glyph as GlyphName} className="h-5 w-5 text-accent-indigo" />}
+              eyebrow={`${g.cases.length} ${g.cases.length === 1 ? 'кейс' : 'кейсов'}`}
+              className="mb-2 px-0.5"
+            >
               {CASE_CATEGORY_META[g.category].label}
-              <span className="text-muted-foreground">({g.cases.length})</span>
-            </h2>
+            </SectionTitle>
           )}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {g.cases.map((c) => (

@@ -29,3 +29,8 @@ export { StatusPill } from './status-pill'
 export { AuditTrail } from './audit-trail'
 export { Feedback, type FeedbackMsg } from './feedback'
 export { useAdminMutation, type AdminMutation } from './use-admin-mutation'
+
+// Shared visual primitives (DS) re-exported so admin modules get premium
+// metric tiles and dependency-free SVG viz from one import path.
+export { StatCard, MetricGrid, type StatAccent } from '@/components/ds/stat-card'
+export { Donut, MiniBar, type DonutSegment } from '@/components/ds/donut'

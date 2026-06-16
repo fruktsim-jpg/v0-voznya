@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { StatCard, type StatAccent } from '@/components/ds/stat-card'
 
 /**
  * Shared presentational helpers for the Economic Control Center pages.
@@ -53,42 +54,29 @@ export type Stat = {
   value: string
   tone?: string
   hint?: string
+  /** Акцент из палитры — подсветит число и верхнюю кромку. */
+  accent?: StatAccent
 }
 
 export function StatGrid({ cards }: { cards: Stat[] }) {
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
       {cards.map((c) => (
-        <div
+        <StatCard
           key={c.label}
-          className={`glass rounded-2xl border bg-gradient-to-br to-transparent p-4 ${
-            c.tone ?? 'border-border from-white/[0.04]'
-          }`}
-        >
-          <div className="text-xl sm:text-2xl">{c.emoji}</div>
-          <div className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
-            {c.value}
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-            {c.label}
-          </div>
-          {c.hint && (
-            <div className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
-              {c.hint}
-            </div>
-          )}
-        </div>
+          label={c.label}
+          value={c.value}
+          glyph={c.emoji}
+          caption={c.hint}
+          accent={c.accent ?? 'default'}
+        />
       ))}
     </div>
   )
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-      {children}
-    </h2>
-  )
+  return <h2 className="section-title mb-3 text-base text-foreground sm:text-lg">{children}</h2>
 }
 
 export function Note({ children }: { children: React.ReactNode }) {
@@ -103,6 +91,57 @@ export function Empty({ children }: { children: React.ReactNode }) {
   return (
     <div className="glass rounded-2xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
       {children}
+    </div>
+  )
+}
+
+/**
+ * FlowBars — компактный двусторонний бар-чарт «создано/сожжено» по дням.
+ * Заменяет сырую таблицу: создано тянется вверх (teal), сожжено вниз (rose),
+ * нетто читается по перевесу. Hover-тултип через нативный <title>. Чистый SVG,
+ * без зависимостей — server-friendly.
+ */
+export function FlowBars({
+  daily,
+}: {
+  daily: { day: string; minted: number; burned: number; net: number }[]
+}) {
+  const max = Math.max(1, ...daily.map((d) => Math.max(d.minted, d.burned)))
+  return (
+    <div className="glass rounded-2xl border border-border bg-gradient-to-b from-white/[0.04] to-transparent p-4">
+      <div className="flex items-end gap-1.5" style={{ height: 160 }}>
+        {daily.map((d) => {
+          const up = (d.minted / max) * 70
+          const down = (d.burned / max) * 70
+          return (
+            <div key={d.day} className="group flex flex-1 flex-col items-center justify-center gap-0.5">
+              <div className="flex w-full flex-col items-center justify-end" style={{ height: '50%' }}>
+                <div
+                  className="w-full max-w-[18px] rounded-t bg-[var(--accent-teal)] transition group-hover:brightness-125"
+                  style={{ height: `${up}%` }}
+                  title={`${d.day}\nсоздано +${fmt(d.minted)}`}
+                />
+              </div>
+              <div className="h-px w-full bg-white/10" />
+              <div className="flex w-full flex-col items-center justify-start" style={{ height: '50%' }}>
+                <div
+                  className="w-full max-w-[18px] rounded-b bg-[var(--accent-red)] transition group-hover:brightness-125"
+                  style={{ height: `${down}%` }}
+                  title={`${d.day}\nсожжено −${fmt(d.burned)}`}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--accent-teal)]" /> создано
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--accent-red)]" /> сожжено
+        </span>
+      </div>
     </div>
   )
 }

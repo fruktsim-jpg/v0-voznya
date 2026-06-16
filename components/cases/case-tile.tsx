@@ -5,6 +5,7 @@ import { ItemArt } from '@/components/ds/item-art'
 import { Glyph } from '@/components/ds/icon/glyph'
 import { IndicatorChips } from '@/components/cases/indicator-chips'
 import { caseCostShort } from '@/components/cases/case-meta'
+import { rarityToken } from '@/lib/rarity'
 
 /**
  * CaseTile — a DESIRE card, not a spec sheet. It leads with the DREAM: the
@@ -26,14 +27,21 @@ export function CaseTile({
 }) {
   const c = caseView
   const top = c.topReward
+  const rt = rarityToken(c.topRarity)
 
   return (
     <button
       type="button"
       onClick={() => onOpenDetail(c)}
       aria-label={`Открыть кейс ${c.name}`}
-      className="group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border border-border bg-white/[0.02] p-3 text-left transition hover:bg-white/[0.04] active:scale-[0.98]"
+      className="glass group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-white/15 active:scale-[0.98] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
+      {/* Faint rarity-tinted gradient wash from the top reward's tier. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{ background: `linear-gradient(160deg, ${rt.color}1f 0%, transparent 55%)` }}
+      />
       <div className="relative flex items-start gap-3">
         {/* The CASE COVER (box art) — the storefront is a wall of real boxes.
             The dream reward is named in the text beside it ("можно выиграть X").
@@ -47,7 +55,7 @@ export function CaseTile({
           size="md"
         />
         <div className="min-w-0 flex-1">
-          <h3 className="line-clamp-1 text-sm font-bold text-foreground">{c.name}</h3>
+          <h3 className="line-clamp-1 text-sm font-extrabold tracking-tight text-foreground">{c.name}</h3>
           {/* «Ты можешь выиграть …» — ведём мечтой, а не числом наград. */}
           {top ? (
             <p className="mt-0.5 line-clamp-1 text-[11px]">
@@ -73,8 +81,15 @@ export function CaseTile({
         </p>
       )}
 
-      {/* Cost CTA — one accent (primary), neutral language. */}
-      <span className="relative mt-0.5 flex items-center justify-center gap-1 rounded-xl border border-primary/40 bg-primary/10 py-2 text-xs font-bold text-primary transition group-hover:bg-primary/15">
+      {/* Cost CTA — tinted in the case's top-rarity color. */}
+      <span
+        className="relative mt-0.5 flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-bold transition"
+        style={{
+          color: rt.color,
+          borderColor: `${rt.color}66`,
+          backgroundColor: `${rt.color}1a`,
+        }}
+      >
         Открыть · {caseCostShort(c)}
       </span>
     </button>
