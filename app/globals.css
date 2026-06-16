@@ -93,6 +93,23 @@
     background-color: transparent;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Native <select> dropdowns. The app theme is dark with white text, but a
+     native <option> popup is painted by the OS/browser using its own surface —
+     on most platforms that surface is WHITE, so white option text became
+     invisible until hovered (reported across every builder dropdown). Pin the
+     option list to the dark popover surface with light text so choices are
+     always readable. `color-scheme: dark` also fixes the native scrollbar +
+     checkmark colors inside the list. */
+  select {
+    color-scheme: dark;
+  }
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
 }
 
 @layer utilities {

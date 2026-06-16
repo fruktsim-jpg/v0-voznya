@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: firstZodError(parsed.error) }, { status: 400 })
   }
   const f = parsed.data
+  // Optional id (not part of the slot schema): present ⇒ edit an existing slot,
+  // absent ⇒ create. Keeps a single authoring endpoint for both flows.
+  const editId = Number((raw as { id?: unknown }).id)
+  const isEdit = Number.isFinite(editId) && editId > 0
   const ip = ipOf(req)
 
   try {
@@ -67,32 +71,62 @@ export async function POST(req: NextRequest) {
       const exec = async <T extends Record<string, unknown>>(text: string, p?: unknown[]) =>
         (await client.query(text, p as never[])).rows as T[]
 
-      const rows = await exec<{ id: number }>(
-        `INSERT INTO featured_slots
-           (surface, ref_type, ref_code, title, subtitle, priority, status,
-            available_from, available_until, created_by, updated_by,
-            created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10, now(), now())
-         RETURNING id`,
-        [
-          f.surface,
-          f.refType,
-          f.refCode,
-          f.title,
-          f.subtitle,
-          f.priority,
-          f.status,
-          f.availableFrom,
-          f.availableUntil,
-          session.uid,
-        ],
-      )
-      const id = rows[0].id
+      let id: number
+      if (isEdit) {
+        const upd = await exec<{ id: number }>(
+          `UPDATE featured_slots SET
+              surface = $2, ref_type = $3, ref_code = $4, title = $5,
+              subtitle = $6, priority = $7, status = $8,
+              available_from = $9, available_until = $10,
+              updated_by = $11, updated_at = now()
+            WHERE id = $1
+            RETURNING id`,
+          [
+            editId,
+            f.surface,
+            f.refType,
+            f.refCode,
+            f.title,
+            f.subtitle,
+            f.priority,
+            f.status,
+            f.availableFrom,
+            f.availableUntil,
+            session.uid,
+          ],
+        )
+        if (upd.length === 0) {
+          throw Object.assign(new Error('slot not found'), { http: 404 })
+        }
+        id = upd[0].id
+      } else {
+        const rows = await exec<{ id: number }>(
+          `INSERT INTO featured_slots
+             (surface, ref_type, ref_code, title, subtitle, priority, status,
+              available_from, available_until, created_by, updated_by,
+              created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10, now(), now())
+           RETURNING id`,
+          [
+            f.surface,
+            f.refType,
+            f.refCode,
+            f.title,
+            f.subtitle,
+            f.priority,
+            f.status,
+            f.availableFrom,
+            f.availableUntil,
+            session.uid,
+          ],
+        )
+        id = rows[0].id
+      }
       await writeAudit(
         {
           actorUserId: session.uid,
           actorRole: session.role,
-          action: 'featured.create',
+          action: isEdit ? 'featured.update' : 'featured.create',
           targetType: 'featured_slot',
           targetId: String(id),
           meta: { surface: f.surface, refType: f.refType, refCode: f.refCode, status: f.status },
@@ -100,7 +134,7 @@ export async function POST(req: NextRequest) {
         },
         exec,
       )
-      return { id }
+      return { id, isEdit }
     })
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {

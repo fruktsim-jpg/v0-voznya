@@ -7,6 +7,7 @@ import {
   type SeasonActionResult,
 } from './actions'
 import type { FinalizeWinner } from '@/lib/season'
+import { AdminModal } from '@/components/admin/kit'
 
 interface ActiveSeason {
   id: number
@@ -41,10 +42,6 @@ export function SeasonManager({
   }
 
   function handleFinalize() {
-    if (!confirmFinal) {
-      setConfirmFinal(true)
-      return
-    }
     setConfirmFinal(false)
     setResult(null)
     setWinners(null)
@@ -98,28 +95,12 @@ export function SeasonManager({
                 дивизиону и выдаются сезонные титулы, сезон закрывается.
               </p>
               <button
-                onClick={handleFinalize}
+                onClick={() => setConfirmFinal(true)}
                 disabled={pending}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  confirmFinal
-                    ? 'bg-rose-500 text-white hover:bg-rose-600'
-                    : 'border border-rose-400/40 bg-rose-400/[0.08] text-rose-200 hover:bg-rose-400/[0.15]'
-                } disabled:opacity-50`}
+                className="rounded-full border border-rose-400/40 bg-rose-400/[0.08] px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/[0.15] disabled:opacity-50"
               >
-                {pending
-                  ? 'Завершаю…'
-                  : confirmFinal
-                    ? 'Точно завершить? Нажми ещё раз'
-                    : '🏁 Завершить сезон'}
+                {pending ? 'Завершаю…' : '🏁 Завершить сезон'}
               </button>
-              {confirmFinal && (
-                <button
-                  onClick={() => setConfirmFinal(false)}
-                  className="ml-2 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-white/[0.04]"
-                >
-                  Отмена
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -195,6 +176,20 @@ export function SeasonManager({
           </table>
         </div>
       )}
+
+      <AdminModal
+        open={confirmFinal}
+        title="Завершить сезон?"
+        tone="danger"
+        confirmLabel={pending ? 'Завершаю…' : 'Завершить и раздать'}
+        busy={pending}
+        onClose={() => !pending && setConfirmFinal(false)}
+        onConfirm={handleFinalize}
+      >
+        Действие необратимо: всем игрокам из топа начислятся ешки по дивизиону и
+        выдадутся сезонные титулы, после чего сезон{' '}
+        <span className="font-semibold text-foreground">{active?.name}</span> закроется.
+      </AdminModal>
     </div>
   )
 }

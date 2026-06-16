@@ -56,6 +56,20 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   const timers = useRef<number[]>([])
   const rafs = useRef<number[]>([])
   const mounted = useRef(true)
+  // Anchor for the opening surface. On mobile the case detail sheet leads with a
+  // tall hero + rarity profile, so the reel/reveal render BELOW the fold and the
+  // player had to scroll down to see their own open. We scroll this into view on
+  // each phase change so the action is always centered.
+  const anchorRef = useRef<HTMLDivElement>(null)
+
+  const scrollIntoView = useCallback(() => {
+    const el = anchorRef.current
+    if (!el) return
+    // rAF so layout has settled after the phase swap before we measure.
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
 
   // Session-local duplicate tally: how many of each reward code we've seen in
   // THIS opening session. Pure UX hint — ownership truth stays in the inventory.
@@ -67,7 +81,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
 
   // Inline share state (for the calm reveals that don't trigger the full-screen
   // moment — every win is still shareable from the afterglow).
-  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared'>('idle')
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared' | 'failed'>('idle')
 
   const onShareInline = useCallback(async () => {
     if (!won || shareState === 'sharing') return
@@ -81,6 +95,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
     })
     if (res === 'copied') setShareState('copied')
     else if (res === 'shared') setShareState('shared')
+    else if (res === 'unavailable') setShareState('failed')
     else setShareState('idle')
   }, [won, shareState, c.name])
 
@@ -132,6 +147,8 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
 
     fx.sound('open')
     fx.tap('medium')
+    // Bring the reel into view immediately (mobile: it's below the hero fold).
+    scrollIntoView()
 
     try {
       const res = await fetch('/api/cases/open', {
@@ -187,6 +204,9 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
         setWon(w)
         setPhase('revealed')
         fx.reveal(w.rarity, w.isJackpot || w.isPremium)
+        // Keep the result centered on mobile (the reveal block replaces the reel
+        // and is taller — without this it can land partly below the fold).
+        scrollIntoView()
 
         // A3: only BIG drops earn a full-screen MOMENT (epic+ / jackpot /
         // premium). Common/rare keep the calm inline reveal — anti-fatigue.
@@ -226,13 +246,14 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
       setPhase('error')
       busy.current = false
     }
-  }, [c.itemCode, pool, fx, reducedMotion, celebrate])
+  }, [c.itemCode, c.name, pool, fx, reducedMotion, celebrate, scrollIntoView])
 
   // ---- REVEAL ----
   if (phase === 'revealed' && won) {
     const isCurrency = won.kind === 'currency'
     return (
       <div className="space-y-3">
+        <div ref={anchorRef} className="scroll-mt-20" aria-hidden="true" />
         <RewardReveal
           won={won}
           duplicate={dupInfo.duplicate}
@@ -281,7 +302,9 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
                 ? 'Отправлено'
                 : shareState === 'sharing'
                   ? '…'
-                  : 'Поделиться'}
+                  : shareState === 'failed'
+                    ? 'Не удалось'
+                    : 'Поделиться'}
           </button>
           <button
             onClick={open}
@@ -311,6 +334,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   if (phase === 'spinning') {
     return (
       <div className="space-y-3">
+        <div ref={anchorRef} className="scroll-mt-20" aria-hidden="true" />
         <CaseRoulette
           reel={reel}
           spinning={spinning}
@@ -328,6 +352,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   // ---- IDLE / ERROR ----
   return (
     <div className="space-y-2">
+      <div ref={anchorRef} className="scroll-mt-20" aria-hidden="true" />
       <button
         onClick={open}
         className="case-cta-pulse w-full rounded-2xl border border-primary/50 bg-primary/15 py-3 text-sm font-bold text-primary transition hover:bg-primary/25 active:scale-[0.98]"

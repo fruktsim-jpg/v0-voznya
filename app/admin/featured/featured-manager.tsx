@@ -61,11 +61,35 @@ export function FeaturedManager({
 }) {
   const [slots, setSlots] = useState<AdminFeaturedSlot[]>(initialSlots)
   const [form, setForm] = useState({ ...EMPTY })
+  const [editId, setEditId] = useState<number | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
   const { run, busy, msg, setMsg } = useAdminMutation()
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
+
+  function startEdit(s: AdminFeaturedSlot) {
+    setEditId(s.id)
+    setForm({
+      surface: s.surface,
+      refType: s.ref_type,
+      refCode: s.ref_code,
+      title: s.title ?? '',
+      subtitle: s.subtitle ?? '',
+      priority: String(s.priority),
+      // Guard against a NULL/blank status downgrading on save (same class of bug
+      // we fixed in gifts/cases): fall back to the slot's own status.
+      status: (s.status as ContentStatus) || 'draft',
+    })
+    setMsg(null)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEdit() {
+    setEditId(null)
+    setForm({ ...EMPTY })
+    setMsg(null)
+  }
 
   async function reload() {
     const d = await run<{ slots: AdminFeaturedSlot[] }>('/api/admin/featured', { method: 'GET' })
@@ -91,10 +115,11 @@ export function FeaturedManager({
     }
     const d = await run('/api/admin/featured', {
       method: 'POST',
-      json: payload,
-      success: 'Слот создан.',
+      json: editId ? { ...payload, id: editId } : payload,
+      success: editId ? 'Слот обновлён.' : 'Слот создан.',
     })
     if (d) {
+      setEditId(null)
       setForm({ ...EMPTY })
       reload()
     }
@@ -122,6 +147,16 @@ export function FeaturedManager({
     <div className="space-y-6">
       {canManage && (
         <div className="glass rounded-2xl border border-border p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              {editId ? `Редактирование слота #${editId}` : 'Новый слот'}
+            </h3>
+            {editId && (
+              <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-medium text-primary">
+                режим правки
+              </span>
+            )}
+          </div>
           <AdminForm onSubmit={submit}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Поверхность" required>
@@ -151,7 +186,17 @@ export function FeaturedManager({
               />
             </Field>
             <div className="flex items-center gap-3">
-              <SubmitButton busy={busy}>Создать слот</SubmitButton>
+              <SubmitButton busy={busy}>{editId ? 'Сохранить слот' : 'Создать слот'}</SubmitButton>
+              {editId && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  disabled={busy}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground disabled:opacity-50"
+                >
+                  Отменить
+                </button>
+              )}
               <Feedback msg={msg} />
             </div>
           </AdminForm>
@@ -195,13 +240,22 @@ export function FeaturedManager({
               compact
             />
             {canManage && (
-              <button
-                onClick={() => setConfirmDelete(s.id)}
-                disabled={busy}
-                className="rounded-lg px-2.5 py-1 text-xs font-medium text-destructive-foreground/80 transition hover:bg-destructive/10 disabled:opacity-50"
-              >
-                Удалить
-              </button>
+              <>
+                <button
+                  onClick={() => startEdit(s)}
+                  disabled={busy}
+                  className="rounded-lg border border-primary/40 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/15 disabled:opacity-50"
+                >
+                  Изменить
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(s.id)}
+                  disabled={busy}
+                  className="rounded-lg px-2.5 py-1 text-xs font-medium text-destructive-foreground/80 transition hover:bg-destructive/10 disabled:opacity-50"
+                >
+                  Удалить
+                </button>
+              </>
             )}
           </>
         )}

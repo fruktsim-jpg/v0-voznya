@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ItemArt } from '@/components/ds/item-art'
 import type { Rarity } from '@/lib/rarity'
 import { RARITY_ORDER } from '@/lib/rarity'
@@ -93,6 +93,19 @@ export function ItemBuilder({
   const [editingCode, setEditingCode] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  // Catalog grows fastest of all admin lists — a name/code filter keeps it usable.
+  const [query, setQuery] = useState('')
+
+  const visibleItems = useMemo(() => {
+    const s = query.trim().toLowerCase()
+    if (!s) return items
+    return items.filter(
+      (it) =>
+        it.name.toLowerCase().includes(s) ||
+        it.code.toLowerCase().includes(s) ||
+        it.item_class.toLowerCase().includes(s),
+    )
+  }, [items, query])
   const { run, busy, msg, setMsg } = useAdminMutation()
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
@@ -383,9 +396,19 @@ export function ItemBuilder({
 
       <DataTable<AdminItem>
         title="Предметы"
-        rows={items}
+        rows={visibleItems}
         rowKey={(it) => it.code}
-        empty="Пока нет предметов. Создай первый выше."
+        empty={query.trim() ? 'Ничего не найдено по запросу.' : 'Пока нет предметов. Создай первый выше.'}
+        toolbar={
+          items.length > 6 ? (
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск по названию, коду или классу…"
+              className="w-full max-w-xs rounded-lg border border-border bg-white/[0.04] px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary/40"
+            />
+          ) : undefined
+        }
         leading={(it) => (
           <ItemArt
             src={

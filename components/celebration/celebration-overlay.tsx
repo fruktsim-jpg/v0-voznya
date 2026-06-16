@@ -64,7 +64,7 @@ export function CelebrationOverlay({
   const big = isBigMoment(c.tier)
   const shards = !reduced ? buildShards(shardCount(c.tier), t.color) : []
 
-  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared'>('idle')
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'copied' | 'shared' | 'failed'>('idle')
 
   async function onShare() {
     if (shareState === 'sharing') return
@@ -73,6 +73,7 @@ export function CelebrationOverlay({
     const res = await shareWin(payload)
     if (res === 'copied') setShareState('copied')
     else if (res === 'shared') setShareState('shared')
+    else if (res === 'unavailable') setShareState('failed')
     else setShareState('idle')
   }
 
@@ -206,7 +207,9 @@ export function CelebrationOverlay({
                   ? 'Отправлено'
                   : shareState === 'sharing'
                     ? '…'
-                    : 'Поделиться'}
+                    : shareState === 'failed'
+                      ? 'Не удалось'
+                      : 'Поделиться'}
             </button>
           )}
           <button

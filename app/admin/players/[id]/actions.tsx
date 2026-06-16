@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '@/lib/voznya-bot'
 import { rarityStyle, typeEmoji } from '@/lib/inventory'
+import { AdminModal } from '@/components/admin/kit'
 
 
 type LiveStats = { balance: number; mmr: number | null; reputation: number | null }
@@ -196,6 +197,9 @@ function PointsCard({
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  // "Set balance" is the destructive path (overwrites, not deltas) — gate it
+  // behind AdminModal instead of a raw window.confirm.
+  const [confirmSet, setConfirmSet] = useState(false)
   const a = ACCENT[accent]
 
   async function send(value: number, direction: 'add' | 'remove' | 'set') {
@@ -207,9 +211,6 @@ function PointsCard({
     if (!valid) {
       setMsg({ ok: false, text: 'Введите корректное число.' })
       return
-    }
-    if (direction === 'set' && typeof window !== 'undefined') {
-      if (!window.confirm(`Установить ${title} = ${value.toLocaleString('ru-RU')}?`)) return
     }
     setBusy(true)
     setMsg(null)
@@ -301,13 +302,41 @@ function PointsCard({
         <button
           type="button"
           disabled={busy}
-          onClick={() => send(Number(amount), 'set')}
+          onClick={() => {
+            // Validate before opening the confirm so the modal only appears for
+            // a real target value.
+            const v = Number(amount)
+            if (!Number.isInteger(v) || v < 0) {
+              setMsg({ ok: false, text: 'Введите корректное число.' })
+              return
+            }
+            setConfirmSet(true)
+          }}
           className="mt-2 w-full rounded-xl border border-sky-400/40 bg-sky-400/10 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-400/20 disabled:opacity-50"
         >
           Установить баланс = значению
         </button>
       )}
       <Feedback msg={msg} />
+
+      <AdminModal
+        open={confirmSet}
+        title={`Установить ${title}?`}
+        tone="danger"
+        confirmLabel={busy ? '…' : 'Установить'}
+        busy={busy}
+        onClose={() => !busy && setConfirmSet(false)}
+        onConfirm={async () => {
+          setConfirmSet(false)
+          await send(Number(amount), 'set')
+        }}
+      >
+        {title} будет перезаписан на{' '}
+        <span className="font-semibold text-foreground">
+          {Number(amount || 0).toLocaleString('ru-RU')}
+        </span>{' '}
+        ({unit}). Это перезапись значения, а не начисление.
+      </AdminModal>
     </div>
   )
 }

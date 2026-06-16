@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ContentStatus } from '@/lib/admin/lifecycle'
 import { CONTENT_STATUSES } from '@/lib/admin/lifecycle'
 import { collectionSchema } from '@/lib/admin/schemas'
@@ -61,7 +61,16 @@ export function CollectionsManager({
   const [form, setForm] = useState({ ...EMPTY })
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const { run, busy, msg, setMsg } = useAdminMutation()
+
+  const visibleCollections = useMemo(() => {
+    const s = query.trim().toLowerCase()
+    if (!s) return collections
+    return collections.filter(
+      (c) => c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s),
+    )
+  }, [collections, query])
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
@@ -79,7 +88,9 @@ export function CollectionsManager({
       kind: c.kind,
       seasonCode: c.season_code ?? '',
       sortOrder: String(c.sort_order),
-      status: c.status as ContentStatus,
+      // Guard a blank/unknown status from defaulting to 'draft' on save (the
+      // same downgrade class fixed in gifts/cases).
+      status: (c.status as ContentStatus) || 'draft',
     })
     setEditing(true)
     setMsg(null)
@@ -184,9 +195,19 @@ export function CollectionsManager({
 
       <DataTable<AdminCollection>
         title="Коллекции"
-        rows={collections}
+        rows={visibleCollections}
         rowKey={(c) => c.code}
-        empty="Пока нет коллекций."
+        empty={query.trim() ? 'Ничего не найдено по запросу.' : 'Пока нет коллекций.'}
+        toolbar={
+          collections.length > 6 ? (
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск по названию или коду…"
+              className="w-full max-w-xs rounded-lg border border-border bg-white/[0.04] px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary/40"
+            />
+          ) : undefined
+        }
         columns={[
           {
             key: 'name',

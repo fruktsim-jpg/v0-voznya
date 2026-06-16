@@ -25,6 +25,7 @@ export function DataTable<T>({
   leading,
   actions,
   empty = 'Пока пусто.',
+  toolbar,
 }: {
   title?: string
   rows: T[]
@@ -35,12 +36,19 @@ export function DataTable<T>({
   /** Optional trailing actions cell. */
   actions?: (row: T) => ReactNode
   empty?: string
+  /** Optional controls rendered in the header (e.g. a search box / filters). */
+  toolbar?: ReactNode
 }) {
   return (
     <div className="glass overflow-hidden rounded-2xl border border-border">
-      {title && (
-        <div className="border-b border-white/5 px-4 py-2 text-xs font-medium text-muted-foreground">
-          {title} ({rows.length})
+      {(title || toolbar) && (
+        <div className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-2">
+          {title && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {title} ({rows.length})
+            </span>
+          )}
+          {toolbar && <div className="flex min-w-0 items-center gap-2">{toolbar}</div>}
         </div>
       )}
       {rows.length === 0 ? (

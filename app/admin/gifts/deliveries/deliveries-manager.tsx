@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { AdminModal } from '@/components/admin/kit'
 
 /**
  * Gift deliveries admin manager (client) — the delivery CENTER (Admin V2 P0).
@@ -158,13 +159,6 @@ export function DeliveriesManager({
 
   async function act(d: AdminDelivery, action: 'complete' | 'refund' | 'retry') {
     if (busy) return
-    const verb =
-      action === 'complete'
-        ? 'отметить выданным'
-        : action === 'refund'
-          ? 'вернуть ешки и отменить'
-          : 'попробовать выдать ещё раз через бота'
-    if (typeof window !== 'undefined' && !window.confirm(`Точно ${verb}?`)) return
     setBusy(true)
     setMsg(null)
     try {
@@ -196,6 +190,23 @@ export function DeliveriesManager({
     } finally {
       setBusy(false)
     }
+  }
+
+  // Confirm gate (replaces window.confirm) — these mutate balances/inventory, so
+  // they go through AdminModal like the gifts/cases delete confirms.
+  const [pending, setPending] = useState<{ d: AdminDelivery; action: 'complete' | 'refund' | 'retry' } | null>(null)
+  const confirmText = (action: 'complete' | 'refund' | 'retry') =>
+    action === 'complete'
+      ? 'Отметить подарок выданным вручную? Статус сменится на «выдан».'
+      : action === 'refund'
+        ? 'Вернуть ешки игроку и отменить выдачу? Это движение баланса (необратимо).'
+        : 'Попробовать выдать ещё раз через бота?'
+
+  async function runPending() {
+    if (!pending) return
+    const { d, action } = pending
+    setPending(null)
+    await act(d, action)
   }
 
   const statCards: { label: string; value: number; tone: string }[] = stats
@@ -372,7 +383,7 @@ export function DeliveriesManager({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => act(d, 'retry')}
+                      onClick={() => setPending({ d, action: 'retry' })}
                       className="rounded-lg border border-primary/40 px-2.5 py-1 text-[11px] text-primary transition hover:bg-primary/15 disabled:opacity-50"
                     >
                       Повторить
@@ -380,7 +391,7 @@ export function DeliveriesManager({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => act(d, 'complete')}
+                      onClick={() => setPending({ d, action: 'complete' })}
                       className="rounded-lg border border-emerald-400/40 px-2.5 py-1 text-[11px] text-emerald-300 transition hover:bg-emerald-400/10 disabled:opacity-50"
                     >
                       Выдан
@@ -388,7 +399,7 @@ export function DeliveriesManager({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => act(d, 'refund')}
+                      onClick={() => setPending({ d, action: 'refund' })}
                       className="rounded-lg border border-destructive/40 px-2.5 py-1 text-[11px] text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
                     >
                       Возврат
@@ -408,6 +419,24 @@ export function DeliveriesManager({
           })}
         </div>
       )}
+
+      <AdminModal
+        open={pending !== null}
+        title={
+          pending?.action === 'refund'
+            ? 'Вернуть и отменить?'
+            : pending?.action === 'complete'
+              ? 'Отметить выданным?'
+              : 'Повторить выдачу?'
+        }
+        tone={pending?.action === 'refund' ? 'danger' : 'default'}
+        confirmLabel={busy ? '…' : 'Подтвердить'}
+        busy={busy}
+        onClose={() => !busy && setPending(null)}
+        onConfirm={runPending}
+      >
+        {pending && confirmText(pending.action)}
+      </AdminModal>
     </div>
   )
 }

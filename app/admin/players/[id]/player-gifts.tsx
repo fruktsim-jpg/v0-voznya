@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AdminModal } from '@/components/admin/kit'
 
 /**
  * Player gift deliveries block (client). Shows a player's gift purchases and
@@ -54,8 +55,6 @@ export function PlayerGifts({
 
   async function act(key: string, action: 'complete' | 'refund') {
     if (busy) return
-    const verb = action === 'complete' ? 'отметить выданным' : 'вернуть ешки и отменить'
-    if (typeof window !== 'undefined' && !window.confirm(`Точно ${verb}?`)) return
     setBusy(true)
     setMsg(null)
     try {
@@ -79,6 +78,15 @@ export function PlayerGifts({
     } finally {
       setBusy(false)
     }
+  }
+
+  // Confirm gate (replaces window.confirm) — these move balances/inventory.
+  const [pending, setPending] = useState<{ key: string; action: 'complete' | 'refund' } | null>(null)
+  async function runPending() {
+    if (!pending) return
+    const { key, action } = pending
+    setPending(null)
+    await act(key, action)
   }
 
   return (
@@ -125,7 +133,7 @@ export function PlayerGifts({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => act(g.idempotency_key, 'complete')}
+                  onClick={() => setPending({ key: g.idempotency_key, action: 'complete' })}
                   className="rounded-lg border border-emerald-400/40 px-2.5 py-1 text-[11px] text-emerald-300 transition hover:bg-emerald-400/10 disabled:opacity-50"
                 >
                   Выдан
@@ -133,7 +141,7 @@ export function PlayerGifts({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => act(g.idempotency_key, 'refund')}
+                  onClick={() => setPending({ key: g.idempotency_key, action: 'refund' })}
                   className="rounded-lg border border-destructive/40 px-2.5 py-1 text-[11px] text-destructive-foreground transition hover:bg-destructive/20 disabled:opacity-50"
                 >
                   Возврат
@@ -143,6 +151,20 @@ export function PlayerGifts({
           </div>
         ))
       )}
+
+      <AdminModal
+        open={pending !== null}
+        title={pending?.action === 'refund' ? 'Вернуть и отменить?' : 'Отметить выданным?'}
+        tone={pending?.action === 'refund' ? 'danger' : 'default'}
+        confirmLabel={busy ? '…' : 'Подтвердить'}
+        busy={busy}
+        onClose={() => !busy && setPending(null)}
+        onConfirm={runPending}
+      >
+        {pending?.action === 'refund'
+          ? 'Вернуть ешки игроку и отменить выдачу подарка? Это движение баланса (необратимо).'
+          : 'Отметить подарок выданным вручную?'}
+      </AdminModal>
     </div>
   )
 }
