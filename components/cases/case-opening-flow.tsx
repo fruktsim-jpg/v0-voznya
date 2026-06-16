@@ -61,6 +61,11 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
   // player had to scroll down to see their own open. We scroll this into view on
   // each phase change so the action is always centered.
   const anchorRef = useRef<HTMLDivElement>(null)
+  // A second anchor at the BOTTOM of the reveal. A gift win is the tallest state
+  // (adds "Судьба подарка" + Keep/Sell/Withdraw), so centering the top anchor
+  // still left its actions below the fold. We align this end-anchor into view so
+  // the whole result — including its buttons — is reachable without scrolling.
+  const endRef = useRef<HTMLDivElement>(null)
 
   const scrollIntoView = useCallback(() => {
     const el = anchorRef.current
@@ -68,6 +73,30 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
     // rAF so layout has settled after the phase swap before we measure.
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
+
+  // Reveal scroll: prefer showing the END of the result (its actions). If the
+  // block is taller than the viewport, fall back to aligning its TOP so the
+  // reward art isn't cut off. Two rAFs so the new (taller) reveal DOM is laid
+  // out before we measure.
+  const scrollRevealIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const top = anchorRef.current
+        const end = endRef.current
+        if (!end || !top) {
+          top?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          return
+        }
+        const blockHeight = end.getBoundingClientRect().bottom - top.getBoundingClientRect().top
+        const fits = blockHeight <= window.innerHeight * 0.9
+        if (fits) {
+          end.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        } else {
+          top.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
     })
   }, [])
 
@@ -204,9 +233,10 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
         setWon(w)
         setPhase('revealed')
         fx.reveal(w.rarity, w.isJackpot || w.isPremium)
-        // Keep the result centered on mobile (the reveal block replaces the reel
-        // and is taller — without this it can land partly below the fold).
-        scrollIntoView()
+        // Bring the whole result (incl. its actions / gift fate) into view. A
+        // gift win is taller than the reel, so a plain center-scroll left the
+        // buttons below the fold (reported for gift drops).
+        scrollRevealIntoView()
 
         // A3: only BIG drops earn a full-screen MOMENT (epic+ / jackpot /
         // premium). Common/rare keep the calm inline reveal — anti-fatigue.
@@ -246,7 +276,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
       setPhase('error')
       busy.current = false
     }
-  }, [c.itemCode, c.name, pool, fx, reducedMotion, celebrate, scrollIntoView])
+  }, [c.itemCode, c.name, pool, fx, reducedMotion, celebrate, scrollIntoView, scrollRevealIntoView])
 
   // ---- REVEAL ----
   if (phase === 'revealed' && won) {
@@ -326,6 +356,9 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
             Открыть хранилище
           </a>
         )}
+        {/* End-of-result anchor — scrollRevealIntoView aligns this into view so
+            the actions above (incl. gift fate) are always reachable. */}
+        <div ref={endRef} className="scroll-mb-20" aria-hidden="true" />
       </div>
     )
   }
