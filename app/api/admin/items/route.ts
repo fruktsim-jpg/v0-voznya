@@ -45,15 +45,11 @@ export async function GET() {
   }
   try {
     const items = await query(
-      // Gifts (type='gift') and cases (type='case') have their own studios
-      // (Gift Studio / Cases). Editing them here as plain items would desync
-      // gift_catalog / case_definitions, so the Item Builder archive hides them.
       `SELECT code, name, description, type AS item_class, rarity,
               collection_code, series_total, is_limited, max_supply,
               transferable, stackable, status, asset_code, featured_slot,
               available_from, available_until, updated_at
          FROM inventory_items
-        WHERE type NOT IN ('gift', 'case')
         ORDER BY updated_at DESC NULLS LAST, name`,
     )
     return NextResponse.json({ items })
