@@ -166,14 +166,26 @@ export async function getSeasonLeaderboard(
 export async function getDivisionCounts(): Promise<
   { division: Division; players: number }[]
 > {
-  const rows = await query<{ user_id: number; season_mmr: number }>(
-    `SELECT user_id, season_mmr FROM users WHERE season_mmr > 0`,
+  // Бакетим в одном SQL: CASE по порогам дивизионов (от высокого к низкому)
+  // + GROUP BY, вместо выборки всех игроков и подсчёта в JS. Пороги берём из
+  // DIVISIONS — источник правды (зеркало app/settings/season.py).
+  const ordered = [...DIVISIONS].sort((a, b) => b.minMmr - a.minMmr)
+  const caseExpr = ordered
+    .map((d) => `WHEN season_mmr >= ${d.minMmr} THEN '${d.name}'`)
+    .join('\n        ')
+
+  const rows = await query<{ division: string; players: string }>(
+    `SELECT CASE
+        ${caseExpr}
+      END AS division,
+      COUNT(*)::text AS players
+       FROM users
+      WHERE season_mmr > 0
+      GROUP BY 1`,
   )
-  const counts = new Map<string, number>()
-  for (const r of rows) {
-    const d = getDivision(r.season_mmr)
-    counts.set(d.name, (counts.get(d.name) ?? 0) + 1)
-  }
+  const counts = new Map<string, number>(
+    rows.map((r) => [r.division, Number(r.players)]),
+  )
   return DIVISIONS.map((d) => ({
     division: d,
     players: counts.get(d.name) ?? 0,
@@ -184,10 +196,19 @@ export async function getDivisionCounts(): Promise<
 export async function getSeasonProfile(
   userId: number,
 ): Promise<SeasonProfile> {
-  const mmrRows = await query<{ season_mmr: number }>(
-    `SELECT season_mmr FROM users WHERE user_id = $1`,
-    [userId],
-  )
+  // mmrRows and titleRows are independent (both keyed only by userId) → run
+  // concurrently. rankRows is NOT independent: it filters on `season_mmr > $1`
+  // where $1 is the seasonMmr derived from mmrRows, so it must run after.
+  const [mmrRows, titleRows] = await Promise.all([
+    query<{ season_mmr: number }>(
+      `SELECT season_mmr FROM users WHERE user_id = $1`,
+      [userId],
+    ),
+    query<{ code: string }>(
+      `SELECT code FROM season_titles WHERE player_id = $1 ORDER BY awarded_at DESC`,
+      [userId],
+    ),
+  ])
   const seasonMmr = mmrRows[0]?.season_mmr ?? 0
 
   const rankRows = await query<{ rank: number }>(
@@ -197,11 +218,6 @@ export async function getSeasonProfile(
     [seasonMmr],
   )
   const rank = seasonMmr > 0 ? Number(rankRows[0]?.rank ?? 0) : null
-
-  const titleRows = await query<{ code: string }>(
-    `SELECT code FROM season_titles WHERE player_id = $1 ORDER BY awarded_at DESC`,
-    [userId],
-  )
 
   return {
     seasonMmr,

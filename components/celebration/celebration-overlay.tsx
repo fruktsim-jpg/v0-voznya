@@ -150,7 +150,7 @@ export function CelebrationOverlay({
           >
             {c.art ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.art} alt="" className="h-16 w-16 object-contain" />
+              <img src={c.art} alt="" loading="lazy" decoding="async" className="h-16 w-16 object-contain" />
             ) : (
               <span aria-hidden="true">{c.glyph ?? '🎉'}</span>
             )}

@@ -145,6 +145,10 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
             src={data.photoUrl}
             alt=""
             referrerPolicy="no-referrer"
+            loading="lazy"
+            decoding="async"
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full object-cover shadow-inner ring-1 ring-white/15 transition group-hover:ring-primary/40"
           />
         ) : (
@@ -189,6 +193,10 @@ export function UserMenu({ botId, oidcEnabled }: UserMenuProps = {}) {
                   src={data.photoUrl}
                   alt=""
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
+                  width={44}
+                  height={44}
                   className="h-11 w-11 rounded-full object-cover ring-1 ring-white/15"
                 />
               ) : (

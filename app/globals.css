@@ -596,3 +596,49 @@
     radial-gradient(120% 80% at 50% -10%, rgba(221, 108, 151, 0.05), transparent 55%),
     linear-gradient(180deg, #0d0b0f 0%, #0c0a0e 55%, #0a090c 100%);
 }
+
+/* ============================================================================
+   VOZNYA PARTICLES (landing hero ambient drift)
+   Pure-CSS replacement for the former 26 framer-motion infinite loops. GPU-only
+   (transform/opacity), no animated box-shadow. Each particle rises and drifts via
+   custom props (--drift, --dur, --delay, --size, --left) set inline. Fully
+   disabled under prefers-reduced-motion.
+   ============================================================================ */
+@keyframes voznya-particle-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), -1100%, 0);
+    opacity: 0;
+  }
+}
+.voznya-particle {
+  position: absolute;
+  bottom: -10px;
+  left: var(--left, 50%);
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+  border-radius: 9999px;
+  background: rgba(139, 92, 246, 0.4);
+  /* Cheap static glow instead of per-frame animated box-shadow. */
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+  will-change: transform, opacity;
+  opacity: 0;
+  animation: voznya-particle-rise var(--dur, 16s) linear var(--delay, 0s) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voznya-particle {
+    animation: none !important;
+    display: none;
+  }
+}
+

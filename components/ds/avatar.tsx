@@ -44,6 +44,8 @@ export function Avatar({
           src={src}
           alt=""
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           className={cn(
             SIZES[size],
             'rounded-full object-cover shadow-inner ring-1 ring-white/15',

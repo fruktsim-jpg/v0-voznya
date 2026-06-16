@@ -41,8 +41,10 @@ export default async function InventoryPage() {
     )
   }
 
-  const view = await getInventory(session.uid)
-  const collections = await getPlayerCollections(session.uid)
+  const [view, collections] = await Promise.all([
+    getInventory(session.uid),
+    getPlayerCollections(session.uid),
+  ])
 
   return (
     <main className="relative min-h-svh overflow-x-hidden">

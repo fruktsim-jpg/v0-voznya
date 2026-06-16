@@ -80,7 +80,7 @@ export function CelebrationMini({
         >
           {c.art ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={c.art} alt="" className="size-7 object-contain" />
+            <img src={c.art} alt="" loading="lazy" decoding="async" className="size-7 object-contain" />
           ) : (
             <span>{c.glyph ?? '✦'}</span>
           )}

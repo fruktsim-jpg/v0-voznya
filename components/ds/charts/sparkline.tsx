@@ -10,13 +10,13 @@ export function Sparkline({
   data,
   yKey = 'value',
   color = 'var(--primary)',
-  width = 96,
+  width = '100%',
   height = 32,
 }: {
   data: Array<Record<string, number | string>>
   yKey?: string
   color?: string
-  width?: number
+  width?: number | string
   height?: number
 }) {
   const gradId = `spark-${yKey}-${color.replace(/[^a-z0-9]/gi, '')}`

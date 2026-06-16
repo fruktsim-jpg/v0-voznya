@@ -1,12 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 
 type State<T> = {
   data: T | null
   loading: boolean
   error: boolean
 }
+
+/**
+ * Polling-visibility context. Defaults to `true` (active), so `useApi` keeps its
+ * normal behaviour everywhere it is used WITHOUT a provider (shop, home, etc).
+ * `LiveTabs` wraps each tab's content in `ApiPollingProvider value={isActive}`,
+ * so panels living in a HIDDEN tab automatically pause their polling (and skip
+ * the initial fetch) until the tab is shown — no prop threading required. The
+ * SWR cache is untouched, so re-activating a tab renders its last data instantly.
+ */
+const ApiPollingContext = createContext<boolean>(true)
+export const ApiPollingProvider = ApiPollingContext.Provider
+
 
 /**
  * Tiny client-side fetch hook with optional polling for the live dashboard.
@@ -38,7 +50,11 @@ function fetchShared<T>(url: string): Promise<T> {
   return p as Promise<T>
 }
 
-export function useApi<T>(url: string, pollMs = 0): State<T> {
+export function useApi<T>(
+  url: string,
+  pollMs = 0,
+  options?: { enabled?: boolean },
+): State<T> {
   const cached = CACHE.get(url)?.data as T | undefined
   const [state, setState] = useState<State<T>>({
     data: cached ?? null,
@@ -46,7 +62,13 @@ export function useApi<T>(url: string, pollMs = 0): State<T> {
     error: false,
   })
 
+  // Pause when explicitly disabled OR when the surrounding tab is hidden. An
+  // explicit `enabled` option always wins over the context.
+  const tabActive = useContext(ApiPollingContext)
+  const enabled = options?.enabled ?? tabActive
+
   useEffect(() => {
+    if (!enabled) return
     let alive = true
 
     // Show cached data immediately, then revalidate in the background.
@@ -73,7 +95,7 @@ export function useApi<T>(url: string, pollMs = 0): State<T> {
       alive = false
       if (timer) clearInterval(timer)
     }
-  }, [url, pollMs])
+  }, [url, pollMs, enabled])
 
   return state
 }

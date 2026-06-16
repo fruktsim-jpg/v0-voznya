@@ -263,6 +263,8 @@ export function PlayerCard({
                 <img
                   src={profile.photoUrl}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (

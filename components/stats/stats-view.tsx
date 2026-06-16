@@ -54,8 +54,8 @@ function MetricCard({ m, color }: { m: GrowthMetric; color: string }) {
         <DeltaBadge m={m} />
       </div>
       {m.series.length > 1 && (
-        <div className="mt-2">
-          <Sparkline data={m.series} color={color} width={9999} height={40} />
+        <div className="mt-2 w-full">
+          <Sparkline data={m.series} color={color} height={40} />
         </div>
       )}
       <div className="mt-1 text-[10px] text-muted-foreground/70">за {m.series.length} дн.</div>

@@ -69,6 +69,12 @@ export function InventoryRedesign({
   const { favorites, isFavorite, toggle: toggleFav, reconcile: reconcileFav } = useFavorites()
   const showcase = useShowcase()
 
+  // Stable favorites lookup: a Set derived from the favorites array. Passing
+  // `favorite={favSet.has(id)}` (a plain boolean) to the memoized ItemCard means
+  // toggling one favorite re-renders only the affected card, not the whole grid
+  // (the previous `isFavorite` function identity changed on every toggle).
+  const favSet = useMemo(() => new Set(favorites), [favorites])
+
   // Derive the normalized view-model once per raw change.
   const items = useMemo(() => toInvItems(raw), [raw])
   const summary = useMemo(() => summarize(items, favorites.length), [items, favorites.length])
@@ -111,8 +117,8 @@ export function InventoryRedesign({
   }, [items])
 
   const visible = useMemo(
-    () => applyFilters(items, filters, isFavorite),
-    [items, filters, isFavorite],
+    () => applyFilters(items, filters, (id) => favSet.has(id)),
+    [items, filters, favSet],
   )
 
   const pinnedItems = useMemo(
@@ -212,7 +218,7 @@ export function InventoryRedesign({
             <ItemCard
               key={item.id}
               item={item}
-              favorite={isFavorite(item.id)}
+              favorite={favSet.has(item.id)}
               pinned={showcase.isPinned(item.id)}
               isNew={newIds.has(item.id)}
               onOpen={openItem}

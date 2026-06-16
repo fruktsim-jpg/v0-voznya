@@ -104,6 +104,10 @@ export default async function SettingsPage() {
                 src={photoUrl}
                 alt=""
                 referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-2xl object-cover ring-1 ring-white/15"
               />
             ) : (

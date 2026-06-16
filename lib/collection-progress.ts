@@ -78,22 +78,35 @@ export async function getPlayerCollections(userId: number): Promise<CollectionPr
     })
 
     // Ownership-rarity: how many players own every live piece of each set the
-    // player has started. Only computed for the started sets (small N).
-    for (const c of out) {
-      if (c.total <= 0) continue
+    // player has started. Computed for ALL started sets in ONE grouped query
+    // (count of players whose distinct owned live pieces reach the set's live
+    // total), instead of a per-collection round trip.
+    const startedCodes = out.filter((c) => c.total > 0).map((c) => c.code)
+    if (startedCodes.length > 0) {
       try {
-        const res = await query<{ n: string }>(
-          `SELECT COUNT(*)::text AS n FROM (
-             SELECT inv.user_id
+        const rarityRows = await query<{ collection_code: string; n: string }>(
+          `SELECT i.collection_code, COUNT(*)::text AS n FROM (
+             SELECT i.collection_code, inv.user_id
                FROM inventory inv
                JOIN inventory_items i ON i.code = inv.item_code
-              WHERE i.collection_code = $1 AND i.status IN (${liveList})
-              GROUP BY inv.user_id
-             HAVING COUNT(DISTINCT inv.item_code) >= $2
-           ) q`,
-          [c.code, c.total],
+              WHERE i.collection_code = ANY($1) AND i.status IN (${liveList})
+              GROUP BY i.collection_code, inv.user_id
+             HAVING COUNT(DISTINCT inv.item_code) >= (
+                SELECT COUNT(DISTINCT i2.code)
+                  FROM inventory_items i2
+                 WHERE i2.collection_code = i.collection_code
+                   AND i2.status IN (${liveList})
+             )
+           ) i
+           GROUP BY i.collection_code`,
+          [startedCodes],
         )
-        c.completedByPlayers = Number(res[0]?.n ?? 0) || 0
+        const completedByPlayers = new Map<string, number>(
+          rarityRows.map((r) => [r.collection_code, Number(r.n) || 0]),
+        )
+        for (const c of out) {
+          c.completedByPlayers = completedByPlayers.get(c.code) ?? 0
+        }
       } catch {
         /* keep 0 */
       }

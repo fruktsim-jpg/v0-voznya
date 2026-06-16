@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ActivityCard } from '@/components/v2/activity-card'
 import {
@@ -70,11 +70,6 @@ export function WorldPulse({
   seasonEndsAt,
 }: { events: CommunityEvent[] } & AnticipationInput) {
   const [filter, setFilter] = useState<EventFilterKey>('all')
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 30_000)
-    return () => clearInterval(id)
-  }, [])
 
   const codesByFilter = useMemo(() => {
     const map = new Map<EventFilterKey, readonly string[] | null>()

@@ -4,6 +4,8 @@
 // code must import them from `@/lib/mmr` directly.)
 import 'server-only'
 
+import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { query } from './db'
 import { ACHIEVEMENTS } from './voznya-bot'
 import { MMR_RANKS, mmrRank, type MmrRank } from './mmr'
@@ -35,6 +37,11 @@ export type CommunityStats = {
 }
 
 export async function getCommunityStats(): Promise<CommunityStats> {
+  return _getCommunityStats()
+}
+
+const _getCommunityStats = unstable_cache(
+  async (): Promise<CommunityStats> => {
   const rows = await query<{
     users: string
     esh: string | null
@@ -63,7 +70,10 @@ export async function getCommunityStats(): Promise<CommunityStats> {
     treasuresFound: Number(r.treasures ?? 0),
     marriages: Number(r.marriages),
   }
-}
+  },
+  ['community-stats'],
+  { revalidate: 30, tags: ['community-stats'] },
+)
 
 /**
  * Read-only existence check. Used by the auth layer to decide whether a
@@ -158,26 +168,33 @@ export type Economy = {
 }
 
 export async function getEconomy(): Promise<Economy> {
-  const agg = await query<{
-    treasury: string | null
-    avg: string | null
-    max: string | null
-    farmers: string
-  }>(
-    `SELECT
+  return _getEconomy()
+}
+
+const _getEconomy = unstable_cache(
+  async (): Promise<Economy> => {
+  const [agg, richestRows] = await Promise.all([
+    query<{
+      treasury: string | null
+      avg: string | null
+      max: string | null
+      farmers: string
+    }>(
+      `SELECT
        COALESCE(SUM(balance), 0) AS treasury,
        COALESCE(ROUND(AVG(balance)), 0) AS avg,
        COALESCE(MAX(balance), 0) AS max,
        (SELECT COUNT(*) FROM users WHERE last_farm_at IS NOT NULL OR max_farm_streak > 0) AS farmers
      FROM users`,
-  )
-  const richestRows = await query<{
-    first_name: string | null
-    username: string | null
-    balance: string
-  }>(
-    `SELECT first_name, username, balance FROM users ORDER BY balance DESC LIMIT 1`,
-  )
+    ),
+    query<{
+      first_name: string | null
+      username: string | null
+      balance: string
+    }>(
+      `SELECT first_name, username, balance FROM users ORDER BY balance DESC LIMIT 1`,
+    ),
+  ])
   const a = agg[0]
   const richest = richestRows[0]
   return {
@@ -189,7 +206,10 @@ export async function getEconomy(): Promise<Economy> {
       ? { name: displayName(richest.first_name, richest.username), balance: Number(richest.balance) }
       : null,
   }
-}
+  },
+  ['economy'],
+  { revalidate: 30, tags: ['economy'] },
+)
 
 export type RichUser = {
   rank: number
@@ -203,6 +223,11 @@ export type RichUser = {
 }
 
 export async function getTopRich(limit = 10): Promise<RichUser[]> {
+  return _getTopRich(limit)
+}
+
+const _getTopRich = unstable_cache(
+  async (limit: number): Promise<RichUser[]> => {
   const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id: string
@@ -227,7 +252,10 @@ export async function getTopRich(limit = 10): Promise<RichUser[]> {
     totalEarned: Number(r.total_earned),
     photoUrl: r.photo_url ?? null,
   }))
-}
+  },
+  ['top-rich'],
+  { revalidate: 30, tags: ['top-rich'] },
+)
 
 export type WealthStanding = {
   /** the viewer's 1-based position by balance (1 = richest) */
@@ -443,25 +471,31 @@ async function columnExists(table: string, column: string): Promise<boolean> {
  * count unchanged.
  */
 export async function getMessageStats(topLimit = 10, activityDays = 14): Promise<MessageStats> {
+  return _getMessageStats(topLimit, activityDays)
+}
+
+const _getMessageStats = unstable_cache(
+  async (topLimit: number, activityDays: number): Promise<MessageStats> => {
   const withCombot = await hasCombotUserStats()
   const hasPhoto = await columnExists('users', 'photo_url')
 
-  const totalRows = await query<{ total: string | null }>(
-    withCombot
-      ? `SELECT COALESCE(SUM(messages_count), 0)
+  const [totalRows, topRows, activityRows] = await Promise.all([
+    query<{ total: string | null }>(
+      withCombot
+        ? `SELECT COALESCE(SUM(messages_count), 0)
                 + COALESCE((SELECT SUM(messages) FROM combot_user_stats), 0) AS total
            FROM users`
-      : `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
-  )
-  const topRows = await query<{
-    user_id: string
-    first_name: string | null
-    username: string | null
-    messages_count: string
-    photo_url: string | null
-  }>(
-    withCombot
-      ? `SELECT u.user_id, u.first_name, u.username,
+        : `SELECT COALESCE(SUM(messages_count), 0) AS total FROM users`,
+    ),
+    query<{
+      user_id: string
+      first_name: string | null
+      username: string | null
+      messages_count: string
+      photo_url: string | null
+    }>(
+      withCombot
+        ? `SELECT u.user_id, u.first_name, u.username,
                 ${hasPhoto ? 'u.photo_url' : 'NULL AS photo_url'},
                 (u.messages_count + COALESCE(c.messages, 0)) AS messages_count
            FROM users u
@@ -469,24 +503,24 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
           WHERE (u.messages_count + COALESCE(c.messages, 0)) > 0
           ORDER BY (u.messages_count + COALESCE(c.messages, 0)) DESC, u.user_id ASC
           LIMIT $1`
-      : `SELECT user_id, first_name, username,
+        : `SELECT user_id, first_name, username,
                 ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'},
                 messages_count
            FROM users
           WHERE messages_count > 0
           ORDER BY messages_count DESC, user_id ASC
           LIMIT $1`,
-    [topLimit],
-  )
-
-  const activityRows = await query<{ day: string; count: string }>(
-    `SELECT day::text AS day, SUM(count) AS count
+      [topLimit],
+    ),
+    query<{ day: string; count: string }>(
+      `SELECT day::text AS day, SUM(count) AS count
        FROM message_daily
       WHERE day >= CURRENT_DATE - ($1::int - 1)
       GROUP BY day
       ORDER BY day`,
-    [activityDays],
-  )
+      [activityDays],
+    ),
+  ])
   return {
     total: Number(totalRows[0]?.total ?? 0),
     top: topRows.map((r, i) => ({
@@ -498,7 +532,10 @@ export async function getMessageStats(topLimit = 10, activityDays = 14): Promise
     })),
     activity: activityRows.map((r) => ({ day: String(r.day).slice(0, 10), count: Number(r.count) })),
   }
-}
+  },
+  ['message-stats'],
+  { revalidate: 30, tags: ['message-stats'] },
+)
 
 export type UserAchievement = {
   code: string
@@ -594,7 +631,13 @@ export type PlayerProfile = {
 }
 
 
-export async function getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
+// Request-level memoization: generateMetadata, the page body and
+// /api/me/summary can all ask for the same profile within a single server
+// request. React's `cache()` dedupes those to one DB pass per (userId) per
+// request. Server-only — every caller is a server component or route handler.
+export const getPlayerProfile = cache(_getPlayerProfile)
+
+async function _getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
   const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id: string
@@ -636,51 +679,57 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
 
   const user = rows[0]
 
+  // The blocks below are independent of one another — each reads only `userId`
+  // (and runs its own process-cached schema probes), none consumes another's
+  // result. Run them concurrently instead of as a sequential waterfall.
+
   // Unified message counter + join date from Combot history (joined by
   // user_id). Guarded: if the table doesn't exist yet, historical = 0 and the
   // profile shows just the current Возня count.
-  let historicalMessages = 0
-  let joinedAt: string | null = null
-  if (await hasCombotUserStats()) {
-    const combotRows = await query<{ messages: string | null; joined_at: string | null }>(
-      `SELECT messages, joined_at FROM combot_user_stats WHERE user_id = $1`,
-      [userId],
-    )
-    if (combotRows[0]) {
-      historicalMessages = Number(combotRows[0].messages ?? 0)
-      joinedAt = combotRows[0].joined_at ? String(combotRows[0].joined_at) : null
+  const combotPromise = (async (): Promise<{ historicalMessages: number; joinedAt: string | null }>  => {
+    let historicalMessages = 0
+    let joinedAt: string | null = null
+    if (await hasCombotUserStats()) {
+      const combotRows = await query<{ messages: string | null; joined_at: string | null }>(
+        `SELECT messages, joined_at FROM combot_user_stats WHERE user_id = $1`,
+        [userId],
+      )
+      if (combotRows[0]) {
+        historicalMessages = Number(combotRows[0].messages ?? 0)
+        joinedAt = combotRows[0].joined_at ? String(combotRows[0].joined_at) : null
+      }
     }
-  }
+    return { historicalMessages, joinedAt }
+  })()
 
   // Get user's unlocked achievements with details
-
-  const achRows = await query<{ 
-    code: string
-    unlocked_at: string
-  }>(
-    `SELECT code, unlocked_at FROM user_achievements WHERE user_id = $1 ORDER BY unlocked_at DESC`,
-    [userId],
-  )
-
-  const unlockedCodes = new Set(achRows.map(a => a.code))
-  const achievements: UserAchievement[] = achRows
-    .map(row => {
-      const ach = ACHIEVEMENTS.find(a => a.code === row.code)
-      if (!ach) return null
-      return {
-        code: ach.code,
-        emoji: ach.emoji,
-        name: ach.name,
-        description: ach.description,
-        reward: ach.reward,
-        category: ach.category,
-        unlockedAt: String(row.unlocked_at),
-      }
-    })
-    .filter((a): a is UserAchievement => a !== null)
+  const achievementsPromise = (async (): Promise<UserAchievement[]> => {
+    const achRows = await query<{
+      code: string
+      unlocked_at: string
+    }>(
+      `SELECT code, unlocked_at FROM user_achievements WHERE user_id = $1 ORDER BY unlocked_at DESC`,
+      [userId],
+    )
+    return achRows
+      .map(row => {
+        const ach = ACHIEVEMENTS.find(a => a.code === row.code)
+        if (!ach) return null
+        return {
+          code: ach.code,
+          emoji: ach.emoji,
+          name: ach.name,
+          description: ach.description,
+          reward: ach.reward,
+          category: ach.category,
+          unlockedAt: String(row.unlocked_at),
+        }
+      })
+      .filter((a): a is UserAchievement => a !== null)
+  })()
 
   // Get rank in top
-  const rankRows = await query<{ rank: string }>(
+  const rankPromise = query<{ rank: string }>(
     `SELECT rank FROM (
        SELECT user_id, ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rank
        FROM users
@@ -690,7 +739,7 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
   )
 
   // Get marriage info
-  const marriageRows = await query<{
+  const marriagePromise = query<{
     partner_id: string
     partner_first_name: string | null
     partner_username: string | null
@@ -721,115 +770,119 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
     [userId],
   )
 
-  const marriage = marriageRows[0]
-
   // --- MMR (игровой рейтинг) + место по MMR -------------------------------
   // Текущий MMR денормализован в users.mmr (миграция 0015) — читаем его и
   // считаем место в лидерборде по тому же полю (дёшево, без агрегата журнала).
   // Журнал mmr_entries остаётся источником правды/аудитом. На деплоях без 0015
   // (колонки ещё нет, но таблица журнала есть) откатываемся на SUM(amount).
-  let mmr: number | null = null
-  let mmrRankValue: MmrRank | null = null
-  let rankByMmr: number | null = null
-  if (await columnExists('users', 'mmr')) {
-    const mmrRows = await query<{ mmr: string | null }>(
-      `SELECT mmr FROM users WHERE user_id = $1`,
-      [userId],
-    )
-    mmr = Number(mmrRows[0]?.mmr ?? 0)
-    mmrRankValue = mmrRank(mmr)
+  const mmrPromise = (async (): Promise<{ mmr: number | null; mmrRankValue: MmrRank | null; rankByMmr: number | null }> => {
+    let mmr: number | null = null
+    let mmrRankValue: MmrRank | null = null
+    let rankByMmr: number | null = null
+    if (await columnExists('users', 'mmr')) {
+      const mmrRows = await query<{ mmr: string | null }>(
+        `SELECT mmr FROM users WHERE user_id = $1`,
+        [userId],
+      )
+      mmr = Number(mmrRows[0]?.mmr ?? 0)
+      mmrRankValue = mmrRank(mmr)
 
-    const posRows = await query<{ pos: string }>(
-      `SELECT pos FROM (
+      const posRows = await query<{ pos: string }>(
+        `SELECT pos FROM (
          SELECT user_id, ROW_NUMBER() OVER (ORDER BY mmr DESC, user_id ASC) AS pos
            FROM users WHERE mmr > 0
        ) ranked WHERE user_id = $1`,
-      [userId],
-    )
-    rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
-  } else if (await tableExists('mmr_entries')) {
-    const mmrRows = await query<{ mmr: string | null }>(
-      `SELECT COALESCE(SUM(amount), 0) AS mmr FROM mmr_entries WHERE player_id = $1`,
-      [userId],
-    )
-    mmr = Number(mmrRows[0]?.mmr ?? 0)
-    mmrRankValue = mmrRank(mmr)
-    const posRows = await query<{ pos: string }>(
-      `SELECT pos FROM (
+        [userId],
+      )
+      rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
+    } else if (await tableExists('mmr_entries')) {
+      const mmrRows = await query<{ mmr: string | null }>(
+        `SELECT COALESCE(SUM(amount), 0) AS mmr FROM mmr_entries WHERE player_id = $1`,
+        [userId],
+      )
+      mmr = Number(mmrRows[0]?.mmr ?? 0)
+      mmrRankValue = mmrRank(mmr)
+      const posRows = await query<{ pos: string }>(
+        `SELECT pos FROM (
          SELECT player_id, ROW_NUMBER() OVER (ORDER BY SUM(amount) DESC, player_id ASC) AS pos
            FROM mmr_entries GROUP BY player_id
        ) ranked WHERE player_id = $1`,
-      [userId],
-    )
-    rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
-  }
-
+        [userId],
+      )
+      rankByMmr = posRows[0] ? Number(posRows[0].pos) : null
+    }
+    return { mmr, mmrRankValue, rankByMmr }
+  })()
 
   // --- Репутация (социальный рейтинг) + место по репутации ----------------
   // Источник правды — журнал reputation_entries (репутация = SUM(value) по
   // получателю). Таблица появляется миграцией 0013; до неё блок скрыт (null).
-  let reputation: number | null = null
-  let rankByReputation: number | null = null
-  if (await tableExists('reputation_entries')) {
-    const repRows = await query<{ rep: string | null }>(
-      `SELECT COALESCE(SUM(value), 0) AS rep FROM reputation_entries WHERE target_user_id = $1`,
-      [userId],
-    )
-    reputation = Number(repRows[0]?.rep ?? 0)
-    const posRows = await query<{ pos: string }>(
-      `SELECT pos FROM (
+  const reputationPromise = (async (): Promise<{ reputation: number | null; rankByReputation: number | null }> => {
+    let reputation: number | null = null
+    let rankByReputation: number | null = null
+    if (await tableExists('reputation_entries')) {
+      const repRows = await query<{ rep: string | null }>(
+        `SELECT COALESCE(SUM(value), 0) AS rep FROM reputation_entries WHERE target_user_id = $1`,
+        [userId],
+      )
+      reputation = Number(repRows[0]?.rep ?? 0)
+      const posRows = await query<{ pos: string }>(
+        `SELECT pos FROM (
          SELECT target_user_id, ROW_NUMBER() OVER (ORDER BY SUM(value) DESC, target_user_id ASC) AS pos
            FROM reputation_entries GROUP BY target_user_id
        ) ranked WHERE target_user_id = $1`,
-      [userId],
-    )
-    rankByReputation = posRows[0] ? Number(posRows[0].pos) : null
-  }
+        [userId],
+      )
+      rankByReputation = posRows[0] ? Number(posRows[0].pos) : null
+    }
+    return { reputation, rankByReputation }
+  })()
 
   // --- Инвентарь (read-only список предметов) -----------------------------
   // items — суммарное количество (с учётом quantity), uniqueItems — число
   // различных видов, list — сами предметы с данными каталога (LEFT JOIN по
   // коду, чтобы пережить рассинхрон). Таблица появляется миграцией 0009; до
   // неё блок скрыт. Экипированные — выше, затем по дате получения.
-  let inventory: PlayerProfile['inventory'] = null
-  if (await tableExists('inventory')) {
-    const itemRows = await query<{
-      item_code: string
-      quantity: string
-      equipped: boolean
-      name: string | null
-      rarity: string | null
-      type: string | null
-      description: string | null
-    }>(
-      `SELECT inv.item_code, inv.quantity, inv.equipped,
+  const inventoryPromise = (async (): Promise<PlayerProfile['inventory']> => {
+    if (await tableExists('inventory')) {
+      const itemRows = await query<{
+        item_code: string
+        quantity: string
+        equipped: boolean
+        name: string | null
+        rarity: string | null
+        type: string | null
+        description: string | null
+      }>(
+        `SELECT inv.item_code, inv.quantity, inv.equipped,
               cat.name, cat.rarity, cat.type, cat.description
          FROM inventory inv
          LEFT JOIN inventory_items cat ON cat.code = inv.item_code
         WHERE inv.user_id = $1
         ORDER BY inv.equipped DESC, inv.acquired_at DESC`,
-      [userId],
-    )
-    const list: InventoryItemView[] = itemRows.map((r) => ({
-      itemCode: r.item_code,
-      name: r.name || r.item_code,
-      description: r.description,
-      rarity: r.rarity || 'common',
-      type: r.type || 'cosmetic',
-      quantity: Number(r.quantity ?? 0),
-      equipped: Boolean(r.equipped),
-    }))
-    inventory = {
-      items: list.reduce((sum, it) => sum + it.quantity, 0),
-      uniqueItems: list.length,
-      list,
+        [userId],
+      )
+      const list: InventoryItemView[] = itemRows.map((r) => ({
+        itemCode: r.item_code,
+        name: r.name || r.item_code,
+        description: r.description,
+        rarity: r.rarity || 'common',
+        type: r.type || 'cosmetic',
+        quantity: Number(r.quantity ?? 0),
+        equipped: Boolean(r.equipped),
+      }))
+      return {
+        items: list.reduce((sum, it) => sum + it.quantity, 0),
+        uniqueItems: list.length,
+        list,
+      }
     }
-  }
+    return null
+  })()
 
   // --- Место по сообщениям (единый счётчик current + Combot) --------------
   // Считаем позицию по тому же объединённому счётчику, что показываем игроку.
-  let rankByMessages: number | null = null
-  {
+  const messagesRankPromise = (async (): Promise<number | null> => {
     const withCombot = await hasCombotUserStats()
     const posRows = await query<{ pos: string }>(
       withCombot
@@ -848,8 +901,30 @@ export async function getPlayerProfile(userId: number): Promise<PlayerProfile | 
            ) ranked WHERE user_id = $1`,
       [userId],
     )
-    rankByMessages = posRows[0] ? Number(posRows[0].pos) : null
-  }
+    return posRows[0] ? Number(posRows[0].pos) : null
+  })()
+
+  const [
+    { historicalMessages, joinedAt },
+    achievements,
+    rankRows,
+    marriageRows,
+    { mmr, mmrRankValue, rankByMmr },
+    { reputation, rankByReputation },
+    inventory,
+    rankByMessages,
+  ] = await Promise.all([
+    combotPromise,
+    achievementsPromise,
+    rankPromise,
+    marriagePromise,
+    mmrPromise,
+    reputationPromise,
+    inventoryPromise,
+    messagesRankPromise,
+  ])
+
+  const marriage = marriageRows[0]
 
   return {
     userId: Number(user.user_id),
@@ -918,6 +993,11 @@ export type Family = {
 }
 
 export async function getTopFamilies(limit = 10): Promise<Family[]> {
+  return _getTopFamilies(limit)
+}
+
+const _getTopFamilies = unstable_cache(
+  async (limit: number): Promise<Family[]> => {
   const hasPhoto = await columnExists('users', 'photo_url')
   const rows = await query<{
     user_id_1: string
@@ -958,7 +1038,10 @@ export async function getTopFamilies(limit = 10): Promise<Family[]> {
     marriedAt: String(r.married_at),
     days: Number(r.days),
   }))
-}
+  },
+  ['top-families'],
+  { revalidate: 30, tags: ['top-families'] },
+)
 
 export type ReputationLeader = {
   rank: number
@@ -1063,27 +1146,28 @@ export type Daily = {
 }
 
 export async function getDaily(): Promise<Daily> {
-  const pidorRows = await query<{
-    nomination_date: string
-    first_name: string | null
-    username: string | null
-    pidor_count: number | null
-  }>(
-    `SELECT n.nomination_date::text AS nomination_date, u.first_name, u.username, u.pidor_count
+  const [pidorRows, paraRows] = await Promise.all([
+    query<{
+      nomination_date: string
+      first_name: string | null
+      username: string | null
+      pidor_count: number | null
+    }>(
+      `SELECT n.nomination_date::text AS nomination_date, u.first_name, u.username, u.pidor_count
        FROM daily_nominations n
        LEFT JOIN users u ON u.user_id = n.user_id
       WHERE n.nomination_type = 'pidor'
       ORDER BY n.nomination_date DESC
       LIMIT 1`,
-  )
-  const paraRows = await query<{
-    nomination_date: string
-    f1: string | null
-    u1: string | null
-    f2: string | null
-    u2: string | null
-  }>(
-    `SELECT n.nomination_date::text AS nomination_date,
+    ),
+    query<{
+      nomination_date: string
+      f1: string | null
+      u1: string | null
+      f2: string | null
+      u2: string | null
+    }>(
+      `SELECT n.nomination_date::text AS nomination_date,
             a.first_name AS f1, a.username AS u1,
             b.first_name AS f2, b.username AS u2
        FROM daily_nominations n
@@ -1092,7 +1176,8 @@ export async function getDaily(): Promise<Daily> {
       WHERE n.nomination_type = 'para'
       ORDER BY n.nomination_date DESC
       LIMIT 1`,
-  )
+    ),
+  ])
 
   const p = pidorRows[0]
   const pr = paraRows[0]

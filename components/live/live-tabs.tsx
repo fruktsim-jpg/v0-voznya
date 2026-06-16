@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { ApiPollingProvider } from '@/hooks/use-api'
 
 /**
  * LiveTabs (App Redesign V1) — превращает километровую простыню /live в
@@ -84,7 +85,12 @@ export function LiveTabs({
 
       {tabs.map((t) => (
         <div key={t.id} data-tab-id={t.id} hidden={active !== t.id}>
-          {t.content}
+          {/* Panels inside a hidden tab pause their polling (and skip the
+              initial fetch) via this context — the live dashboard stops hitting
+              the API for tabs the user isn't looking at. Cache stays warm. */}
+          <ApiPollingProvider value={active === t.id}>
+            {t.content}
+          </ApiPollingProvider>
         </div>
       ))}
     </div>

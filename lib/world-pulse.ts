@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { unstable_cache } from 'next/cache'
 import { query } from '@/lib/db'
 import type { CommunityEvent } from '@/lib/events'
 import type { Rarity } from '@/lib/rarity'
@@ -34,7 +35,16 @@ export type WorldPulse = {
 
 const EMPTY_PULSE: WorldPulse = { casesOpened: 0, eshWon: 0, jackpots: 0, activePlayers: null }
 
+/**
+ * Process-cached column-existence check. Mirrors the Map-based memoization in
+ * lib/queries.ts so we don't probe information_schema on every getWorldPulse
+ * call — schema is stable at runtime.
+ */
+const columnPresence = new Map<string, boolean>()
 async function columnExists(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`
+  const cached = columnPresence.get(key)
+  if (cached !== undefined) return cached
   try {
     const rows = await query<{ exists: boolean }>(
       `SELECT EXISTS (
@@ -43,7 +53,9 @@ async function columnExists(table: string, column: string): Promise<boolean> {
        ) AS exists`,
       [table, column],
     )
-    return Boolean(rows[0]?.exists)
+    const present = Boolean(rows[0]?.exists)
+    columnPresence.set(key, present)
+    return present
   } catch {
     return false
   }
@@ -54,6 +66,11 @@ async function columnExists(table: string, column: string): Promise<boolean> {
  * metric is its own guarded query so one missing table never blanks the rest.
  */
 export async function getWorldPulse(): Promise<WorldPulse> {
+  return _getWorldPulse()
+}
+
+const _getWorldPulse = unstable_cache(
+  async (): Promise<WorldPulse> => {
   const [casesOpened, jackpots, eshWon, activePlayers] = await Promise.all([
     // Кейсов открыто за 24ч.
     query<{ n: string }>(
@@ -116,7 +133,10 @@ export async function getWorldPulse(): Promise<WorldPulse> {
   ]).catch(() => [0, 0, 0, null] as const)
 
   return { casesOpened, eshWon, jackpots, activePlayers } as WorldPulse
-}
+  },
+  ['world-pulse'],
+  { revalidate: 30, tags: ['world-pulse'] },
+)
 
 export async function getWorldPulseSafe(): Promise<WorldPulse> {
   try {

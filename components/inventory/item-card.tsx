@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { rarityToken } from '@/lib/rarity'
 import type { InvItem } from '@/lib/inventory-meta'
 import { ItemArt } from '@/components/ds/item-art'
@@ -18,7 +19,7 @@ import { VoznyaCoin } from '@/components/ds/icon'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU')
 
-export function ItemCard({
+export const ItemCard = memo(function ItemCard({
   item,
   favorite,
   pinned,
@@ -127,4 +128,4 @@ export function ItemCard({
       )}
     </article>
   )
-}
+})

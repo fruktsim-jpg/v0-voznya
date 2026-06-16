@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 
 type Particle = {
   id: number
@@ -12,15 +11,27 @@ type Particle = {
   drift: number
 }
 
+/**
+ * Particles — амбиентный дрейф искр на лендинг-герое. Чистый CSS (transform/
+ * opacity), без framer-motion и без per-frame box-shadow: 26 бесконечных JS-
+ * анимаций заменены одной GPU-keyframe (.voznya-particle в globals.css).
+ * Полностью отключается под prefers-reduced-motion. На мобильных частиц меньше.
+ */
 export function Particles({ count = 26 }: { count?: number }) {
   const [mounted, setMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      setIsMobile(window.matchMedia('(max-width: 640px)').matches)
+    }
   }, [])
 
+  const effectiveCount = isMobile ? Math.ceil(count / 2) : count
+
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: count }).map((_, i) => ({
+    return Array.from({ length: effectiveCount }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
       size: Math.random() * 3 + 1.5,
@@ -28,7 +39,7 @@ export function Particles({ count = 26 }: { count?: number }) {
       delay: Math.random() * 10,
       drift: (Math.random() - 0.5) * 60,
     }))
-  }, [count])
+  }, [effectiveCount])
 
   if (!mounted) return null
 
@@ -38,28 +49,18 @@ export function Particles({ count = 26 }: { count?: number }) {
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
       {particles.map((p) => (
-        <motion.span
+        <span
           key={p.id}
-          className="absolute rounded-full bg-primary/40"
-          style={{
-            left: `${p.left}%`,
-            width: p.size,
-            height: p.size,
-            bottom: -10,
-            boxShadow: '0 0 8px rgba(139,92,246,0.8)',
-          }}
-          initial={{ y: 0, opacity: 0 }}
-          animate={{
-            y: ['0%', '-1100%'],
-            x: [0, p.drift, 0],
-            opacity: [0, 0.8, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: 'linear',
-          }}
+          className="voznya-particle"
+          style={
+            {
+              '--left': `${p.left}%`,
+              '--size': `${p.size}px`,
+              '--dur': `${p.duration}s`,
+              '--delay': `${p.delay}s`,
+              '--drift': `${p.drift}px`,
+            } as React.CSSProperties
+          }
         />
       ))}
     </div>

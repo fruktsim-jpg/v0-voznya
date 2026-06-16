@@ -70,6 +70,7 @@ export function AreaTrend({
           stroke={color}
           strokeWidth={2}
           fill={`url(#${gradId})`}
+          isAnimationActive={false}
         />
       </AreaChart>
     </ResponsiveContainer>
