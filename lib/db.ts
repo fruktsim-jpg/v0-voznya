@@ -4,6 +4,7 @@
 // ever lands in a client bundle. Ships with Next — no extra dependency.
 import 'server-only'
 import { Pool, type PoolClient, type QueryResultRow } from 'pg'
+import { logDbError } from './db-logging'
 
 
 
@@ -48,8 +49,15 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   params?: unknown[],
 ): Promise<T[]> {
   const pool = getPool()
-  const result = await pool.query<T>(text, params as never[])
-  return result.rows
+  try {
+    const result = await pool.query<T>(text, params as never[])
+    return result.rows
+  } catch (error) {
+    // Log centrally before the error reaches a caller's `catch { return [] }`,
+    // so an outage/schema drift never silently looks like "no data" (P0 #6).
+    logDbError('query', error, text)
+    throw error
+  }
 }
 
 export function isDbConfigured(): boolean {
@@ -76,6 +84,7 @@ export async function withTransaction<T>(
     } catch {
       // ignore rollback failure; original error is more useful
     }
+    logDbError('transaction', error)
     throw error
   } finally {
     client.release()

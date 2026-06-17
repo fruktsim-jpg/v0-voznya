@@ -22,7 +22,10 @@ import 'server-only'
 
 import type { PoolClient } from 'pg'
 import { withTransaction } from './db'
-import { ESHKI_PER_STAR, ITEM_SELL_RATE } from './economy-rules'
+import {
+  sellValue as sellValuePure,
+  itemFullValue as itemFullValuePure,
+} from './gift-value'
 
 export type SellResult = {
   status: 'ok' | 'not_found' | 'not_pending' | 'no_value'
@@ -73,28 +76,19 @@ type GiftRow = {
   price_eshki: string | null
 }
 
-/** floor(full_value × ITEM_SELL_RATE) — порт _sell_value(). */
+/** floor(full_value × ITEM_SELL_RATE) — порт _sell_value(). Логика в gift-value.ts. */
 function sellValue(fullValue: number): number {
-  return Math.floor(Math.max(0, fullValue) * ITEM_SELL_RATE)
+  return sellValuePure(fullValue)
 }
 
 /**
  * Полная стоимость — порт _item_full_value() (Release 2.2): ЕДИНЫЙ курс
  * независимо от источника. База всегда цена магазина (price_eshki) — та же
  * сумма, что в инвентаре и в магазине. Фолбэк (price_eshki не задан):
- * star_cost × ESHKI_PER_STAR (каталог → слепок meta).
+ * star_cost × ESHKI_PER_STAR (каталог → слепок meta). Логика в gift-value.ts.
  */
 function itemFullValue(d: DeliveryRow, g: GiftRow | null): number {
-  const priceEshki = g?.price_eshki == null ? 0 : Number(g.price_eshki)
-  if (priceEshki > 0) {
-    return Math.max(0, priceEshki)
-  }
-  let starCost = g?.star_cost == null ? 0 : Number(g.star_cost)
-  if (starCost <= 0) {
-    const metaStar = (d.meta ?? {}).star_cost
-    starCost = typeof metaStar === 'number' ? metaStar : 0
-  }
-  return Math.max(0, starCost) * ESHKI_PER_STAR
+  return itemFullValuePure(g?.price_eshki, g?.star_cost, (d.meta ?? {}).star_cost)
 }
 
 

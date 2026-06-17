@@ -60,7 +60,7 @@ export const ACHIEVEMENT_CATEGORIES = [
 export const ACHIEVEMENTS: Achievement[] = [
   // --- 💰 Экономика ---
   { code: 'first_ezhka', emoji: '🌱', name: 'Первая ешка', description: 'Заработал первую ешку', category: 'economy', reward: 10, hidden: false },
-  { code: 'thousandaire', emoji: '💰', name: 'Первый чемодан', description: 'Поднял 1 000 ешек за всё время', category: 'economy', reward: 100, hidden: false },
+  { code: 'thousandaire', emoji: '💰', name: 'Первая тысяча', description: 'Поднял 1 000 ешек за всё время', category: 'economy', reward: 100, hidden: false },
   { code: 'magnate', emoji: '💰', name: 'Магнат аптеки', description: 'Поднял 10 000 ешек за всё время', category: 'economy', reward: 400, hidden: false },
 
   // --- 💬 Сообщения ---
@@ -114,7 +114,7 @@ export const ACHIEVEMENTS: Achievement[] = [
 
   // --- 📦 Клады ---
   { code: 'treasure_hunter', emoji: '📦', name: 'Кладоискатель', description: 'Поднял первый клад', category: 'treasure', reward: 50, hidden: false },
-  { code: 'treasure_master', emoji: '📦', name: 'Охотник за чемоданами', description: 'Поднял 10 кладов', category: 'treasure', reward: 200, hidden: false },
+  { code: 'treasure_master', emoji: '📦', name: 'Охотник за закладками', description: 'Поднял 10 кладов', category: 'treasure', reward: 200, hidden: false },
 
   // --- 💍 Браки ---
   { code: 'true_love', emoji: '💍', name: 'Любовь существует', description: 'Сыграл первую свадьбу', category: 'marriage', reward: 50, hidden: false },
@@ -130,8 +130,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { code: 'unburnable', emoji: '🌾', name: 'Несгораемый', description: 'Серия фермы 60 дней', category: 'legend', reward: 600, hidden: false },
   { code: 'voznya_started', emoji: '⚔️', name: 'Возня началась', description: '100 побед в дуэлях', category: 'legend', reward: 500, hidden: false },
   { code: 'war_machine', emoji: '⚔️', name: 'Машина возни', description: '250 побед в дуэлях', category: 'legend', reward: 900, hidden: false },
-  { code: 'cursed_suitcase', emoji: '📦', name: 'Ёбаный чемодан', description: 'Поднял 50 кладов', category: 'legend', reward: 500, hidden: false },
-  { code: 'radik_vault', emoji: '📦', name: 'Кладовая Радика', description: 'Поднял 100 кладов', category: 'legend', reward: 900, hidden: false },
+  { code: 'cursed_suitcase', emoji: '📦', name: 'Сколько я к тебе шёл', description: 'Поднял 50 кладов', category: 'legend', reward: 500, hidden: false },
+  { code: 'radik_vault', emoji: '📦', name: 'Кладовая барыги', description: 'Поднял 100 кладов', category: 'legend', reward: 900, hidden: false },
   { code: 'nomination_king', emoji: '🏳️', name: 'Король номинаций', description: '50 раз «Пидор дня»', category: 'legend', reward: 500, hidden: false },
   { code: 'authority', emoji: '☢️', name: 'Аптечный авторитет', description: 'Поднял 25 000 ешек за всё время', category: 'legend', reward: 750, hidden: false },
   { code: 'suitcase_man', emoji: '🧳', name: 'Чемоданщик', description: 'Поднял 50 000 ешек за всё время', category: 'legend', reward: 1200, hidden: false },

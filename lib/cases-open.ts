@@ -25,6 +25,7 @@ import 'server-only'
 import { randomInt, randomBytes } from 'crypto'
 import type { PoolClient } from 'pg'
 import { withTransaction } from './db'
+import { pickIndexByRoll } from './cases-pick'
 
 export type OpenStatus =
   | 'ok'
@@ -75,18 +76,16 @@ type RewardRow = {
 }
 
 /**
- * Weighted reward pick using a CSPRNG (crypto.randomInt). Mirrors _pick_reward:
- * roll ∈ [0, totalWeight), choose by cumulative weight.
+ * Weighted reward pick using a CSPRNG (crypto.randomInt). Selection rule lives
+ * in cases-pick.ts (shared, unit-tested for bot parity). dropMult defaults to
+ * 1.0 — see the parity note in cases-pick.ts.
  */
 function pickReward(rewards: RewardRow[]): { reward: RewardRow; roll: number; total: number } {
-  const total = rewards.reduce((s, r) => s + r.weight, 0)
+  const eff = rewards.map((r) => r.weight)
+  const total = eff.reduce((s, w) => s + w, 0)
   const roll = randomInt(0, total) // [0, total)
-  let acc = 0
-  for (const r of rewards) {
-    acc += r.weight
-    if (roll < acc) return { reward: r, roll, total }
-  }
-  return { reward: rewards[rewards.length - 1], roll, total }
+  const { index } = pickIndexByRoll(rewards, roll)
+  return { reward: rewards[index], roll, total }
 }
 
 /**
