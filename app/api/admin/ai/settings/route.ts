@@ -37,7 +37,7 @@ export async function GET() {
     )
     // Never leak the API key back to the browser; show a masked placeholder.
     const settings = rows.map((r) =>
-      r.key === 'api_key'
+      r.key === 'api_key' || r.key === 'image_api_key'
         ? { ...r, value: r.value ? MASKED : '' }
         : r,
     )
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'value is required' }, { status: 400 })
   }
   // Ignore masked api_key writes: the admin didn't actually change the key.
-  if (key === 'api_key' && body.value === MASKED) {
+  if ((key === 'api_key' || key === 'image_api_key') && body.value === MASKED) {
     return NextResponse.json({ ok: true, key, skipped: true })
   }
 
@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
       )
 
       // Audit, masking the secret so it never lands in the audit log.
-      const auditValue = key === 'api_key' ? '***set***' : body.value
+      const auditValue =
+        key === 'api_key' || key === 'image_api_key' ? '***set***' : body.value
       const auditId = await writeAudit(
         {
           actorUserId: session.uid,

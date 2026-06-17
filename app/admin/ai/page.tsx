@@ -34,7 +34,9 @@ export default async function AdminAiPage() {
       `SELECT key, value, updated_at FROM ai_settings ORDER BY key`,
     )
     settings = rows.map((r) =>
-      r.key === 'api_key' ? { ...r, value: r.value ? MASKED : '' } : r,
+      r.key === 'api_key' || r.key === 'image_api_key'
+        ? { ...r, value: r.value ? MASKED : '' }
+        : r,
     )
     prompts = await query<AiPrompt>(
       `SELECT name, body, description, enabled, updated_at

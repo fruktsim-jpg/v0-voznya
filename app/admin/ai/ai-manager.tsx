@@ -32,6 +32,14 @@ const SETTING_FIELDS: {
   { key: 'max_tokens', label: 'Max tokens', hint: 'Лимит длины ответа', type: 'number' },
   { key: 'posts_per_day_max', label: 'Постов в день', hint: 'Анти-спам для автономных постов', type: 'number' },
   { key: 'min_severity', label: 'Мин. severity', hint: 'Порог реакции на события (0–3)', type: 'number' },
+  { key: 'web_enabled', label: 'Веб-доступ', hint: 'Разрешить поиск в интернете (нужен web_search_url)', type: 'bool' },
+  { key: 'web_search_url', label: 'URL поиска', hint: 'SearXNG-совместимый JSON endpoint (?q=&format=json)', type: 'text' },
+  { key: 'web_daily_cap', label: 'Веб-запросов/сутки', hint: 'Дневной кап на поиск', type: 'number' },
+  { key: 'image_enabled', label: 'Генерация картинок', hint: 'Разрешить рисовать (нужны endpoint/модель)', type: 'bool' },
+  { key: 'image_base_url', label: 'URL картинок', hint: 'OpenAI images-совместимый (/images/generations)', type: 'text' },
+  { key: 'image_api_key', label: 'Ключ картинок', hint: 'Пусто → берётся основной API ключ', type: 'password' },
+  { key: 'image_model', label: 'Модель картинок', hint: 'gpt-image-1 · dall-e-3 · ...', type: 'text' },
+  { key: 'image_daily_cap', label: 'Картинок/сутки', hint: 'Дневной кап на генерацию', type: 'number' },
 ]
 
 const card = 'glass rounded-2xl border border-border p-5'
