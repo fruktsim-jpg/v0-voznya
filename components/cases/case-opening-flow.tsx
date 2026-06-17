@@ -190,6 +190,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
       if (!res.ok || data.status !== 'ok') {
         setError(failureMessage(res.status, data))
         setPhase('error')
+        fx.notify('error')
         busy.current = false
         return
       }
@@ -274,6 +275,7 @@ export function CaseOpeningFlow({ caseView }: { caseView: CaseView }) {
     } catch {
       setError('Сеть недоступна. Попробуй ещё раз.')
       setPhase('error')
+      fx.notify('error')
       busy.current = false
     }
   }, [c.itemCode, c.name, pool, fx, reducedMotion, celebrate, scrollIntoView, scrollRevealIntoView])

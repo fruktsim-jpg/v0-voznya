@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { notifyBalanceChanged } from '@/lib/balance-events'
 import { useCelebration } from '@/components/celebration/celebration-host'
+import { useFx } from '@/hooks/use-fx'
 import { tierFromRarity } from '@/lib/celebration'
 import { resolveItemArt } from '@/lib/item-art/resolve'
 import type { Rarity } from '@/lib/rarity'
@@ -47,6 +48,7 @@ export function GiftBuyButton({
   const [state, setState] = useState<BuyState>('idle')
   const [msg, setMsg] = useState('')
   const { celebrate } = useCelebration()
+  const { fx } = useFx()
 
   async function buy() {
     if (state === 'buying' || state === 'bought') return
@@ -54,6 +56,7 @@ export function GiftBuyButton({
     if (affordable === false) {
       setState('error')
       setMsg('Не хватает ешек')
+      fx.notify('error')
       return
     }
     setState('buying')
@@ -97,9 +100,11 @@ export function GiftBuyButton({
                 ? 'Недоступно'
                 : 'Не вышло, попробуй позже',
       )
+      fx.notify('error')
     } catch {
       setState('error')
       setMsg('Сеть недоступна')
+      fx.notify('error')
     }
   }
 

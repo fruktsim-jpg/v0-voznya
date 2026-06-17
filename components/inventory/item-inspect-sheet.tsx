@@ -5,6 +5,7 @@ import { Drawer } from 'vaul'
 import { rarityToken } from '@/lib/rarity'
 import { notifyBalanceChanged } from '@/lib/balance-events'
 import { sellGift, withdrawGift } from '@/lib/gift-delivery'
+import { useFx } from '@/hooks/use-fx'
 import type { InventoryGiftItem } from '@/lib/inventory-list'
 import type { InvItem } from '@/lib/inventory-meta'
 import { COLLECTION_GLYPH } from '@/lib/inventory-meta'
@@ -84,6 +85,7 @@ function GiftActions({
   const [recipient, setRecipient] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
   const [confirmSell, setConfirmSell] = useState(false)
+  const { fx } = useFx()
 
   const busy =
     state === 'selling' ||
@@ -116,18 +118,21 @@ function GiftActions({
         if (data.status === 'delivered') {
           setState('gifted')
           setMsg(`🎁 Подарок отправлен ${to} в Telegram!`)
+          fx.purchase()
           window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
           return
         }
         if (data.status === 'pending' || data.status === 'queued') {
           setState('gifted')
           setMsg('⏳ В очереди — подарок уйдёт другу чуть позже.')
+          fx.notification()
           return
         }
         if (data.status === 'cancelled') {
           setState('gifted')
           setMsg(data.refunded ? '↩️ Не вышло — ешки возвращены.' : 'Отменено.')
           notifyBalanceChanged()
+          fx.notify('warning')
           window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
           return
         }
@@ -144,9 +149,11 @@ function GiftActions({
                 ? 'Сервис выдачи недоступен, попробуй позже.'
                 : 'Не получилось отправить.',
       )
+      fx.notify('error')
     } catch {
       setState('error')
       setMsg('Сеть недоступна.')
+      fx.notify('error')
     }
   }
 
@@ -166,6 +173,7 @@ function GiftActions({
         setState('transferred')
         const who = data.recipientUsername ? `@${data.recipientUsername}` : to
         setMsg(`🤝 Передано игроку ${who}`)
+        fx.purchase()
         window.setTimeout(() => onConsumed(item.deliveryKey), 1500)
         return
       }
@@ -179,9 +187,11 @@ function GiftActions({
               ? 'Предмет уже обработан.'
               : 'Не получилось передать.',
       )
+      fx.notify('error')
     } catch {
       setState('error')
       setMsg('Сеть недоступна.')
+      fx.notify('error')
     }
   }
 
@@ -199,6 +209,7 @@ function GiftActions({
       if (res.ok && data.status === 'ok' && data.url) {
         setState('idle')
         setLinkUrl(data.url as string)
+        fx.uiTap()
         return
       }
       setState('error')
@@ -209,9 +220,11 @@ function GiftActions({
             ? 'Предмет уже обработан.'
             : 'Не получилось создать ссылку.',
       )
+      fx.notify('error')
     } catch {
       setState('error')
       setMsg('Сеть недоступна.')
+      fx.notify('error')
     }
   }
 
@@ -219,6 +232,7 @@ function GiftActions({
     try {
       await navigator.clipboard.writeText(linkUrl)
       setMsg('🔗 Ссылка скопирована!')
+      fx.uiTap()
     } catch {
       setMsg('Скопируй ссылку вручную.')
     }
@@ -243,11 +257,13 @@ function GiftActions({
     if (r.ok) {
       setState('sold')
       setMsg(`+${fmt(r.amount ?? item.sellAmount)} ешек`)
+      fx.purchase()
       window.setTimeout(() => onConsumed(item.deliveryKey), 1200)
       return
     }
     setState('error')
     setMsg(r.message)
+    fx.notify('error')
   }
 
   async function withdraw() {
@@ -258,12 +274,14 @@ function GiftActions({
     if (r.ok) {
       setState('withdrawn')
       setMsg(r.message)
+      fx.purchase()
       // Refunded cancellations linger a touch longer before clearing the card.
       window.setTimeout(() => onConsumed(item.deliveryKey), r.refunded ? 1500 : 1200)
       return
     }
     setState('error')
     setMsg(r.message)
+    fx.notify('error')
   }
 
   const done =

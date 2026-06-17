@@ -18,6 +18,11 @@
 
 import { useEffect } from 'react'
 
+// The app's canvas background (globals.css `--background`). We push this to
+// Telegram's native header + background so its chrome matches the dark shell
+// instead of flashing the user's default theme behind/above our content.
+const APP_BG = '#0d0b0f'
+
 type ThemeParams = Record<string, string | undefined>
 
 type SafeAreaInset = { top?: number; bottom?: number; left?: number; right?: number }
@@ -83,6 +88,10 @@ export function TelegramProvider() {
         app.expand?.()
         // Prevent accidental swipe-to-close mid case-open / mid form.
         app.disableVerticalSwipes?.()
+        // Match Telegram's native header + background to the app canvas so the
+        // chrome doesn't flash the user's default theme around our dark shell.
+        app.setHeaderColor?.(APP_BG)
+        app.setBackgroundColor?.(APP_BG)
       } catch {
         // best-effort
       }

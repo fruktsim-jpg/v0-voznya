@@ -20,11 +20,13 @@ import { FxProvider } from '@/hooks/use-fx'
 import { FxBootstrap } from '@/components/fx/fx-bootstrap'
 import { CelebrationProvider } from '@/components/celebration/celebration-host'
 import { TelegramProvider } from '@/components/shell/telegram-provider'
+import { TelegramBackButton } from '@/components/shell/telegram-back-button'
 
 export function PlatformProviders({ children }: { children: ReactNode }) {
   return (
     <FxProvider>
       <TelegramProvider />
+      <TelegramBackButton />
       <FxBootstrap />
       <CelebrationProvider>{children}</CelebrationProvider>
       <Toaster />
