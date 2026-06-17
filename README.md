@@ -4,8 +4,8 @@
 Спутник Telegram-бота `voznya-bot`.
 
 Сводная документация по обеим кодовым базам находится в `../docs/`:
-`REPOSITORY_MAP.md`, `ARCHITECTURE.md`, `DATABASE.md`, `FEATURES.md`,
-`ADMIN.md`, `PROJECT_STATUS.md`, `DOCUMENTATION_DRIFT.md`.
+`PROJECT_STATUS.md` (текущее состояние и журнал изменений),
+`PRIORITIES.md` (приоритеты) и `AI_HANDOFF.md` (контекст для агентов).
 
 > Источник истины — код, а не документация. Этот README описывает фактическое
 > состояние. Завершённые планы и одноразовые отчёты — в `docs/archive/`, они
