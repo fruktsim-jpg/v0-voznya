@@ -63,13 +63,13 @@ const AI_ROLES: { key: string; label: string; hint: string }[] = [
 // Держи в синхроне — иначе «Пресет» запишет в models_by_role устаревшие имена
 // моделей, которых может не быть на endpoint.
 const RECOMMENDED_ROLE_MODELS: Record<string, string> = {
-  narrator: 'claude-opus-4.8',
-  memory_extract: 'gemini-3.5-flash',
-  memory_summary: 'claude-haiku-4.5',
+  narrator: 'claude-opus-4-8',
+  memory_extract: 'gpt-5.4-mini',
+  memory_summary: 'claude-haiku-4-5',
   event_analysis: 'gpt-5.4-mini',
   planning: 'gpt-5.4',
-  vision: 'gemini-3.1-pro-preview',
-  moderation: 'claude-sonnet-4.6',
+  vision: 'gpt-5.5',
+  moderation: 'claude-sonnet-4-6',
 }
 
 const input =
