@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { mmrRank, MMR_RANKS, type MmrRank } from '@/lib/mmr'
-import { getPlayerProfile, getUserSummary } from '@/lib/queries'
+import { getIdentitySlice, getUserSummary } from '@/lib/queries'
 import { getActiveSeason, getSeasonProfile, divisionProgress } from '@/lib/season'
 
 /**
@@ -91,9 +91,9 @@ async function loadSeasonSlice(userId: number): Promise<IdentitySeason | null> {
 export async function getIdentityProgression(
   userId: number,
 ): Promise<IdentityProgression> {
-  let profile: Awaited<ReturnType<typeof getPlayerProfile>> = null
+  let profile: Awaited<ReturnType<typeof getIdentitySlice>> = null
   try {
-    profile = await getPlayerProfile(userId)
+    profile = await getIdentitySlice(userId)
   } catch {
     profile = null
   }

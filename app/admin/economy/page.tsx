@@ -47,7 +47,7 @@ export default async function EconomyDashboardPage() {
       loadDailyFlow(14),
       loadFlowBySource(30),
       loadWealthStats(),
-      loadCategoryFlow(0),
+      loadCategoryFlow(90),
       loadRichestPlayers(15),
     ])
 
@@ -163,7 +163,7 @@ export default async function EconomyDashboardPage() {
         </div>
       </section>
 
-      {/* Generation / destruction by logical category (all time) */}
+      {/* Generation / destruction by logical category (last 90 days) */}
       <section>
         <SectionTitle>Источники генерации и уничтожения</SectionTitle>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -222,7 +222,7 @@ export default async function EconomyDashboardPage() {
           <Note>
             Категории сгруппированы из reason/source транзакций: ферма, клад,
             кейсы, казино, админ, возвраты, подарки → генерация; кейсы, магазин,
-            казино, передачи → уничтожение. За всё время.
+            казино, передачи → уничтожение. За последние 90 дней.
           </Note>
         </div>
       </section>

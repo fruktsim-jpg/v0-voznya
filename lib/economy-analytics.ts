@@ -216,18 +216,23 @@ export async function loadWealthStats(): Promise<WealthStats> {
 }
 
 /**
- * Generation / destruction split by logical category over `days` (0 = all
- * time). Maps raw transaction reasons → the operator's buckets. Read-only.
+ * Generation / destruction split by logical category over `days`. Maps raw
+ * transaction reasons → the operator's buckets. Read-only.
+ *
+ * `days` must be a bounded window: `transactions` is an append-only ledger that
+ * grows forever, so an unbounded scan + GROUP BY would degrade linearly. Defaults
+ * to 90 days; pass a larger window explicitly if a longer view is ever needed
+ * (and ensure `ix_transactions_created_at` from migration 0043 is present).
  *   gen:  farm / klad / case / casino / admin / refund / gift / other
  *   burn: case / shop / casino / transfer / other
  */
 export type CategoryFlow = { category: string; minted: number; burned: number }
 
-export async function loadCategoryFlow(days = 0): Promise<{
+export async function loadCategoryFlow(days = 90): Promise<{
   generation: CategoryFlow[]
   destruction: CategoryFlow[]
 }> {
-  const since = days > 0 ? `WHERE created_at >= now() - ${days} * interval '1 day'` : ''
+  const window = days > 0 ? days : 90
   const rows = await safeRows<{
     reason: string
     source: string | null
@@ -239,8 +244,9 @@ export async function loadCategoryFlow(days = 0): Promise<{
             COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0)::text AS minted,
             COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0)::text AS burned
        FROM transactions
-       ${since}
+      WHERE created_at >= now() - $1::int * interval '1 day'
       GROUP BY reason, meta->>'source'`,
+    [window],
   )
 
   const gen = new Map<string, CategoryFlow>()

@@ -82,6 +82,12 @@ function toRarity(v: string | null): Rarity {
 const CASINO_BIG_WIN_MIN = 1000
 // Порог заметного прироста MMR, чтобы не спамить мелочью.
 const MMR_EVENT_MIN = 50
+// Окно ленты: события старше этого не всплывают (лента всегда показывает
+// последние). Граница по времени держит срез ограниченным и (вместе с
+// индексами по created_at в боте, миграция 0044) превращает скан всей истории
+// журналов в обратный индекс-скан, останавливающийся на LIMIT. 90 дней — запас
+// даже для тихих периодов, чтобы лента не пустела.
+const FEED_WINDOW_DAYS = 90
 
 /**
  * Возвращает последние события сообщества (по убыванию времени).
@@ -97,6 +103,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
   const aP = hasPhoto ? 'u.photo_url' : 'NULL'
   const giftP = hasPhoto ? 'COALESCE(su.photo_url, ru.photo_url)' : 'NULL'
   const m1P = hasPhoto ? 'u1.photo_url' : 'NULL'
+  const since = `NOW() - INTERVAL '${FEED_WINDOW_DAYS} days'`
   const sql = `
     WITH feed AS (
       -- Открытия кейсов. Джекпот и Telegram Gift/Premium выделяем отдельными
@@ -128,6 +135,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         LEFT JOIN case_rewards cr ON cr.id = co.reward_id
         LEFT JOIN inventory_items ii ON ii.code = co.reward_item_code
         LEFT JOIN gift_catalog gc ON gc.code = co.reward_item_code
+       WHERE co.created_at >= ${since}
        ORDER BY co.created_at DESC
        LIMIT ${per}
     )
@@ -152,7 +160,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         LEFT JOIN users su ON su.user_id = g.sender_user_id
         LEFT JOIN users ru ON ru.user_id = g.recipient_user_id
         LEFT JOIN gift_catalog ggc ON ggc.code = g.item_code
-       WHERE g.status = 'completed'
+       WHERE g.status = 'completed' AND g.created_at >= ${since}
        ORDER BY g.created_at DESC
        LIMIT ${per}
     )
@@ -171,6 +179,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         JOIN users u ON u.user_id = t.user_id
        WHERE t.reason = 'casino' AND t.meta ? 'payout'
          AND (t.meta->>'payout')::bigint >= ${CASINO_BIG_WIN_MIN}
+         AND t.created_at >= ${since}
        ORDER BY t.created_at DESC
        LIMIT ${per}
     )
@@ -188,6 +197,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         FROM transactions t
         JOIN users u ON u.user_id = t.user_id
        WHERE t.reason = 'treasure' AND t.amount > 0
+         AND t.created_at >= ${since}
        ORDER BY t.created_at DESC
        LIMIT ${per}
     )
@@ -204,6 +214,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
              NULL::text AS item_name
         FROM user_achievements ua
         JOIN users u ON u.user_id = ua.user_id
+       WHERE ua.unlocked_at >= ${since}
        ORDER BY ua.unlocked_at DESC
        LIMIT ${per}
     )
@@ -222,6 +233,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         FROM marriages m
         JOIN users u1 ON u1.user_id = m.user_id_1
         JOIN users u2 ON u2.user_id = m.user_id_2
+       WHERE m.married_at >= ${since}
        ORDER BY m.married_at DESC
        LIMIT ${per}
     )
@@ -239,6 +251,7 @@ export async function getCommunityFeed(limit = 30): Promise<CommunityEvent[]> {
         FROM mmr_entries me
         JOIN users u ON u.user_id = me.player_id
        WHERE me.amount >= ${MMR_EVENT_MIN}
+         AND me.created_at >= ${since}
        ORDER BY me.created_at DESC
        LIMIT ${per}
     )
@@ -306,6 +319,7 @@ export async function getUserFeed(
   const hasPhoto = await columnExists('users', 'photo_url')
   const aP = hasPhoto ? 'u.photo_url' : 'NULL'
   const giftP = hasPhoto ? 'COALESCE(su.photo_url, ru.photo_url)' : 'NULL'
+  const since = `NOW() - INTERVAL '${FEED_WINDOW_DAYS} days'`
   const sql = `
     WITH ev AS (
       SELECT CASE
@@ -332,7 +346,7 @@ export async function getUserFeed(
         LEFT JOIN case_rewards cr ON cr.id = co.reward_id
         LEFT JOIN inventory_items ii ON ii.code = co.reward_item_code
         LEFT JOIN gift_catalog gc ON gc.code = co.reward_item_code
-       WHERE co.user_id = $1
+       WHERE co.user_id = $1 AND co.created_at >= ${since}
 
       UNION ALL
       SELECT 'ACHIEVEMENT_UNLOCKED', ua.user_id, ua.user_id,
@@ -342,7 +356,7 @@ export async function getUserFeed(
              NULL::text, NULL::text
         FROM user_achievements ua
         JOIN users u ON u.user_id = ua.user_id
-       WHERE ua.user_id = $1
+       WHERE ua.user_id = $1 AND ua.unlocked_at >= ${since}
       UNION ALL
       SELECT CASE WHEN g.kind='tg_gift' THEN 'GIFT_DELIVERED' ELSE 'GIFT_PLAYER' END,
              g.id, COALESCE(g.sender_user_id, g.recipient_user_id),
@@ -358,6 +372,7 @@ export async function getUserFeed(
         LEFT JOIN users ru ON ru.user_id = g.recipient_user_id
         LEFT JOIN gift_catalog ggc ON ggc.code = g.item_code
        WHERE g.status='completed' AND (g.sender_user_id = $1 OR g.recipient_user_id = $1)
+         AND g.created_at >= ${since}
       UNION ALL
       SELECT 'CASINO_BIG_WIN', t.id, t.user_id,
              COALESCE(NULLIF(u.first_name,''), NULLIF(u.username,''), 'Игрок'),
@@ -368,6 +383,7 @@ export async function getUserFeed(
         JOIN users u ON u.user_id = t.user_id
        WHERE t.user_id = $1 AND t.reason='casino' AND t.meta ? 'payout'
          AND (t.meta->>'payout')::bigint >= ${CASINO_BIG_WIN_MIN}
+         AND t.created_at >= ${since}
     )
     SELECT code, ev_id::text AS ev_id, actor_id::text AS actor_id, actor_name, actor_photo,
            target_id::text AS target_id, target_name,

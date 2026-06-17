@@ -980,6 +980,152 @@ async function _getPlayerProfile(userId: number): Promise<PlayerProfile | null> 
 }
 
 
+// Lean identity slice for the persistent shell bar + header menu.
+//
+// The shell bar fires on every navigation (via /api/me/summary) but only needs
+// a handful of fields: name/photo/balance + rank, mmr(+rank tier), reputation,
+// farm streak, and marriage partner. The full `getPlayerProfile` additionally
+// loads the achievements list, the full inventory list, Combot history, and the
+// reputation/messages rank windows — none of which the bar shows. This path
+// skips all of that: one `users` row + the two cheap rank windows the bar
+// actually renders (balance position, MMR position). ~3 small queries vs ~12.
+//
+// Same graceful-degradation contract as getPlayerProfile (null when the user
+// row is missing); request-memoized so the menu and the bar dedupe to one pass.
+export type IdentitySlice = {
+  userId: number
+  username: string | null
+  firstName: string
+  photoUrl: string | null
+  balance: number
+  rankInTop: number | null
+  mmr: number | null
+  mmrRank: MmrRank | null
+  reputation: number | null
+  farmStreak: number
+  maxFarmStreak: number
+  marriage: {
+    partnerId: number
+    partnerName: string
+    marriedAt: string
+    days: number
+  } | null
+}
+
+export const getIdentitySlice = cache(_getIdentitySlice)
+
+async function _getIdentitySlice(userId: number): Promise<IdentitySlice | null> {
+  const hasPhoto = await columnExists('users', 'photo_url')
+  const rows = await query<{
+    user_id: string
+    username: string | null
+    first_name: string | null
+    photo_url: string | null
+    balance: string
+    farm_streak: string
+    max_farm_streak: string
+  }>(
+    `SELECT user_id, username, first_name,
+            ${hasPhoto ? 'photo_url' : 'NULL AS photo_url'},
+            balance, farm_streak, max_farm_streak
+       FROM users WHERE user_id = $1`,
+    [userId],
+  )
+  if (rows.length === 0) return null
+  const user = rows[0]
+
+  const rankPromise = query<{ rank: string }>(
+    `SELECT rank FROM (
+       SELECT user_id, ROW_NUMBER() OVER (ORDER BY balance DESC, user_id ASC) AS rank
+       FROM users
+     ) ranked WHERE user_id = $1`,
+    [userId],
+  )
+
+  const mmrPromise = (async (): Promise<{ mmr: number | null; mmrRankValue: MmrRank | null }> => {
+    if (await columnExists('users', 'mmr')) {
+      const mmrRows = await query<{ mmr: string | null }>(
+        `SELECT mmr FROM users WHERE user_id = $1`,
+        [userId],
+      )
+      const mmr = Number(mmrRows[0]?.mmr ?? 0)
+      return { mmr, mmrRankValue: mmrRank(mmr) }
+    }
+    if (await tableExists('mmr_entries')) {
+      const mmrRows = await query<{ mmr: string | null }>(
+        `SELECT COALESCE(SUM(amount), 0) AS mmr FROM mmr_entries WHERE player_id = $1`,
+        [userId],
+      )
+      const mmr = Number(mmrRows[0]?.mmr ?? 0)
+      return { mmr, mmrRankValue: mmrRank(mmr) }
+    }
+    return { mmr: null, mmrRankValue: null }
+  })()
+
+  const reputationPromise = (async (): Promise<number | null> => {
+    if (await tableExists('reputation_entries')) {
+      const repRows = await query<{ rep: string | null }>(
+        `SELECT COALESCE(SUM(value), 0) AS rep FROM reputation_entries WHERE target_user_id = $1`,
+        [userId],
+      )
+      return Number(repRows[0]?.rep ?? 0)
+    }
+    return null
+  })()
+
+  const marriagePromise = query<{
+    partner_id: string
+    partner_first_name: string | null
+    partner_username: string | null
+    married_at: string
+    days: string
+  }>(
+    `SELECT
+       CASE WHEN m.user_id_1 = $1 THEN m.user_id_2 ELSE m.user_id_1 END AS partner_id,
+       CASE WHEN m.user_id_1 = $1 THEN u2.first_name ELSE u1.first_name END AS partner_first_name,
+       CASE WHEN m.user_id_1 = $1 THEN u2.username ELSE u1.username END AS partner_username,
+       m.married_at,
+       EXTRACT(DAY FROM NOW() - m.married_at) AS days
+     FROM marriages m
+     LEFT JOIN users u1 ON u1.user_id = m.user_id_1
+     LEFT JOIN users u2 ON u2.user_id = m.user_id_2
+     WHERE (m.user_id_1 = $1 OR m.user_id_2 = $1) AND m.divorced_at IS NULL
+     LIMIT 1`,
+    [userId],
+  )
+
+  const [rankRows, { mmr, mmrRankValue }, reputation, marriageRows] = await Promise.all([
+    rankPromise,
+    mmrPromise,
+    reputationPromise,
+    marriagePromise,
+  ])
+
+  const marriage = marriageRows[0]
+  return {
+    userId: Number(user.user_id),
+    username: user.username,
+    firstName: user.first_name || 'Аноним',
+    photoUrl: user.photo_url ?? null,
+    balance: Number(user.balance),
+    rankInTop: rankRows[0] ? Number(rankRows[0].rank) : null,
+    mmr,
+    mmrRank: mmrRankValue,
+    reputation,
+    farmStreak: Number(user.farm_streak),
+    maxFarmStreak: Number(user.max_farm_streak),
+    marriage: marriage
+      ? {
+          partnerId: Number(marriage.partner_id),
+          partnerName: displayName(marriage.partner_first_name, marriage.partner_username),
+          marriedAt: String(marriage.married_at),
+          days: Number(marriage.days),
+        }
+      : null,
+  }
+}
+
+
 export type Family = {
   rank: number
   user1Id: number
