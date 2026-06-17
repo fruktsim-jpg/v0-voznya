@@ -76,3 +76,48 @@ export async function requestGiftDelivery(
     return { status: 'unreachable', error: String(err) }
   }
 }
+
+export type AiTestResult = {
+  ok: boolean
+  text?: string
+  error?: string
+  // unreachable — внутренний API бота не настроен/недоступен.
+  unreachable?: boolean
+}
+
+/**
+ * Просит бота сгенерировать тестовую реплику Тёмного друна текущей
+ * конфигурацией (ai_settings/ai_prompts) с подмешанным контекстом. Реплика НЕ
+ * постится в чат — это «песочница» для админки. Только бот держит ключ/логику
+ * провайдера, поэтому генерация идёт там же, что и боевая.
+ */
+export async function requestAiTest(
+  task: string,
+  subjectId?: number | null,
+): Promise<AiTestResult> {
+  const base = process.env.BOT_INTERNAL_URL
+  const secret = process.env.BOT_INTERNAL_SECRET
+  if (!base || !secret) {
+    return { ok: false, unreachable: true, error: 'bot_internal_not_configured' }
+  }
+
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 35000)
+    const res = await fetch(`${base.replace(/\/$/, '')}/internal/ai/test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': secret,
+      },
+      body: JSON.stringify({ task, subject_id: subjectId ?? null }),
+      signal: controller.signal,
+      cache: 'no-store',
+    }).finally(() => clearTimeout(timer))
+
+    const data = (await res.json().catch(() => ({}))) as AiTestResult
+    return { ok: Boolean(data.ok), text: data.text, error: data.error }
+  } catch (err) {
+    return { ok: false, unreachable: true, error: String(err) }
+  }
+}

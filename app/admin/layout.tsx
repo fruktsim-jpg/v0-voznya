@@ -90,6 +90,7 @@ export default async function AdminLayout({
       label: 'Система',
       items: [
         { href: '/admin/settings', label: 'Настройки', emoji: '🎛️' },
+        { href: '/admin/ai', label: 'Друн', emoji: '🜏' },
         { href: '/admin/audit', label: 'Аудит', emoji: '📜' },
       ],
     },
