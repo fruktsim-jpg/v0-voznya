@@ -27,6 +27,7 @@ const SETTING_FIELDS: {
   { key: 'base_url', label: 'Base URL', hint: 'https://api.openai.com/v1 · openrouter · anthropic', type: 'text' },
   { key: 'api_key', label: 'API ключ', hint: 'Хранится в БД, не показывается обратно', type: 'password' },
   { key: 'model', label: 'Модель', hint: 'gpt-4o-mini · claude-3-5-sonnet · ...', type: 'text' },
+  { key: 'fast_model', label: 'Быстрая модель', hint: 'Дешёвая модель для служебных задач (память/события)', type: 'text' },
   { key: 'temperature', label: 'Temperature', hint: '0.0–2.0 (живость)', type: 'number' },
   { key: 'max_tokens', label: 'Max tokens', hint: 'Лимит длины ответа', type: 'number' },
   { key: 'posts_per_day_max', label: 'Постов в день', hint: 'Анти-спам для автономных постов', type: 'number' },
@@ -34,6 +35,29 @@ const SETTING_FIELDS: {
 ]
 
 const card = 'glass rounded-2xl border border-border p-5'
+
+// Мульти-модельность: роли друна (совпадают с app.features.drun.config.ALL_ROLES).
+const AI_ROLES: { key: string; label: string; hint: string }[] = [
+  { key: 'narrator', label: 'Голос (narrator)', hint: 'Ответы, реакции, истории — самая сильная модель' },
+  { key: 'memory_extract', label: 'Извлечение памяти', hint: 'Вытаскивает факты из чата — дёшево, много вызовов' },
+  { key: 'memory_summary', label: 'Сжатие памяти', hint: 'Портреты игроков, компактная модель' },
+  { key: 'event_analysis', label: 'Анализ событий', hint: 'Разбор событий мира' },
+  { key: 'planning', label: 'Планирование', hint: 'Парсинг owner-команд в JSON — точная модель' },
+  { key: 'vision', label: 'Зрение (vision)', hint: 'Понимание картинок — мультимодальная модель' },
+  { key: 'moderation', label: 'Модерация', hint: 'Взвешенные модерационные решения' },
+]
+
+// Рекомендованный пресет (зеркало DEFAULT_ROLE_MODELS в боте). Кнопка «пресет».
+const RECOMMENDED_ROLE_MODELS: Record<string, string> = {
+  narrator: 'claude-opus-4.8',
+  memory_extract: 'gemini-3.5-flash',
+  memory_summary: 'claude-haiku-4.5',
+  event_analysis: 'gpt-5.4-mini',
+  planning: 'gpt-5.4',
+  vision: 'gemini-3.1-pro-preview',
+  moderation: 'claude-sonnet-4.6',
+}
+
 const input =
   'w-full rounded-lg border border-border bg-white/[0.04] px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50'
 const btn =
@@ -95,6 +119,7 @@ export function AiManager({
         saving={saving}
         onSave={saveSetting}
       />
+      <RolesCard initialSettings={initialSettings} setNotice={setNotice} />
       <PromptsCard initialPrompts={initialPrompts} setNotice={setNotice} />
       <TestCard setNotice={setNotice} />
       <ViewersCard />
@@ -162,7 +187,91 @@ function ProviderCard({
   )
 }
 
-const KNOWN_PROMPTS = ['persona', 'world', 'observation', 'reaction']
+function RolesCard({
+  initialSettings,
+  setNotice,
+}: {
+  initialSettings: AiSettingRow[]
+  setNotice: (s: string) => void
+}) {
+  // Текущая раскладка ролей из настройки models_by_role (JSON объект).
+  const initialRoles: Record<string, string> = {}
+  const raw = initialSettings.find((s) => s.key === 'models_by_role')?.value
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      initialRoles[k] = String(v ?? '')
+    }
+  }
+  const [roles, setRoles] = useState<Record<string, string>>(initialRoles)
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    setNotice('')
+    // Пустые значения не пишем — роль уйдёт на основную/быструю модель в боте.
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(roles)) {
+      const t = v.trim()
+      if (t) cleaned[k] = t
+    }
+    try {
+      const res = await fetch('/api/admin/ai/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'models_by_role', value: cleaned }),
+      })
+      const data = await res.json()
+      setNotice(res.ok ? 'Сохранена раскладка ролей' : `Ошибка: ${data.error ?? res.status}`)
+    } catch (err) {
+      setNotice(`Ошибка сети: ${String(err)}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={card}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="text-base font-bold text-foreground">Модели по ролям</h2>
+        <button
+          className={btn}
+          type="button"
+          onClick={() => setRoles({ ...RECOMMENDED_ROLE_MODELS })}
+        >
+          Пресет
+        </button>
+      </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Каждой задаче — своя модель. Пусто → роль идёт на основную (или быструю
+        для служебных). Имена моделей должны существовать на твоём endpoint.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {AI_ROLES.map((r) => (
+          <div key={r.key} className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-foreground">{r.label}</label>
+            <input
+              className={input}
+              type="text"
+              value={roles[r.key] ?? ''}
+              placeholder={RECOMMENDED_ROLE_MODELS[r.key] ?? 'модель'}
+              onChange={(e) =>
+                setRoles((p) => ({ ...p, [r.key]: e.target.value }))
+              }
+            />
+            <span className="text-[11px] text-muted-foreground/70">{r.hint}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button className={btn} disabled={saving} onClick={save}>
+          {saving ? '…' : 'Сохранить раскладку'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const KNOWN_PROMPTS = ['persona', 'world', 'observation', 'reaction', 'reply']
 
 function PromptsCard({
   initialPrompts,
