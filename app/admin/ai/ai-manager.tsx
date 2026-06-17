@@ -32,6 +32,7 @@ const SETTING_FIELDS: {
   { key: 'max_tokens', label: 'Max tokens', hint: 'Лимит длины ответа', type: 'number' },
   { key: 'posts_per_day_max', label: 'Постов в день', hint: 'Анти-спам для автономных постов', type: 'number' },
   { key: 'min_severity', label: 'Мин. severity', hint: 'Порог реакции на события (0–3)', type: 'number' },
+  { key: 'autonomous_enabled', label: 'Сам пишет в чат', hint: 'Друн по своему почину комментирует события (off по умолч.)', type: 'bool' },
   { key: 'web_enabled', label: 'Веб-доступ', hint: 'Разрешить поиск в интернете (нужен web_search_url)', type: 'bool' },
   { key: 'web_search_url', label: 'URL поиска', hint: 'SearXNG-совместимый JSON endpoint (?q=&format=json)', type: 'text' },
   { key: 'web_daily_cap', label: 'Веб-запросов/сутки', hint: 'Дневной кап на поиск', type: 'number' },
@@ -45,6 +46,8 @@ const SETTING_FIELDS: {
 const card = 'glass rounded-2xl border border-border p-5'
 
 // Мульти-модельность: роли друна (совпадают с app.features.drun.config.ALL_ROLES).
+// ВНИМАНИЕ: дублирует bot/app/features/drun/config.py (ALL_ROLES). При изменении
+// ролей правь ОБА места — рассинхрон ломает «Пресет» в админке.
 const AI_ROLES: { key: string; label: string; hint: string }[] = [
   { key: 'narrator', label: 'Голос (narrator)', hint: 'Ответы, реакции, истории — самая сильная модель' },
   { key: 'memory_extract', label: 'Извлечение памяти', hint: 'Вытаскивает факты из чата — дёшево, много вызовов' },
@@ -56,6 +59,9 @@ const AI_ROLES: { key: string; label: string; hint: string }[] = [
 ]
 
 // Рекомендованный пресет (зеркало DEFAULT_ROLE_MODELS в боте). Кнопка «пресет».
+// ВНИМАНИЕ: дублирует bot/app/features/drun/config.py (DEFAULT_ROLE_MODELS).
+// Держи в синхроне — иначе «Пресет» запишет в models_by_role устаревшие имена
+// моделей, которых может не быть на endpoint.
 const RECOMMENDED_ROLE_MODELS: Record<string, string> = {
   narrator: 'claude-opus-4.8',
   memory_extract: 'gemini-3.5-flash',
