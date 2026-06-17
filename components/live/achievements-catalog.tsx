@@ -7,8 +7,17 @@ import type { AchievementsResult } from '@/lib/queries'
 import { achievementRarity } from '@/lib/achievements-ux'
 import { rarityToken, type Rarity } from '@/lib/rarity'
 
+type ProgressResult = {
+  authenticated: boolean
+  progress: { unlockedCodes: string[] } | null
+}
+
 export function AchievementsCatalog() {
   const { data, error } = useApi<AchievementsResult>('/api/achievements', 30_000)
+  // Personal layer: which of these has THE SIGNED-IN player unlocked. Guests /
+  // DB-down get null and the catalog renders exactly as before (global only).
+  const { data: me } = useApi<ProgressResult>('/api/me/progress', 30_000)
+  const mine = me?.progress ? new Set(me.progress.unlockedCodes) : null
 
   // Group achievements by category
   const achievementsByCategory = ACHIEVEMENT_CATEGORIES.map((cat) => ({
@@ -25,6 +34,10 @@ export function AchievementsCatalog() {
   }
   const totalPlayers = data?.totalPlayers ?? 0
 
+  // Personal tally — only the non-secret, real catalog counts toward "mine"
+  // (secret ones still light up individually when owned).
+  const mineCount = mine ? ACHIEVEMENTS.filter((a) => mine.has(a.code)).length : 0
+
   return (
     <section id="achievements" className="px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-5xl">
@@ -34,6 +47,23 @@ export function AchievementsCatalog() {
         <p className="mt-2 text-center text-sm text-muted-foreground">
           {ACHIEVEMENTS.length} достижений с наградами в ешках. Цвет — редкость; цифра — сколько участников открыли.
         </p>
+
+        {mine && (
+          <div className="mx-auto mt-4 max-w-xs">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-primary">Твой прогресс</span>
+              <span className="text-foreground">
+                {mineCount} / {ACHIEVEMENTS.length}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-500"
+                style={{ width: `${ACHIEVEMENTS.length ? (mineCount / ACHIEVEMENTS.length) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {error && !data ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Достижения временно недоступны</p>
@@ -85,6 +115,7 @@ export function AchievementsCatalog() {
                             achievement={a}
                             unlocked={unlockedCounts.get(a.code) ?? 0}
                             totalPlayers={totalPlayers}
+                            owned={mine ? mine.has(a.code) : null}
                             index={i}
                           />
                         ))}
@@ -111,6 +142,7 @@ export function AchievementsCatalog() {
                           achievement={a}
                           unlocked={unlockedCounts.get(a.code) ?? 0}
                           totalPlayers={totalPlayers}
+                          owned={mine ? mine.has(a.code) : null}
                           index={i}
                         />
                       ))}
@@ -130,11 +162,14 @@ function AchievementCard({
   achievement,
   unlocked,
   totalPlayers,
+  owned,
   index,
 }: {
   achievement: (typeof ACHIEVEMENTS)[0]
   unlocked: number
   totalPlayers: number
+  /** Has the signed-in player unlocked this? null = unknown (guest / DB down). */
+  owned: boolean | null
   index: number
 }) {
   // Wire achievements-ux engine: редкость = награда + глобальная редкость.
@@ -149,9 +184,24 @@ function AchievementCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-30px' }}
       transition={{ duration: 0.4, delay: (index % 6) * 0.04 }}
-      className={`glass flex items-center gap-3.5 rounded-2xl border p-4 ${t.borderClass}`}
-      style={{ boxShadow: isRare ? t.glow || undefined : undefined }}
+      className={`glass relative flex items-center gap-3.5 rounded-2xl border p-4 ${t.borderClass} ${
+        owned === true
+          ? 'ring-1 ring-emerald-400/50'
+          : owned === false
+            ? 'opacity-55 saturate-50'
+            : ''
+      }`}
+      style={{ boxShadow: isRare && owned !== false ? t.glow || undefined : undefined }}
     >
+      {owned === true && (
+        <span
+          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-[11px] text-emerald-300"
+          title="Открыто тобой"
+          aria-label="Открыто тобой"
+        >
+          ✓
+        </span>
+      )}
       <div className="text-2xl sm:text-3xl">{achievement.emoji}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
