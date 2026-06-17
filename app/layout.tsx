@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Unbounded, JetBrains_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { AppShell } from '@/components/shell/app-shell'
 import { isOidcEnabled } from '@/lib/auth/oidc'
 import { loadPublishedAssetOverlay } from '@/lib/item-art/manifest-source'
@@ -108,7 +109,12 @@ export default async function RootLayout({
         <AppShell botId={getPublicBotId()} oidcEnabled={isOidcEnabled()}>
           {children}
         </AppShell>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
 
     </html>
