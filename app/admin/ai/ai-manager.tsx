@@ -62,14 +62,18 @@ const AI_ROLES: { key: string; label: string; hint: string }[] = [
 // ВНИМАНИЕ: дублирует bot/app/features/drun/config.py (DEFAULT_ROLE_MODELS).
 // Держи в синхроне — иначе «Пресет» запишет в models_by_role устаревшие имена
 // моделей, которых может не быть на endpoint.
+//
+// Имена — РОВНО как у текущего gateway (wellflow): id с ТОЧКАМИ, не дефисами
+// (claude-opus-4.8, claude-haiku-4.5, gpt-5.5). Дефис-форма (claude-opus-4-8)
+// gateway отвергает → «Пресет» ломал ВСЕ LLM-вызовы (см. DRUN_AUDIT §8).
 const RECOMMENDED_ROLE_MODELS: Record<string, string> = {
-  narrator: 'claude-opus-4-8',
-  memory_extract: 'gpt-5.4-mini',
-  memory_summary: 'claude-haiku-4-5',
-  event_analysis: 'gpt-5.4-mini',
-  planning: 'gpt-5.4',
-  vision: 'gpt-5.5',
-  moderation: 'claude-sonnet-4-6',
+  narrator: 'claude-opus-4.8',
+  memory_extract: 'claude-haiku-4.5',
+  memory_summary: 'claude-haiku-4.5',
+  event_analysis: 'gpt-5.5',
+  planning: 'gpt-5.5',
+  vision: 'claude-opus-4.8',
+  moderation: 'claude-opus-4.8',
 }
 
 const input =
