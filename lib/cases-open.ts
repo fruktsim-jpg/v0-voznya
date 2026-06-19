@@ -25,6 +25,7 @@ import 'server-only'
 import { randomInt, randomBytes } from 'crypto'
 import type { PoolClient } from 'pg'
 import { withTransaction } from './db'
+import { emitWorldEvent } from './world-events'
 import { pickIndexByRoll } from './cases-pick'
 
 export type OpenStatus =
@@ -95,6 +96,7 @@ function pickReward(rewards: RewardRow[]): { reward: RewardRow; roll: number; to
 export async function openCase(
   userId: number,
   caseItemCode: string,
+  channel: 'web' | 'miniapp' = 'web',
 ): Promise<OpenResult> {
   return withTransaction(async (client) => {
     // --- 1. Load + validate case --------------------------------------------
@@ -225,11 +227,12 @@ export async function openCase(
 
     // 4e. Case opening ledger (fairness + reproducibility).
     const snapshot = rewards.map((r) => ({ reward_id: r.id, weight: r.weight }))
-    await client.query(
+    const openingRes = await client.query<{ id: number }>(
       `INSERT INTO case_openings
          (user_id, case_item_code, reward_id, reward_kind, reward_item_code,
           amount, qty, roll, weight_snapshot, transaction_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id`,
       [
         userId,
         c.item_code,
@@ -243,6 +246,7 @@ export async function openCase(
         openTxId,
       ],
     )
+    const openingId = openingRes.rows[0]?.id ?? null
 
     // Pretty name/rarity (best-effort).
     let rewardItemName: string | null = null
@@ -262,6 +266,33 @@ export async function openCase(
         [granted.rewardItemCode],
       )
       rewardItemName = r.rows[0]?.name ?? null
+    }
+
+    // Проекция в world_events (как бот open_case): тип по исходу. Друн видит
+    // открытия кейсов с сайта/мини-аппа так же, как из Telegram. Идемпотентно
+    // по case_openings.id (пропускается, если id почему-то не вернулся).
+    if (openingId != null) {
+      const weType = reward.is_jackpot
+        ? 'case_jackpot'
+        : granted.rewardKind === 'tg_gift'
+          ? 'case_gift_drop'
+          : 'case_open'
+      await emitWorldEvent(client, {
+        type: weType,
+        actorId: userId,
+        amount: granted.amount,
+        refTable: 'case_openings',
+        refId: openingId,
+        meta: {
+          case: c.item_code,
+          case_name: c.name,
+          reward_kind: granted.rewardKind,
+          reward_item_code: granted.rewardItemCode,
+          reward_item_name: rewardItemName,
+          rarity: rewardRarity,
+          channel,
+        },
+      })
     }
 
     return {

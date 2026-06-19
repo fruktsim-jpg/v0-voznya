@@ -22,6 +22,7 @@ import 'server-only'
 
 import type { PoolClient } from 'pg'
 import { withTransaction } from './db'
+import { emitWorldEvent } from './world-events'
 import {
   sellValue as sellValuePure,
   itemFullValue as itemFullValuePure,
@@ -125,6 +126,7 @@ async function getGift(
 export async function sellInventoryItem(
   userId: number,
   deliveryKey: string,
+  channel: 'web' | 'miniapp' = 'web',
 ): Promise<SellResult> {
   return withTransaction(async (client) => {
     const d = await lockDelivery(client, deliveryKey)
@@ -167,7 +169,7 @@ export async function sellInventoryItem(
       source: 'item_sell',
       gift: giftCode,
       full_value: fullValue,
-      channel: 'site',
+      channel,
     }
     await client.query(
       `INSERT INTO transactions (user_id, amount, reason, meta)
@@ -186,11 +188,21 @@ export async function sellInventoryItem(
     }
 
     // Доставка → cancelled (предмет «израсходован» продажей).
-    const meta = { ...(d.meta ?? {}), sold: true, sell_amount: amount, sell_full_value: fullValue, sell_channel: 'site' }
+    const meta = { ...(d.meta ?? {}), sold: true, sell_amount: amount, sell_full_value: fullValue, sell_channel: channel }
     await client.query(
       `UPDATE gift_transactions SET status = 'cancelled', meta = $2 WHERE id = $1`,
       [d.id, JSON.stringify(meta)],
     )
+
+    // Проекция в world_events (как бот sell_gift) — друн видит продажу с сайта.
+    await emitWorldEvent(client, {
+      type: 'item_sold',
+      actorId: userId,
+      amount,
+      refTable: 'gift_transactions',
+      refId: d.id,
+      meta: { gift: giftCode, full_value: fullValue, channel },
+    })
 
     const balRes = await client.query<{ balance: string }>(
       `SELECT balance FROM users WHERE user_id = $1`,

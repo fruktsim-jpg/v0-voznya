@@ -16,6 +16,7 @@ import 'server-only'
 
 import { randomBytes } from 'crypto'
 import { withTransaction } from './db'
+import { emitWorldEvent } from './world-events'
 
 export type BuyResult = {
   status: 'ok' | 'not_found' | 'inactive' | 'sold_out' | 'not_enough' | 'error'
@@ -44,7 +45,7 @@ type GiftRow = {
  * buy_gift(): после покупки подарок лежит в инвентаре как pending, дальше игрок
  * сам решает (продать/вывести). Доставку делает бот.
  */
-export async function buyGift(userId: number, code: string): Promise<BuyResult> {
+export async function buyGift(userId: number, code: string, channel: 'web' | 'miniapp' = 'web'): Promise<BuyResult> {
   return withTransaction(async (client) => {
     // --- PRE-FLIGHT под блокировками ---------------------------------------
     const giftRes = await client.query<GiftRow>(
@@ -75,7 +76,7 @@ export async function buyGift(userId: number, code: string): Promise<BuyResult> 
     // --- МУТАЦИИ (отказ уже невозможен) ------------------------------------
     const idem = `giftbuy:${userId}:${randomBytes(8).toString('hex')}`
     const baseMeta = {
-      channel: 'site',
+      channel,
       source: 'gift_buy',
       gift: gift.code,
       star_cost: gift.star_cost,
@@ -90,7 +91,7 @@ export async function buyGift(userId: number, code: string): Promise<BuyResult> 
     const tx = await client.query<{ id: number }>(
       `INSERT INTO transactions (user_id, amount, reason, meta)
        VALUES ($1, $2, 'purchase', $3) RETURNING id`,
-      [userId, -price, JSON.stringify({ source: 'gift_buy', gift: gift.code, channel: 'site' })],
+      [userId, -price, JSON.stringify({ source: 'gift_buy', gift: gift.code, channel })],
     )
     const txId = tx.rows[0].id
 
@@ -116,6 +117,16 @@ export async function buyGift(userId: number, code: string): Promise<BuyResult> 
        VALUES ('tg_gift', 'system', NULL, $1, $2, 1, 'pending', $3, $4, $5)`,
       [userId, gift.code, idem, txId, JSON.stringify(baseMeta)],
     )
+
+    // 5) Проекция в world_events (как бот buy_gift) — друн видит покупку с сайта.
+    await emitWorldEvent(client, {
+      type: 'gift_purchase',
+      actorId: userId,
+      amount: price,
+      refTable: 'transactions',
+      refId: txId,
+      meta: { gift: gift.code, gift_name: gift.name, star_cost: gift.star_cost, channel },
+    })
 
     return {
       status: 'ok',
