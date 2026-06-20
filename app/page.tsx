@@ -9,6 +9,7 @@ import { getCommunityFeed } from '@/lib/feed'
 import { getSession } from '@/lib/auth/get-session'
 import { getHomeContext } from '@/lib/home-context'
 import { HomeHub } from '@/components/home/home-hub'
+import { DrunSays } from '@/components/home/drun-says'
 
 import { Platforms } from '@/components/voznya/platforms'
 import { BotEcosystem } from '@/components/voznya/bot-ecosystem'
@@ -72,6 +73,10 @@ export default async function Page() {
           </Link>
         }
       />
+
+      {/* «Друн говорит» — первый встречный знакомится с AI-персоной (само
+          скрывается, пока друн молчит). */}
+      <DrunSays />
 
       {/* Люди сообщества */}
       <TopMembers />

@@ -6,6 +6,7 @@ import { HotToday } from '@/components/home/hot-today'
 import { SeasonRace } from '@/components/home/season-race'
 import { DayPulseTeaser } from '@/components/home/day-pulse-teaser'
 import { LeadersPreview } from '@/components/home/leaders-preview'
+import { DrunSays } from '@/components/home/drun-says'
 import type { HomeContext } from '@/lib/home-context'
 
 /**
@@ -41,6 +42,10 @@ export function HomeHub({ ctx }: { ctx: HomeContext }) {
         hot={ctx.hotToday}
         seasonEndsAt={ctx.seasonRace?.endsAt ?? null}
       />
+
+      {/* 1b. "Друн говорит" — proof the AI persona is alive (self-hides if quiet).
+          Async server component; mirrors Drun's WEB presence (ai_messages web). */}
+      <DrunSays />
 
       {/* 2. Re-entry hook (world-first) */}
       {ctx.player && (
