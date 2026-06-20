@@ -102,8 +102,15 @@ export async function requestAiTest(
   }
 
   try {
+    // The bot's AI-test path can make TWO sequential LLM calls (initial draft +
+    // an [[ask:...]] fact-check follow-up), each capped at 45s in the bot's
+    // provider, plus context assembly. A 35s client abort fired BEFORE the bot
+    // finished and surfaced as "Друн промолчал: AbortError". Wait longer than the
+    // bot's own worst case (~90s) so the bot's timeout — with its real error
+    // message — wins instead of a blind client abort. The route's maxDuration is
+    // set to match (see app/api/admin/ai/test/route.ts).
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 35000)
+    const timer = setTimeout(() => controller.abort(), 100_000)
     const res = await fetch(`${base.replace(/\/$/, '')}/internal/ai/test`, {
       method: 'POST',
       headers: {
@@ -118,6 +125,12 @@ export async function requestAiTest(
     const data = (await res.json().catch(() => ({}))) as AiTestResult
     return { ok: Boolean(data.ok), text: data.text, error: data.error }
   } catch (err) {
-    return { ok: false, unreachable: true, error: String(err) }
+    // AbortError (our own timeout) → a clearer message than the raw DOMException.
+    const aborted = err instanceof Error && err.name === 'AbortError'
+    return {
+      ok: false,
+      unreachable: true,
+      error: aborted ? 'бот не ответил за 100с (таймаут)' : String(err),
+    }
   }
 }

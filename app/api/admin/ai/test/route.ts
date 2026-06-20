@@ -6,6 +6,11 @@ import { requestAiTest } from '@/lib/bot-client'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+// The bot's AI-test path can take ~90s (up to two sequential 45s LLM calls).
+// Allow the route to run long enough that the bot's own timeout wins instead of
+// the platform killing the request first. Kept just above the client's 100s
+// abort in lib/bot-client.ts. (Vercel clamps to the plan's max; locally honored.)
+export const maxDuration = 110
 
 /**
  * AI test request. Proxies to the bot's internal API, which holds the provider
