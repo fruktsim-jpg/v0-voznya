@@ -2,7 +2,9 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPlayerProfile } from '@/lib/queries'
 import { getPrestigeSummary } from '@/lib/prestige-summary'
+import { getPersonalDrun } from '@/lib/drun-personal'
 import { getUserFeed } from '@/lib/feed'
+import { PersonalDrunCard } from '@/components/profile/personal-drun-card'
 import { PlayerCard } from '@/components/profile/player-card'
 import { PrestigeBanner } from '@/components/profile/prestige-banner'
 import { SeasonBadge } from '@/components/profile/season-badge'
@@ -90,11 +92,14 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     notFound()
   }
 
-  // Личная лента событий игрока (Timeline) + витрина престижа (Phase D).
-  // Независимы между собой → грузим параллельно, чтобы не складывать задержки.
-  const [activity, prestige] = await Promise.all([
+  // Личная лента событий игрока (Timeline) + витрина престижа (Phase D) +
+  // "Тёмный друн о тебе" (Phase B — read-only Drun summary). Все независимы →
+  // грузим параллельно, чтобы не складывать задержки. Personal Drun fail-silent:
+  // null, если друн ничего не знает / БД без миграций → секция просто скрыта.
+  const [activity, prestige, personalDrun] = await Promise.all([
     getUserFeed(userId, 20),
     getPrestigeSummary(profile),
+    getPersonalDrun(userId),
   ])
 
   // E0.2 — тир-мир для окраски hero престижа (Bronze ≠ Diamond с первого
@@ -125,6 +130,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           />
         }
         seasonSlot={<SeasonBadge userId={userId} />}
+        drunSlot={<PersonalDrunCard data={personalDrun} isOwner={isOwner} />}
       />
       {/* Track 1: витрина закреплённых предметов — только владельцу (пины в
           localStorage). Раньше этот шелф нигде на профиле не рендерился. */}
