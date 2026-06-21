@@ -161,6 +161,25 @@ export function standing(op: Opinion): string {
   return 'НА ЗАМЕТКЕ'
 }
 
+/**
+ * Summary "favorite score" — exact mirror of opinions.favorite_score():
+ * (trust-50) + (respect-50) + (entertainment-50) - (annoyance-50).
+ * Positive → Drun gravitates toward the player; negative → avoids/dislikes.
+ * Used to rank the chat into favorites / on-notice lists (mirror of rank_chat).
+ */
+export function favoriteScore(op: Opinion): number {
+  return (
+    (op.axes.trust - NEUTRAL) +
+    (op.axes.respect - NEUTRAL) +
+    (op.axes.entertainment - NEUTRAL) -
+    (op.axes.annoyance - NEUTRAL)
+  )
+}
+
+/** rank_chat cutoffs: favorites need score > +15, foes need score < -15. */
+export const FAVORITE_SCORE_MIN = 15
+export const FOE_SCORE_MAX = -15
+
 // --- Affinity (mirror of affinity.py) ---------------------------------------
 
 const AFFINITY_MIN = -100

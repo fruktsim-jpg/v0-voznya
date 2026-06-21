@@ -13,6 +13,9 @@ import {
   standing,
   dominantAxes,
   memoryWhen,
+  favoriteScore,
+  FAVORITE_SCORE_MIN,
+  FOE_SCORE_MAX,
 } from '@/lib/drun-personal-logic'
 
 /**
@@ -249,5 +252,51 @@ describe('memoryWhen', () => {
     expect(memoryWhen(0.2)).toBe('сегодня')
     expect(memoryWhen(5)).toBe('5 дн. назад')
     expect(memoryWhen(120)).toBe('давно')
+  })
+})
+
+describe('favoriteScore mirrors opinions.favorite_score + rank_chat cutoffs', () => {
+  const src = (() => {
+    try {
+      return readFileSync(BOT('opinions.py'), 'utf8')
+    } catch {
+      return null
+    }
+  })()
+
+  it('bot favorite_score formula is unchanged', () => {
+    if (!src) return
+    // favorite_score = (trust-50)+(respect-50)+(entertainment-50)-(annoyance-50)
+    expect(src.includes('def favorite_score')).toBe(true)
+    expect(/get\("trust"\)\s*-\s*_NEUTRAL/.test(src)).toBe(true)
+    expect(/-\s*\(op\.get\("annoyance"\)\s*-\s*_NEUTRAL\)/.test(src)).toBe(true)
+  })
+
+  it('rank_chat cutoffs are ±15 (favorites > 15, foes < -15)', () => {
+    if (!src) return
+    expect(src.includes('sc <= 15')).toBe(true) // favorites break at <=15
+    expect(src.includes('sc >= -15')).toBe(true) // foes break at >=-15
+    expect(FAVORITE_SCORE_MIN).toBe(15)
+    expect(FOE_SCORE_MAX).toBe(-15)
+  })
+
+  it('computes the signed score from the opinion vector', () => {
+    const op = parseOpinion({
+      axes: { trust: 70, respect: 70, entertainment: 70, annoyance: 30 },
+      samples: 10,
+      ts: new Date().toISOString(),
+    })
+    // (70-50)+(70-50)+(70-50)-(30-50) = 20+20+20+20 = 80
+    expect(favoriteScore(op)).toBe(80)
+  })
+
+  it('a hostile vector scores negative (on-notice side)', () => {
+    const op = parseOpinion({
+      axes: { trust: 40, respect: 40, entertainment: 40, annoyance: 85 },
+      samples: 10,
+      ts: new Date().toISOString(),
+    })
+    // (40-50)*3 - (85-50) = -30 - 35 = -65
+    expect(favoriteScore(op)).toBe(-65)
   })
 })
