@@ -148,15 +148,51 @@ async function loadMemories(userId: number, now: Date): Promise<NotableMemory[]>
   }
 }
 
+/**
+ * Resolve the player's CURRENT spouse live from `marriages` (active =
+ * divorced_at IS NULL), returning the partner edge or null. The snapshot in
+ * `ai_profiles.data.relationships` can lag a fresh marriage/divorce by up to a
+ * profile-sweep cycle, so a stale "в браке с X" is exactly the kind of identity
+ * error this whole pass is fixing — we always trust the live table for spouse.
+ * Fail-silent: returns null on any error / no marriages table.
+ */
+async function loadLiveSpouse(userId: number): Promise<Relationship | null> {
+  try {
+    const rows = await query<{ partner_id: string; first_name: string | null; username: string | null }>(
+      `SELECT CASE WHEN m.user_id_1 = $1 THEN m.user_id_2 ELSE m.user_id_1 END AS partner_id,
+              u.first_name, u.username
+         FROM marriages m
+         LEFT JOIN users u
+           ON u.user_id = CASE WHEN m.user_id_1 = $1 THEN m.user_id_2 ELSE m.user_id_1 END
+        WHERE (m.user_id_1 = $1 OR m.user_id_2 = $1)
+          AND m.divorced_at IS NULL
+        ORDER BY m.married_at DESC
+        LIMIT 1`,
+      [userId],
+    )
+    const r = rows[0]
+    if (!r) return null
+    const id = Number(r.partner_id)
+    if (!Number.isFinite(id) || id <= 0) return null
+    const name =
+      (r.first_name && r.first_name.trim()) ||
+      (r.username && `@${r.username.trim()}`) ||
+      'Игрок'
+    return { id, name, kind: 'spouse', strength: 10, label: 'в браке', tone: 'love' }
+  } catch {
+    return null
+  }
+}
+
 async function _getPersonalDrun(userId: number): Promise<PersonalDrun | null> {
   if (!Number.isFinite(userId) || userId <= 0) return null
 
   const now = new Date()
 
-  // The two reads are independent → run them in parallel so a cache miss costs
-  // one round-trip of latency, not two. Each degrades to its empty value on any
-  // error (un-migrated DB / outage / Drun disabled) — fail-silent.
-  const [profileRow, memories] = await Promise.all([
+  // The reads are independent → run them in parallel so a cache miss costs
+  // one round-trip of latency, not three. Each degrades to its empty value on
+  // any error (un-migrated DB / outage / Drun disabled) — fail-silent.
+  const [profileRow, memories, liveSpouse] = await Promise.all([
     query<ProfileRow>(
       `SELECT summary, speech_style, data, refreshed_at
          FROM ai_profiles
@@ -167,6 +203,7 @@ async function _getPersonalDrun(userId: number): Promise<PersonalDrun | null> {
       .then((rows) => rows[0] ?? null)
       .catch(() => null),
     loadMemories(userId, now),
+    loadLiveSpouse(userId),
   ])
 
   // No profile row AND no episodes → Drun has nothing to say about this player.
@@ -197,7 +234,17 @@ async function _getPersonalDrun(userId: number): Promise<PersonalDrun | null> {
         }
       : null
 
-  const relationships = parseRelationships(data.relationships).slice(0, MAX_RELATIONSHIPS)
+  // Relationships: trust the LIVE marriages table for spouse, never the
+  // possibly-stale snapshot. Drop any snapshot 'spouse' edge and prepend the
+  // live one (if currently married). Non-spouse edges (rival/buddy/…) still come
+  // from the snapshot — they're lower-stakes and not identity-defining.
+  const snapshotRels = parseRelationships(data.relationships).filter(
+    (r) => r.kind !== 'spouse',
+  )
+  const relationships = (liveSpouse ? [liveSpouse, ...snapshotRels] : snapshotRels).slice(
+    0,
+    MAX_RELATIONSHIPS,
+  )
   const traits = asStringList(data.traits, MAX_TRAITS)
   const topics = asStringList(data.topics, MAX_TOPICS)
   const selfFacts = asStringList(data.self_facts, MAX_SELF_FACTS)
