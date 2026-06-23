@@ -4,9 +4,11 @@ import { SiteFooter } from '@/components/voznya/site-footer'
 import { DrunFeed } from '@/components/drun/drun-feed'
 import { DrunWorldviewSection } from '@/components/drun/drun-worldview-section'
 import { DrunRankingsSection } from '@/components/drun/drun-rankings-section'
+import { DrunEventsSection } from '@/components/drun/drun-events-section'
 import { getDrunFeed } from '@/lib/drun-feed'
 import { getDrunWorldview } from '@/lib/drun-worldview'
 import { getDrunRankings } from '@/lib/drun-rankings'
+import { getActiveDrunEvents } from '@/lib/drun-events'
 
 export const metadata: Metadata = {
   title: 'Друн говорит',
@@ -27,10 +29,11 @@ export const dynamic = 'force-dynamic'
 export default async function DrunPage() {
   // Live utterances + worldview chronicle + social rankings. All read-only and
   // fail-silent → load in parallel; each section hides itself when empty.
-  const [initial, worldview, rankings] = await Promise.all([
+  const [initial, worldview, rankings, events] = await Promise.all([
     getDrunFeed(20),
     getDrunWorldview(),
     getDrunRankings(),
+    getActiveDrunEvents(),
   ])
   return (
     <main className="relative min-h-svh overflow-x-hidden pb-24">
@@ -42,6 +45,7 @@ export default async function DrunPage() {
       />
       <DrunWorldviewSection data={worldview} />
       <DrunRankingsSection data={rankings} />
+      <DrunEventsSection data={events} />
       <DrunFeed initial={initial} />
       <SiteFooter />
     </main>

@@ -145,19 +145,20 @@ export function dominantAxes(op: Opinion, limit = 3): DominantAxis[] {
 /** Social standing title — exact mirror of opinions.Opinion.standing(). */
 export function standing(op: Opinion): string {
   if (!op.isFormed) return 'ПРИСМАТРИВАЕТСЯ'
+  const EPS = 0.001
   const trust = op.axes.trust
   const respect = op.axes.respect
   const annoy = op.axes.annoyance
   const ent = op.axes.entertainment
   const chaos = op.axes.chaos
   const rel = op.axes.reliability
-  if (annoy >= 70 && respect < 45) return 'БЕСИТ'
-  if (trust >= 68 && respect >= 60) return 'ЛЮБИМЧИК'
-  if (respect >= 70) return 'УВАЖАЕМЫЙ'
-  if (ent >= 70) return 'КЛОУН-ЛЮБИМЕЦ'
-  if (chaos >= 72) return 'БЕДОВЫЙ'
-  if (trust < 32) return 'НЕ ВНУШАЕТ ДОВЕРИЯ'
-  if (rel >= 70 && ent < 45) return 'СКУЧНЫЙ РАБОТЯГА'
+  if (annoy >= 70 - EPS && respect < 45 + EPS) return 'БЕСИТ'
+  if (trust >= 68 - EPS && respect >= 60 - EPS) return 'ЛЮБИМЧИК'
+  if (respect >= 70 - EPS) return 'УВАЖАЕМЫЙ'
+  if (ent >= 70 - EPS) return 'КЛОУН-ЛЮБИМЕЦ'
+  if (chaos >= 72 - EPS) return 'БЕДОВЫЙ'
+  if (trust < 32 + EPS) return 'НЕ ВНУШАЕТ ДОВЕРИЯ'
+  if (rel >= 70 - EPS && ent < 45 + EPS) return 'СКУЧНЫЙ РАБОТЯГА'
   return 'НА ЗАМЕТКЕ'
 }
 

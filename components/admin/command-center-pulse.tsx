@@ -19,6 +19,7 @@ const SYSTEM_LABEL: Record<string, string> = {
   cases: 'Кейсы',
   gifts: 'Подарки',
   season: 'Сезон',
+  drun: 'Друн',
 }
 
 function Row({ s }: { s: PulseSignal }) {

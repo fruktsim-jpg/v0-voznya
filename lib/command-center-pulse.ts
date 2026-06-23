@@ -205,9 +205,131 @@ const seasonPulse: PulseProvider = async () => {
   }
 }
 
+const drunPulse: PulseProvider = async () => {
+  try {
+    const [settingsRows, feedRows, proposalRows, activeEventsRows, worldviewRows] = await Promise.all([
+      query<{ key: string; value: unknown }>(
+        `SELECT key, value
+           FROM ai_settings
+          WHERE key IN ('enabled', 'api_key', 'autonomous_enabled', 'econ_enabled')`,
+      ).catch(() => [] as { key: string; value: unknown }[]),
+      query<{ created_at: string }>(
+        `SELECT created_at
+           FROM ai_messages
+          WHERE channel = 'web'
+            AND role = 'assistant'
+          ORDER BY created_at DESC
+          LIMIT 1`,
+      ).catch(() => [] as { created_at: string }[]),
+      query<{ count: string }>(
+        `SELECT count(*)::text AS count
+           FROM drun_proposals
+          WHERE status = 'pending'`,
+      ).catch(() => [] as { count: string }[]),
+      query<{ count: string }>(
+        `SELECT count(*)::text AS count
+           FROM drun_events
+          WHERE status = 'active'`,
+      ).catch(() => [] as { count: string }[]),
+      query<{ updated_at: string }>(
+        `SELECT updated_at
+           FROM ai_memories
+          WHERE kind IN ('storyline', 'prediction', 'legend')
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+      ).catch(() => [] as { updated_at: string }[]),
+    ])
+
+    const settings = new Map(settingsRows.map((r) => [r.key, r.value]))
+    const enabled = settings.get('enabled') === true
+    const apiKey = String(settings.get('api_key') ?? '').trim()
+    const autonomous = settings.get('autonomous_enabled') === true
+    const econ = settings.get('econ_enabled') === true
+    const pending = Number(proposalRows[0]?.count ?? 0)
+    const activeEvents = Number(activeEventsRows[0]?.count ?? 0)
+    const latestFeed = feedRows[0]?.created_at ? new Date(feedRows[0].created_at).getTime() : 0
+    const latestWorldview = worldviewRows[0]?.updated_at ? new Date(worldviewRows[0].updated_at).getTime() : 0
+    const feedQuietHours = latestFeed ? (Date.now() - latestFeed) / 3_600_000 : Infinity
+    const worldviewStaleHours = latestWorldview ? (Date.now() - latestWorldview) / 3_600_000 : Infinity
+    const out: PulseSignal[] = []
+
+    if (!enabled || !apiKey) {
+      out.push({
+        system: 'drun',
+        severity: 'warning',
+        title: 'Друн выключен или без ключа',
+        detail: 'AI-персона не сможет говорить, помнить и наполнять web-ленту.',
+        href: '/admin/ai',
+        actions: [{ label: 'Открыть Друна', href: '/admin/ai', kind: 'primary' }],
+      })
+    } else if (!autonomous) {
+      out.push({
+        system: 'drun',
+        severity: 'warning',
+        title: 'Автономность Друна выключена',
+        detail: 'Он отвечает на обращения, но редко сам оживляет чат и web-ленту.',
+        href: '/admin/ai',
+        actions: [{ label: 'Включить в админке', href: '/admin/ai', kind: 'primary' }],
+      })
+    } else if (feedQuietHours > 24) {
+      out.push({
+        system: 'drun',
+        severity: 'info',
+        title: 'Друн давно не говорил в web',
+        detail: latestFeed ? `Последняя web-реплика была ${Math.round(feedQuietHours)} ч назад.` : 'В web-ленте ещё нет реплик.',
+        href: '/drun',
+        actions: [{ label: 'Открыть ленту', href: '/drun' }],
+      })
+    } else {
+      out.push({
+        system: 'drun',
+        severity: 'good',
+        title: 'Друн на связи',
+        detail: `Web-голос живой; активных ивентов: ${activeEvents}.`,
+        href: '/drun',
+      })
+    }
+
+    if (pending > 0) {
+      out.push({
+        system: 'drun',
+        severity: 'warning',
+        title: `${pending} предложений Друна ждут решения`,
+        detail: 'Approval queue накопилась: ивенты или действия не исполнятся без владельца.',
+        href: '/admin/ai',
+        actions: [{ label: 'Разобрать очередь', href: '/admin/ai', kind: 'primary' }],
+      })
+    }
+
+    if (enabled && apiKey && worldviewStaleHours > 12) {
+      out.push({
+        system: 'drun',
+        severity: 'info',
+        title: 'Летопись Друна давно не обновлялась',
+        detail: latestWorldview ? `Последний worldview след был ${Math.round(worldviewStaleHours)} ч назад.` : 'Пока нет storyline/prediction/legend памяти.',
+        href: '/drun',
+      })
+    }
+
+    if (econ) {
+      out.push({
+        system: 'drun',
+        severity: 'info',
+        title: 'Экономическая власть Друна включена',
+        detail: 'Tax/grant остаются capped и audited, но это высокий blast-radius режим.',
+        href: '/admin/ai',
+      })
+    }
+
+    return out
+  } catch {
+    return []
+  }
+}
+
 // The registry. Future systems (casino, referrals, deposits, liveops,
 // moderation, investigation) plug in here with the same contract.
-const PROVIDERS: PulseProvider[] = [economyPulse, casesPulse, giftsPulse, seasonPulse]
+const PROVIDERS: PulseProvider[] = [economyPulse, casesPulse, giftsPulse, seasonPulse, drunPulse]
 
 export type PulseReport = {
   signals: PulseSignal[]
